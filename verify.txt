@@ -1,0 +1,80 @@
+﻿=== resetOrderRequestForm (1638-1650) ===
+1638:	    setSelectedProductAttributeStock(null)
+1639:	  }, [selectedProduct?.id])
+1640:	
+1641:	  const resetOrderRequestForm = () => {
+1642:	    setSelectedProducts([])
+1643:	    setOrderRequestError('')
+1644:	  setIsOrderRequestSubmitting(false)
+1645:	}
+1646:	
+1647:	const openOrderRequestScreen = () => {
+1648:	  setSelectedProduct(null)
+1649:	  resetOrderRequestForm()
+1650:	  setShowOrderRequestScreen(true)
+
+=== showOrderRequestScreen block start (2345-2360) ===
+2345:	}
+2346:	
+2347:	
+2348:	  if (showOrderRequestScreen) {
+2349:	// Calculate billing for selected products
+2350:	let billingTotal = 0
+2351:	const billingItems = selectedProducts.map((selected) => {
+2352:	  const product = products.find(
+2353:	    (p) => (p.id || p._id)?.toString() === selected.productId
+2354:	  )
+2355:	  if (!product) return null
+2356:	  const quantity = parseFloat(selected.quantity) || 0
+2357:	
+2358:	  // Use variant-specific price if available, otherwise use main product price
+2359:	  const pricePerUnit = selected.attributeStock
+2360:	    ? (selected.attributeStock.vendorPrice || 0)
+
+=== inventory-request-layout area (2433-2455) ===
+2433:	          <Trans>Select products, enter quantities, and submit for approval. Stock arrives within 24 hours after approval.</Trans>
+2434:	        </p>
+2435:	      </div>
+2436:	    </div>
+2437:	
+2438:	    <div className="inventory-request-layout">
+2439:	
+2440:	      <div className="inventory-request-card space-y-6">
+2441:	
+2442:	{/* Product Cards Section */ }
+2443:	<div>
+2444:	  <h3 className="text-lg font-semibold text-gray-900 mb-4"><Trans>All Products</Trans></h3>
+2445:	  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+2446:	    {products.map((product) => {
+2447:	      const productId = (product.id || product._id)?.toString()
+2448:	      const isSelected = selectedProducts.some((p) => p.productId === productId)
+2449:	      const isExpanded = expandedProductId === productId
+2450:	
+2451:	      // Check if product has variants (either from list or from cached details)
+2452:	      // Use cached variant details if available, otherwise check product.attributeStocks
+2453:	      const productWithVariants = productsWithVariants[productId] || product
+2454:	
+2455:	      // Simplified variant detection:
+
+=== closing of showOrderRequestScreen block (2995-3015) ===
+2995:	          canSubmitOrderRequest
+2996:	            ? 'bg-purple-600 hover:bg-purple-700'
+2997:	            : 'bg-purple-300 cursor-not-allowed'
+2998:	        )}
+2999:	      >
+3000:	        {isOrderRequestSubmitting ? <Trans>Submitting...</Trans> : <Trans>Submit for Admin Approval</Trans>}
+3001:	      </button>
+3002:	    </div>
+3003:	
+3004:	return (
+3005:	  <div className="space-y-6">
+3006:	    <section id="inventory-hero" className="inventory-hero">
+3007:	      <div className="inventory-hero__shell">
+3008:	        <div className="inventory-hero__headline">
+3009:	          <span className="inventory-hero__chip"><Trans>Stock hub</Trans></span>
+3010:	          <h3 className="inventory-hero__title"><Trans>{totalProducts} products available</Trans></h3>
+3011:	          <p className="inventory-hero__meta">
+3012:	            <Trans>{inStockCount} in stock • {outOfStockCount} out of stock</Trans>
+3013:	          </p>
+3014:	          <div className="inventory-order-cta">
+3015:	            <div>

@@ -1,0 +1,36 @@
+﻿2976:	                    onClick={handleOrderRequestSubmit}
+2977:	                    disabled={!canSubmitOrderRequest}
+2978:	                    className={cn(
+2979:	                      'rounded-full px-6 py-2 text-sm font-semibold text-white transition-all',
+2980:	                      canSubmitOrderRequest
+2981:	                        ? 'bg-purple-600 hover:bg-purple-700'
+2982:	                        : 'bg-purple-300 cursor-not-allowed'
+2983:	                    )}
+2984:	                  >
+2985:	                    {isOrderRequestSubmitting ? <Trans>Submitting...</Trans> : <Trans>Submit for Admin Approval</Trans>}
+2986:	                  </button>
+2987:	                </div>
+2988:	
+2989:	  }
+2990:	
+2991:	            return (
+2992:	            <div className="space-y-6">
+2993:	              <section id="inventory-hero" className="inventory-hero">
+2994:	                <div className="inventory-hero__shell">
+2995:	                  <div className="inventory-hero__headline">
+2996:	                    <span className="inventory-hero__chip"><Trans>Stock hub</Trans></span>
+2997:	                    <h3 className="inventory-hero__title"><Trans>{totalProducts} products available</Trans></h3>
+2998:	                    <p className="inventory-hero__meta">
+2999:	                      <Trans>{inStockCount} in stock • {outOfStockCount} out of stock</Trans>
+3000:	                    </p>
+3001:	                    <div className="inventory-order-cta">
+3002:	                      <div>
+3003:	                        <p className="inventory-order-cta__title">Need to top-up stock?</p>
+3004:	                        <p className="inventory-order-cta__meta">
+3005:	                          Enter bank details and raise a request for Admin approval.
+3006:	                        </p>
+3007:	                      </div>
+3008:	                      <button type="button" onClick={openOrderRequestScreen} className="inventory-order-cta__button">
+3009:	                        Order stock from Admin
+3010:	                      </button>
+3011:	                    </div>

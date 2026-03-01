@@ -1,0 +1,12 @@
+﻿2050:	    duesWarning = 'Warning: You have unpaid credits. While you can still submit a request, Admin approval will depend on your repayment history.';
+2055:	  }
+2060:	  if (!orderRequestForm.confirmationText || orderRequestForm.confirmationText.trim().toLowerCase() !== 'confirm') {
+2080:	    return
+2090:	        accountName: trimmedAccountName,
+2100:	    if (result.data) {
+2105:	      // Refresh dashboard to update credit info
+2220:	  const creditInfo = dashboard.credit || {}
+2225:	    confirmProductName.trim().toLowerCase() === (selectedProduct.name || '').trim().toLowerCase()
+2230:	    orderTotal <= creditRemaining &&
+2395:	  meetsMinValue &&
+2400:	

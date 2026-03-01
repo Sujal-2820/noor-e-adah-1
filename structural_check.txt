@@ -1,0 +1,47 @@
+﻿1639:	    setSelectedProductAttributeStock(null)
+1640:	  }, [selectedProduct?.id])
+1641:	
+1642:	  const resetOrderRequestForm = () => {
+1643:	    setSelectedProducts([])
+1644:	    setOrderRequestError('')
+1645:	    setIsOrderRequestSubmitting(false)
+1646:	  }
+1647:	
+1648:	  const openOrderRequestScreen = () => {
+1649:	    setSelectedProduct(null)
+1650:	    resetOrderRequestForm()
+1651:	    setShowOrderRequestScreen(true)
+1652:	  }
+1653:	
+1654:	  const closeOrderRequestScreen = () => {
+1655:	    setShowOrderRequestScreen(false)
+1656:	    setOrderRequestError('')
+1657:	  }
+1658:	
+1659:	  const handleOrderRequestChange = (field, value) => {
+---
+2345:	
+2346:	      const itemTotal = quantity * pricePerUnit
+2347:	      billingTotal += itemTotal
+2348:	
+2349:	      return {
+2350:	        product,
+2351:	        quantity,
+2352:	        pricePerUnit,
+2353:	        unitPrice: pricePerUnit, // Alias for billing display
+2354:	        itemTotal,
+2355:	        variantAttributes: selected.attributes || {}, // Include variant attributes for display
+---
+2985:	                </div>
+2986:	
+2987:	          </div>
+2988:	        </div>
+2989:	      </div>
+2990:	    )
+2991:	  }
+2992:	
+2993:	  return (
+2994:	    <div className="space-y-6">
+2995:	      <section id="inventory-hero" className="inventory-hero">
+2996:	        <div className="inventory-hero__shell">
+2997:	          <div className="inventory-hero__headline">

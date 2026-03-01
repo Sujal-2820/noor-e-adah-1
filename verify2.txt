@@ -1,0 +1,69 @@
+﻿2339:	          </div>
+2340:	        </div>
+2341:	      </div>
+2342:	
+2343:	    </div>
+2344:	  )
+2345:	}
+2346:	
+2347:	
+2348:	  if (showOrderRequestScreen) {
+2349:	// Calculate billing for selected products
+2350:	let billingTotal = 0
+2351:	const billingItems = selectedProducts.map((selected) => {
+...
+2406:	
+2407:	const formatEta = (request) => {
+2408:	  if (!request.expectedDeliveryAt) {
+2409:	    return 'Awaiting schedule'
+2410:	  }
+2411:	  const eta = new Date(request.expectedDeliveryAt)
+2412:	  const diffMs = eta.getTime() - Date.now()
+2413:	  if (diffMs <= 0) {
+2414:	    return 'Delivery in progress'
+2415:	  }
+2416:	  const hours = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)))
+2417:	  return `Arriving in ~${hours}h`
+2418:	}
+2419:	
+2420:	return (
+2421:	  <div className="inventory-request-screen space-y-6">
+2422:	    <div className="inventory-request-screen__header">
+2423:	      <div>
+2424:	        <button
+2425:	          type="button"
+2426:	          onClick={closeOrderRequestScreen}
+2427:	          className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+2428:	        >
+2429:	          ← <Trans>Go Back</Trans>
+2430:	        </button>
+2431:	        <h2 className="mt-2 text-2xl font-bold text-gray-900"><Trans>Request Stock from Admin</Trans></h2>
+2432:	        <p className="text-sm text-gray-500">
+2433:	          <Trans>Select products, enter quantities, and submit for approval. Stock arrives within 24 hours after approval.</Trans>
+2434:	        </p>
+2435:	      </div>
+2436:	    </div>
+2437:	
+2438:	    <div className="inventory-request-layout">
+2439:	
+2440:	      <div className="inventory-request-card space-y-6">
+2441:	
+2442:	{/* Product Cards Section */ }
+2443:	<div>
+2444:	  <h3 className="text-lg font-semibold text-gray-900 mb-4"><Trans>All Products</Trans></h3>
+2445:	  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+2446:	    {products.map((product) => {
+...
+2995:	          canSubmitOrderRequest
+2996:	            ? 'bg-purple-600 hover:bg-purple-700'
+2997:	            : 'bg-purple-300 cursor-not-allowed'
+2998:	        )}
+2999:	      >
+3000:	        {isOrderRequestSubmitting ? <Trans>Submitting...</Trans> : <Trans>Submit for Admin Approval</Trans>}
+3001:	      </button>
+3002:	    </div>
+3003:	
+3004:	return (
+3005:	  <div className="space-y-6">
+3006:	    <section id="inventory-hero" className="inventory-hero">
+3007:	      <div className="inventory-hero__shell">

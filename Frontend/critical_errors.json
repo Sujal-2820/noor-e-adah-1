@@ -1,0 +1,584 @@
+[
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\components\\Trans.jsx",
+    "line": 27,
+    "rule": "react-hooks/rules-of-hooks",
+    "message": "React Hook \"useEffect\" is called conditionally. React Hooks must be called in the exact same order in every component render."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\context\\TranslationContext.jsx",
+    "line": 71,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\components\\ToastNotification.jsx",
+    "line": 41,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\context\\AdminContext.jsx",
+    "line": 234,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\context\\AdminContext.jsx",
+    "line": 308,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\context\\AdminContext.jsx",
+    "line": 314,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\hooks\\useAdminApi.js",
+    "line": 937,
+    "rule": "no-dupe-keys",
+    "message": "Duplicate key 'getPaymentHistory'."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\hooks\\useAdminApi.js",
+    "line": 938,
+    "rule": "no-dupe-keys",
+    "message": "Duplicate key 'getPaymentHistoryStats'."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\pages\\Finance.jsx",
+    "line": 198,
+    "rule": "no-undef",
+    "message": "'getVendorRepayments' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 253,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 311,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 659,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 1219,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 1344,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 1687,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 1843,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 1887,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 1970,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 2009,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 2063,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 2266,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 2552,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 2691,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 2759,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 2815,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 2961,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3016,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3052,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3086,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3255,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3326,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3364,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3391,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3438,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Admin\\services\\adminApi.js",
+    "line": 3560,
+    "rule": "no-useless-catch",
+    "message": "Unnecessary try/catch wrapper."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\components\\ToastNotification.jsx",
+    "line": 42,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 133,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 169,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 170,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 407,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 410,
+    "rule": "no-undef",
+    "message": "'process' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 422,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 425,
+    "rule": "no-undef",
+    "message": "'process' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 431,
+    "rule": "no-undef",
+    "message": "'process' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 438,
+    "rule": "no-undef",
+    "message": "'process' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\context\\SellerContext.jsx",
+    "line": 444,
+    "rule": "no-undef",
+    "message": "'process' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\pages\\SellerDashboard.jsx",
+    "line": 182,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Seller\\pages\\SellerDashboard.jsx",
+    "line": 183,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\User\\components\\ToastNotification.jsx",
+    "line": 42,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\User\\context\\UserContext.jsx",
+    "line": 82,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\User\\context\\UserContext.jsx",
+    "line": 423,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\User\\context\\UserContext.jsx",
+    "line": 429,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 315,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 316,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 803,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 804,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 805,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 806,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 807,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 809,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 814,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 824,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 825,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 828,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 905,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 910,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 919,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 962,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 963,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 992,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 993,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 994,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ButtonActionPanel.jsx",
+    "line": 995,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ToastNotification.jsx",
+    "line": 4,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\components\\ToastNotification.jsx",
+    "line": 82,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 187,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 188,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 191,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 229,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 335,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 338,
+    "rule": "no-undef",
+    "message": "'process' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 350,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 353,
+    "rule": "no-undef",
+    "message": "'process' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\context\\VendorContext.jsx",
+    "line": 359,
+    "rule": "no-undef",
+    "message": "'process' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\pages\\vendor\\VendorDashboard.jsx",
+    "line": 2094,
+    "rule": "no-undef",
+    "message": "'fetchDashboardData' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\pages\\vendor\\VendorDashboard.jsx",
+    "line": 2299,
+    "rule": "no-undef",
+    "message": "'fetchDashboardData' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\Vendor\\pages\\vendor\\VendorDashboard.jsx",
+    "line": 5681,
+    "rule": "no-undef",
+    "message": "'navigateToTab' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\context\\WebsiteContext.jsx",
+    "line": 82,
+    "rule": "no-case-declarations",
+    "message": "Unexpected lexical declaration in case block."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\context\\WebsiteContext.jsx",
+    "line": 670,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\context\\WebsiteContext.jsx",
+    "line": 678,
+    "rule": "react-refresh/only-export-components",
+    "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\pages\\CheckoutPage.jsx",
+    "line": 727,
+    "rule": "no-undef",
+    "message": "'modalOrderTotal' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\pages\\CheckoutPage.jsx",
+    "line": 730,
+    "rule": "no-undef",
+    "message": "'modalDueNowLabel' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\pages\\CheckoutPage.jsx",
+    "line": 731,
+    "rule": "no-undef",
+    "message": "'modalAmountDueNow' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\pages\\CheckoutPage.jsx",
+    "line": 733,
+    "rule": "no-undef",
+    "message": "'modalAmountDueLater' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\pages\\CheckoutPage.jsx",
+    "line": 735,
+    "rule": "no-undef",
+    "message": "'modalDueLaterLabel' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\pages\\CheckoutPage.jsx",
+    "line": 736,
+    "rule": "no-undef",
+    "message": "'modalAmountDueLater' is not defined."
+  },
+  {
+    "file": "C:\\Users\\HP\\OneDrive\\Desktop\\IRA SATHI New\\FarmCommerce\\Frontend\\src\\modules\\website\\pages\\CheckoutPage.jsx",
+    "line": 761,
+    "rule": "no-undef",
+    "message": "'modalAmountDueNow' is not defined."
+  }
+]

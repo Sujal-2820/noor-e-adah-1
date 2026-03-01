@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-brand: #000000;
+  --color-brand-foreground: #FFFFFF;
+  --color-brand-soft: #333333;
+  --color-brand-light: #666666;
+
+  --color-surface: #FFFFFF;
+  --color-surface-foreground: #1A1A1A;
+  --color-surface-secondary: #F9F9F9;
+  --color-surface-muted: #F5F5F5;
+
+  --color-accent: #CFAE5C;
+  --color-accent-foreground: #FFFFFF;
+  --color-accent-soft: #B0954F;
+
+  --color-muted: #E5E5E5;
+  --color-muted-foreground: #737373;
+
+  --color-success: #2F855A;
+  --color-success-soft: #C6F6D5;
+  --color-warning: #D69E2E;
+  --color-warning-soft: #FEFCBF;
+  --color-danger: #C53030;
+  --color-danger-soft: #FED7D7;
+  --color-info: #4A5568;
+  --color-info-soft: #E2E8F0;
+
+  /* Typography */
+  --font-sans: "Montserrat", "Outfit", system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", "Playfair Display", serif;
+
+  /* Spacing/Sizing */
+  --radius-sm: 0px;
+  /* High fashion uses sharper edges */
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+
+  /* Shadows */
+  --shadow-premium: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+  --shadow-premium-hover: 0 10px 30px -4px rgba(0, 0, 0, 0.08);
+
+  /* Toned down Tracking Patterns for a more relaxing feel */
+  --tracking-luxury: 0.1em;
+  --tracking-luxury-wide: 0.2em;
+
+  /* Transitions */
+  --ease-luxury: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    min-height: 100vh;
+    font-family: "Montserrat", sans-serif;
+    color: #1A1A1A;
+    letter-spacing: 0.02em;
+    background: #FFFFFF;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Serif headings — for storefront/user-facing pages */
+  .storefront-heading {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+
+  a {
+    color: inherit;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Remove number input arrows */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type=number] {
+    -moz-appearance: textfield;
+    appearance: none;
+  }
+}
+
+@layer components {
+  .btn-premium {
+    @apply relative overflow-hidden px-8 py-3 bg-brand text-brand-foreground font-medium transition-all duration-500 ease-luxury transition;
+  }
+
+  .btn-premium:hover {
+    @apply transform -translate-y-1 shadow-premium-hover;
+  }
+
+  .card-premium {
+    @apply bg-surface border border-muted/30 overflow-hidden transition-all duration-700 ease-luxury;
+  }
+
+  .card-premium:hover {
+    @apply shadow-premium;
+  }
+
+  .section-container {
+    @apply max-w-7xl mx-auto px-6 py-20;
+  }
+
+  /* Utility to hide scrollbars while keeping functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+}
+
+/* Custom animations for the "Calm" feel */
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-calm-entry {
+  animation: fadeInSlideUp 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}

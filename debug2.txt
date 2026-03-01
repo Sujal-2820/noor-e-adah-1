@@ -1,0 +1,75 @@
+﻿2344:	      </div>
+2345:	
+2346:	    </div>
+2347:	  )
+2348:	}
+2349:	
+2350:	
+2351:	// Calculate billing for selected products
+2352:	let billingTotal = 0
+2353:	const billingItems = selectedProducts.map((selected) => {
+2354:	  const product = products.find(
+2355:	    (p) => (p.id || p._id)?.toString() === selected.productId
+2356:	  )
+2357:	  if (!product) return null
+2358:	  const quantity = parseFloat(selected.quantity) || 0
+2359:	
+2360:	  // Use variant-specific price if available, otherwise use main product price
+2370:	    quantity,
+2371:	    pricePerUnit,
+2372:	    unitPrice: pricePerUnit, // Alias for billing display
+2373:	    itemTotal,
+2374:	    variantAttributes: selected.attributes || {}, // Include variant attributes for display
+2375:	  }
+2376:	}).filter(Boolean)
+2377:	
+2378:	const confirmMatches = orderRequestForm.confirmationText.trim().toLowerCase() === 'confirm'
+2379:	const trimmedAccountName = orderRequestForm.bankAccountName?.trim() || ''
+2380:	const trimmedAccountNumber = orderRequestForm.bankAccountNumber?.toString().trim() || ''
+2381:	const trimmedBankName = orderRequestForm.bankName?.trim() || ''
+2382:	const trimmedIfsc = orderRequestForm.bankIfsc?.trim() || ''
+2383:	const bankDetailsComplete =
+2384:	  trimmedAccountName && trimmedAccountNumber && trimmedBankName && trimmedIfsc
+2385:	const reasonValid = orderRequestForm.reason?.trim().length >= 10
+2438:	      </div>
+2439:	    </div>
+2440:	
+2441:	    <div className="inventory-request-layout">
+2442:	
+2443:	      <div className="inventory-request-card space-y-6">
+2444:	        ⚠️ Making further purchase requests without clearing outstanding payments could lead to suspension or permanent ban of your account.
+2445:	      </p>
+2446:	    </div>
+2447:	  </div>
+2448:	              </div >
+2449:	            )}
+2450:	
+2451:	{/* Product Cards Section */ }
+2452:	<div>
+2453:	  <h3 className="text-lg font-semibold text-gray-900 mb-4"><Trans>All Products</Trans></h3>
+2454:	  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+2455:	    {products.map((product) => {
+2456:	      const productId = (product.id || product._id)?.toString()
+2457:	      const isSelected = selectedProducts.some((p) => p.productId === productId)
+2458:	      const isExpanded = expandedProductId === productId
+3005:	            ? 'bg-purple-600 hover:bg-purple-700'
+3006:	            : 'bg-purple-300 cursor-not-allowed'
+3007:	        )}
+3008:	      >
+3009:	        {isOrderRequestSubmitting ? <Trans>Submitting...</Trans> : <Trans>Submit for Admin Approval</Trans>}
+3010:	      </button>
+3011:	    </div>
+3012:	  )
+3013:	}
+3014:	          </div >
+3015:	        </div >
+3016:	      </div >
+3017:	    )
+3018:	  }
+3019:	
+3020:	return (
+3021:	  <div className="space-y-6">
+3022:	    <section id="inventory-hero" className="inventory-hero">
+3023:	      <div className="inventory-hero__shell">
+3024:	        <div className="inventory-hero__headline">
+3025:	          <span className="inventory-hero__chip"><Trans>Stock hub</Trans></span>

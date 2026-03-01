@@ -1,0 +1,24 @@
+﻿1638:	    setSelectedProductAttributeStock(null)
+1639:	  }, [selectedProduct?.id])
+1640:	
+1641:	  const resetOrderRequestForm = () => {
+1642:	    setSelectedProducts([])
+1643:	    confirmationText: '',
+1644:	      creditPolicyAccepted: false,
+1645:	    })
+1646:	    setOrderRequestError('')
+1647:	  setIsOrderRequestSubmitting(false)
+1648:	}
+1649:	
+1650:	const openOrderRequestScreen = () => {
+1651:	  setSelectedProduct(null)
+1652:	  resetOrderRequestForm()
+1653:	  setShowOrderRequestScreen(true)
+1654:	}
+1655:	
+1656:	const closeOrderRequestScreen = () => {
+1657:	  setShowOrderRequestScreen(false)
+1658:	  setOrderRequestError('')
+1659:	}
+1660:	
+1661:	const handleOrderRequestChange = (field, value) => {

@@ -1,0 +1,92 @@
+﻿2403 [prev:0  now:1 | +1 -0]	<div className="inventory-request-screen space-y-6">
+2404 [prev:1  now:2 | +1 -0]	<div className="inventory-request-screen__header">
+2405 [prev:2  now:3 | +1 -0]	<div>
+2417 [prev:3  now:2 | +0 -1]	</div>
+2418 [prev:2  now:1 | +0 -1]	</div>
+2420 [prev:1  now:2 | +1 -0]	<div className="inventory-request-layout">
+2422 [prev:2  now:3 | +1 -0]	<div className="inventory-request-card space-y-6">
+2425 [prev:3  now:4 | +1 -0]	<div>
+2427 [prev:4  now:5 | +1 -0]	<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+2465 [prev:5  now:6 | +1 -0]	<div
+2474 [prev:6  now:7 | +1 -0]	<div className="flex items-start justify-between mb-3">
+2475 [prev:7  now:8 | +1 -0]	<div className="flex-1">
+2478 [prev:8  now:7 | +0 -1]	</div>
+2486 [prev:7  now:8 | +1 -0]	<div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center jus
+2488 [prev:8  now:7 | +0 -1]	</div>
+2490 [prev:7  now:6 | +0 -1]	</div>
+2494 [prev:6  now:7 | +1 -0]	<div className="space-y-2 mb-3">
+2495 [prev:7  now:8 | +1 -0]	<div className="flex items-center justify-between text-xs">
+2498 [prev:8  now:7 | +0 -1]	</div>
+2499 [prev:7  now:8 | +1 -0]	<div className="flex items-center justify-between text-xs">
+2502 [prev:8  now:7 | +0 -1]	</div>
+2504 [prev:7  now:8 | +1 -0]	<div className="flex items-center justify-between text-xs">
+2507 [prev:8  now:7 | +0 -1]	</div>
+2509 [prev:7  now:6 | +0 -1]	</div>
+2514 [prev:6  now:7 | +1 -0]	<div className="mb-3">
+2515 [prev:7  now:8 | +1 -0]	<div className="flex items-center justify-between text-xs">
+2518 [prev:8  now:7 | +0 -1]	</div>
+2519 [prev:7  now:6 | +0 -1]	</div>
+2578 [prev:6  now:7 | +1 -0]	<div className="mt-3 space-y-2 pt-3 border-t border-gray-200">
+2594 [prev:7  now:8 | +1 -0]	<div
+2603 [prev:8  now:9 | +1 -0]	<div className="space-y-2">
+2605 [prev:9  now:10 | +1 -0]	<div>
+2607 [prev:10  now:11 | +1 -0]	<div key={key} className="flex items-center gap-1 text-xs mb-1">
+2610 [prev:11  now:10 | +0 -1]	</div>
+2612 [prev:10  now:9 | +0 -1]	</div>
+2615 [prev:9  now:10 | +1 -0]	<div className="grid grid-cols-2 gap-2 text-xs">
+2616 [prev:10  now:11 | +1 -0]	<div>
+2621 [prev:11  now:10 | +0 -1]	</div>
+2622 [prev:10  now:11 | +1 -0]	<div>
+2627 [prev:11  now:10 | +0 -1]	</div>
+2628 [prev:10  now:9 | +0 -1]	</div>
+2646 [prev:9  now:10 | +1 -0]	<div className="mt-2 text-xs text-purple-700 font-semibold text-center
+2648 [prev:10  now:9 | +0 -1]	</div>
+2650 [prev:9  now:8 | +0 -1]	</div>
+2651 [prev:8  now:7 | +0 -1]	</div>
+2654 [prev:7  now:6 | +0 -1]	</div>
+2667 [prev:6  now:5 | +0 -1]	</div>
+2670 [prev:5  now:4 | +0 -1]	</div>
+2671 [prev:4  now:3 | +0 -1]	</div>
+2676 [prev:3  now:4 | +1 -0]	<div className="space-y-4 rounded-xl border-2 border-purple-200 bg-pur
+2678 [prev:4  now:5 | +1 -0]	<div className="space-y-3">
+2701 [prev:5  now:6 | +1 -0]	<div
+2705 [prev:6  now:7 | +1 -0]	<div className="flex items-center justify-between">
+2706 [prev:7  now:8 | +1 -0]	<div className="flex-1">
+2710 [prev:8  now:9 | +1 -0]	<div className="mt-1 space-y-0.5">
+2724 [prev:9  now:8 | +0 -1]	</div>
+2729 [prev:8  now:7 | +0 -1]	</div>
+2730 [prev:7  now:6 | +0 -1]	</div>
+2753 [prev:6  now:7 | +1 -0]	<div className="flex items-center gap-2">
+2799 [prev:7  now:6 | +0 -1]	</div>
+2800 [prev:6  now:5 | +0 -1]	</div>
+2803 [prev:5  now:4 | +0 -1]	</div>
+2804 [prev:4  now:3 | +0 -1]	</div>
+2811 [prev:3  now:4 | +1 -0]	<div className="rounded-xl border-2 border-gray-200 bg-white p-5">
+2813 [prev:4  now:5 | +1 -0]	<div className="space-y-3 mb-4">
+2815 [prev:5  now:6 | +1 -0]	<div key={idx} className="flex items-center justify-between border-b b
+2816 [prev:6  now:7 | +1 -0]	<div>
+2820 [prev:7  now:8 | +1 -0]	<div className="mt-1 space-y-0.5">
+2835 [prev:8  now:7 | +0 -1]	</div>
+2840 [prev:7  now:6 | +0 -1]	</div>
+2844 [prev:6  now:5 | +0 -1]	</div>
+2846 [prev:5  now:4 | +0 -1]	</div>
+2847 [prev:4  now:5 | +1 -0]	<div className="flex items-center justify-between pt-3 border-t-2 bord
+2857 [prev:5  now:4 | +0 -1]	</div>
+2869 [prev:4  now:3 | +0 -1]	</div>
+2876 [prev:3  now:4 | +1 -0]	<div className="grid gap-4 md:grid-cols-2">
+2877 [prev:4  now:5 | +1 -0]	<div className="flex flex-col gap-2">
+2886 [prev:5  now:4 | +0 -1]	</div>
+2887 [prev:4  now:5 | +1 -0]	<div className="flex flex-col gap-2">
+2896 [prev:5  now:4 | +0 -1]	</div>
+2897 [prev:4  now:3 | +0 -1]	</div>
+2904 [prev:3  now:4 | +1 -0]	<div className="space-y-3">
+2906 [prev:4  now:5 | +1 -0]	<div className="grid gap-3 md:grid-cols-2">
+2942 [prev:5  now:4 | +0 -1]	</div>
+2943 [prev:4  now:3 | +0 -1]	</div>
+2949 [prev:3  now:4 | +1 -0]	<div className="rounded-lg border border-red-200 bg-red-50 p-4">
+2951 [prev:4  now:3 | +0 -1]	</div>
+2957 [prev:3  now:4 | +1 -0]	<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:jus
+2978 [prev:4  now:3 | +0 -1]	</div>
+2980 [prev:3  now:2 | +0 -1]	</div>
+2981 [prev:2  now:1 | +0 -1]	</div>
+2982 [prev:1  now:0 | +0 -1]	</div>

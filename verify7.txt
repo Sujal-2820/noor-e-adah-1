@@ -1,0 +1,17 @@
+﻿2085:	          bankBranch: orderRequestForm.bankBranch?.trim() || undefined,
+2086:	        },
+2087:	      }
+2088:	
+2089:	      const result = await requestCreditPurchase(payload)
+2090:	      if (result.data) {
+2091:	        success(Order request submitted successfully! Request ID: ${ result.data.purchase?.creditPurchaseId || 'N/A' }.Admin will review shortly.)
+2092:	        resetOrderRequestForm()
+2093:	        setShowOrderRequestScreen(false)
+2094:	        loadPurchaseRequests()
+2095:	        // Refresh dashboard to update credit info
+2096:	        fetchDashboardData()
+2097:	        // Add notification for stock request
+2098:	        dispatch({
+2099:	          type: 'ADD_NOTIFICATION',
+2100:	          payload: {
+2101:	            id: `stock-request-${Date.now()}`,

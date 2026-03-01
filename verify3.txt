@@ -1,0 +1,56 @@
+﻿=== Block start (2340-2360) ===
+2340:	        </div>
+2341:	      </div>
+2342:	
+2343:	    </div>
+2344:	  )
+2345:	}
+2346:	
+2347:	  if (showOrderRequestScreen) {
+2348:	
+2349:	// Calculate billing for selected products
+2350:	let billingTotal = 0
+2351:	const billingItems = selectedProducts.map((selected) => {
+2352:	  const product = products.find(
+2353:	    (p) => (p.id || p._id)?.toString() === selected.productId
+2354:	  )
+2355:	  if (!product) return null
+2356:	  const quantity = parseFloat(selected.quantity) || 0
+2357:	
+2358:	  // Use variant-specific price if available, otherwise use main product price
+2359:	  const pricePerUnit = selected.attributeStock
+2360:	    ? (selected.attributeStock.vendorPrice || 0)
+
+=== Product Cards area (2437-2452) ===
+2437:	
+2438:	    <div className="inventory-request-layout">
+2439:	
+2440:	      <div className="inventory-request-card space-y-6">
+2441:	
+2442:	        {/* Product Cards Section */}
+2443:	        <div>
+2444:	  <h3 className="text-lg font-semibold text-gray-900 mb-4"><Trans>All Products</Trans></h3>
+2445:	  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+2446:	    {products.map((product) => {
+2447:	      const productId = (product.id || product._id)?.toString()
+2448:	      const isSelected = selectedProducts.some((p) => p.productId === productId)
+2449:	      const isExpanded = expandedProductId === productId
+2450:	
+2451:	      // Check if product has variants (either from list or from cached details)
+2452:	      // Use cached variant details if available, otherwise check product.attributeStocks
+
+=== if-block closing / main return (2999-3012) ===
+2999:	      >
+3000:	        {isOrderRequestSubmitting ? <Trans>Submitting...</Trans> : <Trans>Submit for Admin Approval</Trans>}
+3001:	      </button>
+3002:	    </div>
+3003:	
+3004:	  }
+3005:	
+3006:	return (
+3007:	  <div className="space-y-6">
+3008:	    <section id="inventory-hero" className="inventory-hero">
+3009:	      <div className="inventory-hero__shell">
+3010:	        <div className="inventory-hero__headline">
+3011:	          <span className="inventory-hero__chip"><Trans>Stock hub</Trans></span>
+3012:	          <h3 className="inventory-hero__title"><Trans>{totalProducts} products available</Trans></h3>

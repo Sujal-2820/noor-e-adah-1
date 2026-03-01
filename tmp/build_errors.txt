@@ -1,0 +1,237 @@
+﻿[36mvite v7.2.2 [32mbuilding client environment for production...[36m[39m
+transforming...
+node.exe : [33m[plugin vite:esbuild] src/
+modules/Admin/components/ProductForm.jsx: 
+[33mDuplicate key "userPrice" in object 
+literal[33m
+At C:\Users\HP\OneDrive\Desktop\Noor E Ada
+h\Frontend\node_modules\.bin\vite.ps1:24 
+char:5
++     & "node$exe"  
+"$basedir/../vite/bin/vite.js" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifie 
+   d: ([33m[plugin vi...ct literal[33m  
+  :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeComma 
+   ndError
+ 
+247 |          stockUnit: stockUnit,
+248 |          userPrice: userPriceValue,
+249 |          userPrice: userPriceValue,
+    |          ^
+250 |          discountUser: 
+product.discountUser != null ? 
+String(product.discountUser) : '',
+251 |          discountUser: 
+product.discountUser != null ? 
+String(product.discountUser) : '',
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/ProductForm.jsx: 
+[33mDuplicate key "discountUser" in 
+object literal[33m
+249 |          userPrice: userPriceValue,
+250 |          discountUser: 
+product.discountUser != null ? 
+String(product.discountUser) : '',
+251 |          discountUser: 
+product.discountUser != null ? 
+String(product.discountUser) : '',
+    |          ^
+252 |          expiry: expiryDate,
+253 |          visibility: 
+product.isActive !== false ? 'active' : 
+'inactive',
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/ProductForm.jsx: 
+[33mDuplicate key "priceToUser" in 
+object literal[33m
+482 |        stockUnit: 
+formData.stockUnit,
+483 |        priceToUser: userPriceValue 
+> 0 ? userPriceValue : undefined,
+484 |        priceToUser: userPriceValue 
+> 0 ? userPriceValue : undefined,
+    |        ^
+485 |        // Optional discount 
+percentages (only include if provided)
+486 |        ...(formData.discountUser && 
+parseFloat(formData.discountUser) > 0 && 
+{ discountUser: 
+parseFloat(formData.disco...
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/ProductForm.jsx: 
+[33mDuplicate key "discountUser" in 
+object literal[33m
+497 |            // Include discount 
+percentages for each attribute stock entry
+498 |            discountUser: 
+stock.discountUser ? 
+parseFloat(stock.discountUser) : 0,
+499 |            discountUser: 
+stock.discountUser ? 
+parseFloat(stock.discountUser) : 0,
+    |            ^
+500 |          })) // Remove temporary IDs
+501 |        }),
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/SizeVariantsForm.jsx: 
+[33mDuplicate key "userPrice" in object 
+literal[33m
+74 |                      displayStock: 
+v.displayStock != null ? 
+String(v.displayStock) : '',
+75 |                      userPrice: 
+v.userPrice != null ? String(v.userPrice) 
+: '',
+76 |                      userPrice: 
+v.userPrice != null ? String(v.userPrice) 
+: '',
+   |                      ^
+77 |                      discountUser: 
+v.discountUser != null ? 
+String(v.discountUser) : '',
+78 |                      discountUser: 
+v.discountUser != null ? 
+String(v.discountUser) : '',
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/SizeVariantsForm.jsx: 
+[33mDuplicate key "discountUser" in 
+object literal[33m
+76 |                      userPrice: 
+v.userPrice != null ? String(v.userPrice) 
+: '',
+77 |                      discountUser: 
+v.discountUser != null ? 
+String(v.discountUser) : '',
+78 |                      discountUser: 
+v.discountUser != null ? 
+String(v.discountUser) : '',
+   |                      ^
+79 |                  })))
+80 |              } else {
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/SizeVariantsForm.jsx: 
+[33mDuplicate key "userPrice" in object 
+literal[33m
+96 |              displayStock: '',
+97 |              userPrice: '',
+98 |              userPrice: '',
+   |              ^
+99 |              discountUser: '',
+100|              discountUser: '',
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/SizeVariantsForm.jsx: 
+[33mDuplicate key "discountUser" in 
+object literal[33m
+98 |              userPrice: '',
+99 |              discountUser: '',
+100|              discountUser: '',
+   |              ^
+101|          }])
+102|      }
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/SizeVariantsForm.jsx: 
+[33mDuplicate key "userPrice" in object 
+literal[33m
+148 |              displayStock: '',
+149 |              userPrice: '',
+150 |              userPrice: '',
+    |              ^
+151 |              discountUser: '',
+152 |              discountUser: '',
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/SizeVariantsForm.jsx: 
+[33mDuplicate key "discountUser" in 
+object literal[33m
+150 |              userPrice: '',
+151 |              discountUser: '',
+152 |              discountUser: '',
+    |              ^
+153 |          }])
+154 |      }
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/SizeVariantsForm.jsx: 
+[33mDuplicate key "userPrice" in object 
+literal[33m
+210 |              displayStock: 
+parseFloat(v.displayStock) || 0,
+211 |              userPrice: 
+parseFloat(v.userPrice) || 0,
+212 |              userPrice: 
+parseFloat(v.userPrice) || 0,
+    |              ^
+213 |              discountUser: 
+parseFloat(v.discountUser) || 0,
+214 |              discountUser: 
+parseFloat(v.discountUser) || 0,
+[39m
+[33m[plugin vite:esbuild] src/modules/Adm
+in/components/SizeVariantsForm.jsx: 
+[33mDuplicate key "discountUser" in 
+object literal[33m
+212 |              userPrice: 
+parseFloat(v.userPrice) || 0,
+213 |              discountUser: 
+parseFloat(v.discountUser) || 0,
+214 |              discountUser: 
+parseFloat(v.discountUser) || 0,
+    |              ^
+215 |          }))
+216 |  
+[39m
+[33msrc/modules/Admin/hooks/useAdminApi.j
+s (396:30): "getCommissions" is not 
+exported by 
+"src/modules/Admin/services/adminApi.js", 
+imported by "src/modules/Admin/hooks/useAd
+minApi.js".[39m
+[33msrc/modules/Admin/hooks/useAdminApi.j
+s (448:30): "updateGlobalParameters" is 
+not exported by 
+"src/modules/Admin/services/adminApi.js", 
+imported by "src/modules/Admin/hooks/useAd
+minApi.js".[39m
+[33msrc/modules/Admin/hooks/useAdminApi.j
+s (585:30): "getSalesAnalytics" is not 
+exported by 
+"src/modules/Admin/services/adminApi.js", 
+imported by "src/modules/Admin/hooks/useAd
+minApi.js".[39m
+[33msrc/modules/Admin/hooks/useAdminApi.j
+s (599:30): "getOrderAnalytics" is not 
+exported by 
+"src/modules/Admin/services/adminApi.js", 
+imported by "src/modules/Admin/hooks/useAd
+minApi.js".[39m
+[32mΓ£ô[39m 1742 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m    0.82 kB[22m[1m[22m[2m Γöé gzip:   0.45 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB 
+after minification. Consider:
+- Using dynamic import() to code-split 
+the application
+- Use 
+build.rollupOptions.output.manualChunks 
+to improve chunking: https://rollupjs.org/
+configuration-options/#output-manualchunks
+- Adjust chunk size limit for this 
+warning via 
+build.chunkSizeWarningLimit.[39m
+[2mdist/[22m[35massets/index-6-9YmzJL.css  [39m[1m[2m  381.28 kB[22m[1m[22m[2m Γöé gzip:  50.77 kB[22m
+[2mdist/[22m[36massets/index-DrHXqaY1.js   [39m[1m[33m2,353.48 kB[39m[22m[2m Γöé gzip: 582.82 kB[22m
+[32mΓ£ô built in 16.18s[39m
+

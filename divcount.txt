@@ -1,0 +1,116 @@
+﻿2406 [net:1]	<div className="inventory-request-screen space-y-6">
+2407 [net:2]	<div className="inventory-request-screen__header">
+2408 [net:3]	<div>
+2420 [net:2]	</div>
+2421 [net:1]	</div>
+2423 [net:2]	<div className="inventory-request-layout">
+2425 [net:3]	<div className="inventory-request-card space-y-6">
+2428 [net:4]	<div>
+2430 [net:5]	<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+2446 [net:5]	)
+2465 [net:5]	}
+2468 [net:6]	<div
+2477 [net:7]	<div className="flex items-start justify-between mb-3">
+2478 [net:8]	<div className="flex-1">
+2481 [net:7]	</div>
+2489 [net:8]	<div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-cente
+2491 [net:7]	</div>
+2493 [net:6]	</div>
+2497 [net:7]	<div className="space-y-2 mb-3">
+2498 [net:8]	<div className="flex items-center justify-between text-xs">
+2501 [net:7]	</div>
+2502 [net:8]	<div className="flex items-center justify-between text-xs">
+2505 [net:7]	</div>
+2507 [net:8]	<div className="flex items-center justify-between text-xs">
+2510 [net:7]	</div>
+2512 [net:6]	</div>
+2517 [net:7]	<div className="mb-3">
+2518 [net:8]	<div className="flex items-center justify-between text-xs">
+2521 [net:7]	</div>
+2522 [net:6]	</div>
+2562 [net:6]	}
+2581 [net:7]	<div className="mt-3 space-y-2 pt-3 border-t border-gray-200">
+2597 [net:8]	<div
+2606 [net:9]	<div className="space-y-2">
+2608 [net:10]	<div>
+2610 [net:11]	<div key={key} className="flex items-center gap-1 text-xs mb-1">
+2613 [net:10]	</div>
+2615 [net:9]	</div>
+2618 [net:10]	<div className="grid grid-cols-2 gap-2 text-xs">
+2619 [net:11]	<div>
+2624 [net:10]	</div>
+2625 [net:11]	<div>
+2630 [net:10]	</div>
+2631 [net:9]	</div>
+2649 [net:10]	<div className="mt-2 text-xs text-purple-700 font-semibold text-center">
+2651 [net:9]	</div>
+2653 [net:8]	</div>
+2654 [net:7]	</div>
+2655 [net:7]	)
+2657 [net:6]	</div>
+2670 [net:5]	</div>
+2671 [net:5]	)
+2673 [net:4]	</div>
+2674 [net:3]	</div>
+2679 [net:4]	<div className="space-y-4 rounded-xl border-2 border-purple-200 bg-purple-50/30 
+2681 [net:5]	<div className="space-y-3">
+2685 [net:5]	)
+2704 [net:6]	<div
+2708 [net:7]	<div className="flex items-center justify-between">
+2709 [net:8]	<div className="flex-1">
+2713 [net:9]	<div className="mt-1 space-y-0.5">
+2720 [net:9]	}
+2725 [net:9]	)
+2727 [net:8]	</div>
+2732 [net:7]	</div>
+2733 [net:6]	</div>
+2756 [net:7]	<div className="flex items-center gap-2">
+2767 [net:7]	}
+2773 [net:7]	}
+2796 [net:7]	}
+2802 [net:6]	</div>
+2803 [net:5]	</div>
+2804 [net:5]	)
+2806 [net:4]	</div>
+2807 [net:3]	</div>
+2808 [net:3]	)
+2809 [net:3]	}
+2814 [net:4]	<div className="rounded-xl border-2 border-gray-200 bg-white p-5">
+2816 [net:5]	<div className="space-y-3 mb-4">
+2818 [net:6]	<div key={idx} className="flex items-center justify-between border-b border-gray
+2819 [net:7]	<div>
+2823 [net:8]	<div className="mt-1 space-y-0.5">
+2831 [net:8]	}
+2836 [net:8]	)
+2838 [net:7]	</div>
+2843 [net:6]	</div>
+2847 [net:5]	</div>
+2849 [net:4]	</div>
+2850 [net:5]	<div className="flex items-center justify-between pt-3 border-t-2 border-gray-20
+2860 [net:4]	</div>
+2872 [net:5]	<div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+2876 [net:4]	</div>
+2878 [net:3]	</div>
+2879 [net:3]	)
+2880 [net:3]	}
+2885 [net:4]	<div className="grid gap-4 md:grid-cols-2">
+2886 [net:5]	<div className="flex flex-col gap-2">
+2895 [net:4]	</div>
+2896 [net:5]	<div className="flex flex-col gap-2">
+2905 [net:4]	</div>
+2906 [net:3]	</div>
+2907 [net:3]	)
+2908 [net:3]	}
+2913 [net:4]	<div className="space-y-3">
+2915 [net:5]	<div className="grid gap-3 md:grid-cols-2">
+2951 [net:4]	</div>
+2952 [net:3]	</div>
+2953 [net:3]	)
+2954 [net:3]	}
+2958 [net:4]	<div className="rounded-lg border border-red-200 bg-red-50 p-4">
+2960 [net:3]	</div>
+2961 [net:3]	)
+2962 [net:3]	}
+2966 [net:4]	<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+2987 [net:3]	</div>
+2989 [net:3]	}

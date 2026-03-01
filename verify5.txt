@@ -1,0 +1,168 @@
+﻿2031:	        itemPayload.attributeCombination = attributesToUse
+2032:	      }
+2033:	    }
+2034:	
+2035:	    purchaseItems.push(itemPayload)
+2036:	  }
+2037:	
+2038:	  if (totalAmount < MIN_PURCHASE_VALUE) {
+2039:	    setOrderRequestError(`Minimum order value is ₹${MIN_PURCHASE_VALUE.toLocaleString('en-IN')}.`)
+2040:	    return
+2041:	  }
+2042:	  if (totalAmount > MAX_PURCHASE_VALUE) {
+2043:	    setOrderRequestError(`Maximum order value is ₹${MAX_PURCHASE_VALUE.toLocaleString('en-IN')}. Your request: ₹${totalAmount.toLocaleString('en-IN')}.`)
+2044:	    return
+2045:	  }
+2046:	  // For now, we allow submission but recording the outstanding dues via backend.
+2047:	  // The previous hard block is removed.
+2048:	  let duesWarning = '';
+2049:	  if (hasUnpaidCredits) {
+2050:	    duesWarning = 'Warning: You have unpaid credits. While you can still submit a request, Admin approval will depend on your repayment history.';
+2051:	  }
+2052:	  if (!orderRequestForm.reason || orderRequestForm.reason.trim().length < 10) {
+2053:	    setOrderRequestError('Please provide a reason (at least 10 characters).')
+2054:	    return
+2055:	  }
+2056:	  if (!orderRequestForm.creditPolicyAccepted) {
+2057:	    setOrderRequestError('Please acknowledge the credit policy to proceed.')
+2058:	    return
+2059:	  }
+2060:	  if (!orderRequestForm.confirmationText || orderRequestForm.confirmationText.trim().toLowerCase() !== 'confirm') {
+2061:	    setOrderRequestError('Type "confirm" to proceed with the request.')
+2062:	    return
+2063:	  }
+2064:	
+2065:	  const trimmedAccountName = orderRequestForm.bankAccountName?.trim()
+2066:	  const trimmedAccountNumber = orderRequestForm.bankAccountNumber?.toString().trim()
+2067:	  const trimmedBankName = orderRequestForm.bankName?.trim()
+2068:	  const trimmedIfsc = orderRequestForm.bankIfsc?.trim().toUpperCase()
+2069:	
+2070:	  if (!trimmedAccountName || !trimmedAccountNumber || !trimmedBankName || !trimmedIfsc) {
+2071:	    setOrderRequestError('Complete bank details are required.')
+2072:	    return
+2073:	  }
+2074:	  if (trimmedAccountNumber.length < 6) {
+2075:	    setOrderRequestError('Account number looks incomplete.')
+2076:	    return
+2077:	  }
+2078:	  if (trimmedIfsc.length < 4) {
+2079:	    setOrderRequestError('Please provide a valid IFSC code.')
+2080:	    return
+2081:	  }
+2082:	
+2083:	  setIsOrderRequestSubmitting(true)
+2084:	  try {
+2085:	    const payload = {
+2086:	      items: purchaseItems,
+2087:	      reason: orderRequestForm.reason.trim(),
+2088:	      notes: orderRequestForm.notes?.trim() || undefined,
+2089:	      bankDetails: {
+2090:	        accountName: trimmedAccountName,
+2091:	        accountNumber: trimmedAccountNumber,
+2092:	        bankName: trimmedBankName,
+2093:	        ifsc: trimmedIfsc,
+2094:	        bankBranch: orderRequestForm.bankBranch?.trim() || undefined,
+2095:	      },
+2096:	      confirmationText: orderRequestForm.confirmationText.trim(),
+2097:	    }
+2098:	
+2099:	    const result = await requestCreditPurchase(payload)
+2100:	    if (result.data) {
+2101:	      success(`Order request submitted successfully! Request ID: ${result.data.purchase?.creditPurchaseId || 'N/A'}. Admin will review shortly.${hasUnpaidCredits ? ' Warning: You have unpaid past dues which may affect approval.' : ''}`)
+2102:	      resetOrderRequestForm()
+2103:	      setShowOrderRequestScreen(false)
+2104:	      loadPurchaseRequests()
+2105:	      // Refresh dashboard to update credit info
+2106:	      fetchDashboardData()
+2107:	      // Add notification for stock request
+2108:	      dispatch({
+2109:	        type: 'ADD_NOTIFICATION',
+2110:	        payload: {
+2111:	          id: `stock-request-${Date.now()}`,
+2112:	          type: 'stock_request',
+2113:	          title: <Trans>Stock Request Submitted</Trans>,
+2114:	          message: <Trans>Stock request of ₹{totalAmount.toLocaleString('en-IN')} submitted. Waiting for admin approval.</Trans>,
+2115:	          timestamp: new Date().toISOString(),
+2116:	          data: { requestId: result.data.requestId || result.data.purchase?._id, amount: totalAmount },
+2117:	          read: false,
+2118:	        },
+2119:	      })
+2120:	      // Navigate to credit tab to see the request
+2121:	      if (onNavigate) {
+2122:	        onNavigate('orders')
+2123:	      }
+2124:	    } else if (result.error) {
+2125:	      const message = result.error.message || 'Failed to submit stock request.'
+2126:	      setOrderRequestError(message)
+2127:	      showError(message)
+2128:	    }
+2129:	  } catch (err) {
+2130:	    const message = err?.error?.message || err.message || 'Failed to submit stock request.'
+2131:	    setOrderRequestError(message)
+2132:	    showError(message)
+2133:	  } finally {
+2134:	    setIsOrderRequestSubmitting(false)
+2135:	  }
+2136:	}
+2137:	
+2138:	// Get products from backend
+2139:	const products = productsData?.products || []
+2140:	
+2141:	const totalProducts = products.length
+2142:	// Count products where vendor has stock assigned (vendorStock > 0)
+2143:	const inStockCount = products.filter((p) => (p.vendorStock ?? 0) > 0).length
+2144:	// Count products where vendor has no stock (vendorStock <= 0)
+2145:	const outOfStockCount = products.filter((p) => (p.vendorStock ?? 0) <= 0).length
+2146:	
+2147:	const getVendorStockStatus = (stock) => {
+2148:	  const value = Number(stock) || 0
+2149:	  if (value <= 0) {
+2150:	    return { label: <Trans>Out of Stock</Trans>, tone: 'critical', helper: <Trans>Order stock to start selling</Trans>, message: <Trans>You have no stock yet</Trans> }
+2151:	  }
+...
+2211:	    : (selectedProduct.pricePerUnit || selectedProduct.priceToVendor || 0)
+2212:	  const quantityNumber = parseFloat(orderQuantity) || 0
+2213:	  const orderTotal = quantityNumber * pricePerUnit
+2214:	
+2215:	  // Check if product has attributes and if they're selected
+2216:	  const hasAttributes = selectedProduct.attributeStocks &&
+2217:	    Array.isArray(selectedProduct.attributeStocks) &&
+2218:	    selectedProduct.attributeStocks.length > 0
+2219:	  const attributesSelected = hasAttributes ? Object.keys(selectedProductAttributes).length > 0 : true
+2220:	  const creditInfo = dashboard.credit || {}
+2221:	  const creditRemaining = creditInfo.remaining || 0
+2222:	  const creditLimit = creditInfo.limit || 0
+2223:	  const projectedCredit = creditRemaining - orderTotal
+2224:	  const confirmMatches =
+2225:	    confirmProductName.trim().toLowerCase() === (selectedProduct.name || '').trim().toLowerCase()
+2226:	  const canSubmitOrder =
+2227:	    quantityNumber > 0 &&
+2228:	    quantityNumber <= adminStock &&
+2229:	    orderTotal >= MIN_PURCHASE_VALUE &&
+2230:	    orderTotal <= creditRemaining &&
+2231:	    confirmMatches &&
+2232:	    attributesSelected &&
+2233:	    !isSubmittingOrder
+2234:	
+2235:	  return (
+2236:	    <div className="space-y-6">
+2237:	      <div className="flex items-center justify-between">
+2238:	        <div>
+2239:	          <button
+2240:	            type="button"
+2241:	            onClick={() => setSelectedProduct(null)}
+2242:	            className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+2243:	          >
+2244:	            ← <Trans>Back to products</Trans>
+2245:	          </button>
+2246:	          <h2 className="mt-2 text-2xl font-bold text-gray-900"><TransText>{selectedProduct.name}</TransText></h2>
+2247:	          <p className="text-sm text-gray-500"><Trans>SKU:</Trans> {selectedProduct.sku || <Trans>N/A</Trans>}</p>
+2248:	        </div>
+2249:	        {selectedProduct.stockStatus === 'in_stock' && (
+2250:	          <button
+2251:	            type="button"
+2252:	            onClick={openOrderRequestScreen}
+2253:	            className="rounded-full bg-purple-600 px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-purple-700"
+2254:	          >
+2255:	            <Trans>Order Stock</Trans>
+2256:	          </button>

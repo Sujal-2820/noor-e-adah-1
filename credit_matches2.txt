@@ -1,0 +1,148 @@
+﻿12|CreditIcon,
+25|import { RewardsView } from './RewardsView'
+83|const { acceptOrder, confirmOrderAcceptance, cancelOrderAcceptance, acceptOrderPartially, 
+360|keywords: ['inventory', 'restock', 'order', 'credit', 'stock'],
+386|id: 'search-credit-summary',
+387|label: 'Credit summary & usage',
+388|keywords: ['credit', 'limit', 'usage', 'fine'],
+389|tab: 'credit',
+390|targetId: 'credit-summary',
+393|id: 'search-credit-penalty',
+395|keywords: ['credit', 'penalty', 'fine', 'timeline', 'payment'],
+396|tab: 'credit',
+397|targetId: 'credit-penalty',
+1278|// Fetch recent repayments for activity
+1279|const loadRecentRepayments = useCallback(async () => {
+1281|const result = await getRepaymentHistory({ page: 1, limit: 5, status: 'completed' })
+1282|if (result.data?.repayments) {
+1283|setRecentRepayments(result.data.repayments)
+1286|// Silently fail - repayments are optional for activity
+1288|}, [getRepaymentHistory])
+1291|loadRecentRepayments()
+1293|// Listen for repayment success to refresh
+1294|const handleRepaymentSuccess = () => {
+1295|loadRecentRepayments()
+1297|window.addEventListener('repayment-success', handleRepaymentSuccess)
+1299|window.removeEventListener('repayment-success', handleRepaymentSuccess)
+1301|}, [loadRecentRepayments])
+1484|<div key={item.orderId || item.withdrawalId || item.repaymentId || `${item.name}-${index}`
+1489|{item.type === 'repayment' && item.repaymentNumber ? item.repaymentNumber : <TransText>{it
+1503|{item.type === 'repayment' && item.penaltyAmount > 0 && (
+1605|const { getProducts, getProductDetails, requestCreditPurchase, getCreditPurchases, fetchDa
+1629|creditPolicyAccepted: false,
+1635|const [showCreditPolicyModal, setShowCreditPolicyModal] = useState(false)
+1704|creditPolicyAccepted: false,
+1855|const result = await getCreditPurchases({ limit: 5 })
+1864|}, [getCreditPurchases])
+1915|const creditRemaining = dashboard.credit?.remaining || 0
+1931|if (orderTotal > creditRemaining) {
+1932|setOrderError(<Trans>Insufficient remaining credits to place this request.</Trans>)
+1959|const result = await requestCreditPurchase(payload)
+1963|// Refresh dashboard to update credit info
+1978|// Navigate to credit tab to see the request
+1980|onNavigate('credit')
+2004|const creditInfo = dashboard.credit || {}
+2005|const hasUnpaidCredits = creditInfo.status?.hasUnpaidCredits || false
+2112|if (hasUnpaidCredits) {
+2113|duesWarning = 'Warning: You have unpaid credits. While you can still submit a request, Adm
+2119|if (!orderRequestForm.creditPolicyAccepted) {
+2120|setOrderRequestError('Please acknowledge the credit policy to proceed.')
+2162|const result = await requestCreditPurchase(payload)
+2164|success(`Order request submitted successfully! Request ID: ${result.data.purchase?.creditP
+2168|// Refresh dashboard to update credit info
+2183|// Navigate to credit tab to see the request
+2185|onNavigate('credit')
+2283|const creditInfo = dashboard.credit || {}
+2284|const creditRemaining = creditInfo.remaining || 0
+2285|const creditLimit = creditInfo.limit || 0
+2286|const projectedCredit = creditRemaining - orderTotal
+2293|orderTotal <= creditRemaining &&
+2411|const creditInfo = dashboard.credit || {}
+2412|const hasUnpaidCredits = creditInfo.status?.hasUnpaidCredits || false
+2413|const totalUnpaid = creditInfo.credit?.totalUnpaid || 0
+2464|!hasUnpaidCredits &&
+2465|orderRequestForm.creditPolicyAccepted &&
+2510|{/* Unpaid Credits Warning */}
+2511|{hasUnpaidCredits && (
+2520|<h4 className="text-sm font-bold text-red-900 mb-1">Unpaid Credits Warning</h4>
+2522|You have unpaid credits from previous purchase requests (Total: ₹{totalUnpaid.toLocaleStri
+2973|{hasUnpaidCredits && (
+2976|⚠️ <Trans>You have unpaid credits. Clear outstanding payments before making a new request.
+3060|onClick={() => setShowCreditPolicyModal(true)}
+3063|View Credit Policy
+3069|checked={orderRequestForm.creditPolicyAccepted}
+3070|onChange={(e) => handleOrderRequestChange('creditPolicyAccepted', e.target.checked)}
+3074|I have reviewed the credit policy, repayment timeline, and authorize Satpura Bio to adjust
+3123|{/* Credit Policy Modal */}
+3124|{showCreditPolicyModal && (
+3128|<h3 className="text-xl font-bold text-gray-900">Credit Policy</h3>
+3131|onClick={() => setShowCreditPolicyModal(false)}
+3147|<h4 className="font-semibold text-gray-900 mb-2">Credit Adjustment</h4>
+3148|<p>Your credit balance is adjusted once the stock is dispatched. Ensure your bank details 
+3151|<h4 className="font-semibold text-gray-900 mb-2">Repayment Timeline</h4>
+3152|<p>Credit repayment is due within {creditInfo.repaymentDays || 30} days. Keep your credit 
+3156|<p>Late payments may incur penalties based on your credit policy. Contact your Admin SPOC 
+3162|onClick={() => setShowCreditPolicyModal(false)}
+3189|Review credit policy, enter bank details, and raise a request for Admin approval.
+3419|{lowStockItems.length} product{lowStockItems.length > 1 ? 's' : ''} running low. Submit a 
+5121|const reportIcons = [ChartIcon, WalletIcon, CreditIcon, HomeIcon]
+5245|{ label: <Trans>Orders Completed</Trans>, value: String(orderCount), meta: <Trans>Delivere
+5604|<h5 className="reports-insight-card__title"><Trans>Credit usage</Trans></h5>
+5606|<Trans>Your credit usage is good at 68%. You can safely increase number of orders by 25% w
+5702|<div className="credit-status-card">
+5703|<div className="credit-status-card__main">
+5723|{ label: <Trans>Pending Withdrawal</Trans>, value: formatCurrency(summary.pendingWithdrawa
+5730|<section id="earnings-summary" className="credit-status-section">
+5731|<div className="credit-status-card">
+5732|<div className="credit-status-card__main">
+5733|<div className="credit-status-card__progress-wrapper">
+5734|<div className="credit-status-card__progress-ring">
+5735|<svg className="credit-status-card__progress-svg" viewBox="0 0 120 120">
+5737|className="credit-status-card__progress-bg"
+5745|className="credit-status-card__progress-fill"
+5756|<div className="credit-status-card__progress-content">
+5757|<span className="credit-status-card__progress-percent">
+5762|<span className="credit-status-card__progress-label"><Trans>Available</Trans></span>
+5765|<div className="credit-status-card__details">
+5766|<div className="credit-status-card__amount">
+5767|<span className="credit-status-card__amount-value">{formatCurrency(summary.totalEarnings)}
+5768|<span className="credit-status-card__amount-label"><Trans>Total Earnings</Trans></span>
+5770|<div className="credit-status-card__quick-info">
+5771|<div className="credit-status-card__info-item">
+5772|<span className="credit-status-card__info-label"><Trans>Available</Trans></span>
+5773|<span className="credit-status-card__info-value">{formatCurrency(summary.availableBalance)
+5775|<div className="credit-status-card__info-item">
+5776|<span className="credit-status-card__info-label"><Trans>Withdrawn</Trans></span>
+5777|<span className="credit-status-card__info-value">{formatCurrency(summary.totalWithdrawn ||
+5779|<div className="credit-status-card__info-item">
+5780|<span className="credit-status-card__info-label"><Trans>Pending</Trans></span>
+5781|<span className="credit-status-card__info-value">{formatCurrency(summary.pendingWithdrawal
+5787|<div className="credit-status-card__footer">
+5788|<div className="credit-status-card__status-badge">
+5789|<span className="credit-status-card__status-text">
+5797|className="credit-status-card__action"
+5867|<section id="earnings-metrics" className="credit-section">
+5873|<div className="credit-metric-grid">
+5877|<div key={metric.label} className="credit-metric-card">
+5880|'credit-metric-icon',
+5886|<div className="credit-metric-body">
+5897|<section id="earnings-tabs" className="credit-section">
+5903|<div className="credit-action-grid credit-action-grid--scrollable">
+5906|className={cn('credit-action-card', activeSection === 'history' && 'is-active')}
+5910|<span className="credit-action-card__icon">
+5913|<h4 className="credit-action-card__title"><Trans>History</Trans></h4>
+5918|className={cn('credit-action-card', activeSection === 'orders' && 'is-active')}
+5922|<span className="credit-action-card__icon">
+5925|<h4 className="credit-action-card__title"><Trans>By Orders</Trans></h4>
+5930|className={cn('credit-action-card', activeSection === 'withdrawals' && 'is-active')}
+5934|<span className="credit-action-card__icon">
+5937|<h4 className="credit-action-card__title"><Trans>Withdrawals</Trans></h4>
+5945|<section id="earnings-history" className="credit-section">
+5952|<div className="credit-usage-card">
+5956|<div className="credit-usage-card">
+5996|<section id="earnings-orders" className="credit-section">
+6003|<div className="credit-usage-card">
+6007|<div className="credit-usage-card">
+6049|<section id="earnings-withdrawals" className="credit-section">
+6056|<div className="credit-usage-card">
+6060|<div className="credit-usage-card">

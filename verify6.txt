@@ -1,0 +1,26 @@
+﻿1576:	    notes: '',
+1577:	    bankAccountName: '',
+1578:	    bankAccountNumber: '',
+1579:	    bankName: '',
+1580:	    bankIfsc: '',
+1581:	    bankBranch: '',
+1582:	  })
+1583:	  const [orderRequestError, setOrderRequestError] = useState('')
+1584:	  const [loading, setLoading] = useState(false)
+1585:	  const [expandedProductId, setExpandedProductId] = useState(null) // Track which product's variants are expanded
+1586:	  const [productsWithVariants, setProductsWithVariants] = useState({}) // Cache products with full variant details: { productId: product }
+1587:	  const [loadingVariants, setLoadingVariants] = useState(false) // Track if variants are being loaded
+1588:	  const orderFormRef = useRef(null)
+1589:	
+1590:	  useEffect(() => {
+1591:	    const token = localStorage.getItem('vendor_token')
+1592:	    if (!token) return
+1593:	
+1594:	    setLoading(true)
+1595:	    getProducts({ limit: 100 }).then((result) => {
+1596:	      if (result.data) {
+1597:	        setProductsData(result.data)
+1598:	        // Debug: Check if any products have attributeStocks
+1599:	        const products = result.data.products || []
+1600:	        const productsWithVariants = products.filter(p =>
+1601:	          p.attributeStocks &&

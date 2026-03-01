@@ -1,0 +1,45 @@
+﻿2397:	      const diffMs = eta.getTime() - Date.now()
+2398:	      if (diffMs <= 0) {
+2399:	        return 'Delivery in progress'
+2400:	      }
+2401:	      const hours = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)))
+2402:	      return `Arriving in ~${hours}h`
+2403:	    }
+2404:	
+2405:	    return (
+2406:	      <div className="inventory-request-screen space-y-6">
+2407:	        <div className="inventory-request-screen__header">
+2408:	          <div>
+2409:	            <button
+2410:	              type="button"
+2411:	              onClick={closeOrderRequestScreen}
+2412:	              className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+2413:	            >
+2414:	              ← <Trans>Go Back</Trans>
+2415:	            </button>
+2416:	            <h2 className="mt-2 text-2xl font-bold text-gray-900"><Trans>Request Stock from Admin</Trans></h2>
+2417:	            <p className="text-sm text-gray-500">
+2418:	              <Trans>Select products, enter quantities, and submit for approval. Stock arrives within 24 hours after approval.</Trans>
+2419:	            </p>
+2420:	          </div>
+2421:	        </div>
+2422:	
+2423:	        <div className="inventory-request-layout">
+2424:	
+2425:	          <div className="inventory-request-card space-y-6">
+2426:	
+2427:	            {/* Product Cards Section */}
+2428:	            <div>
+2429:	              <h3 className="text-lg font-semibold text-gray-900 mb-4"><Trans>All Products</Trans></h3>
+2430:	              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+2431:	                {products.map((product) => {
+2432:	                  const productId = (product.id || product._id)?.toString()
+2433:	                  const isSelected = selectedProducts.some((p) => p.productId === productId)
+2434:	                  const isExpanded = expandedProductId === productId
+2435:	
+2436:	                  // Check if product has variants (either from list or from cached details)
+2437:	                  // Use cached variant details if available, otherwise check product.attributeStocks
+2438:	                  const productWithVariants = productsWithVariants[productId] || product
+2439:	
+2440:	                  // Simplified variant detection:
+2441:	                  // A product has variants if it has attributeStocks array with at least one entry

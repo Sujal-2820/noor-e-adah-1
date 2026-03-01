@@ -1,0 +1,28 @@
+﻿2984:	                  >
+2985:	                    {isOrderRequestSubmitting ? <Trans>Submitting...</Trans> : <Trans>Submit for Admin Approval</Trans>}
+2986:	                  </button>
+2987:	                </div>
+2988:	
+2989:	            </div>
+2990:	          </div>
+2991:	        </div>
+2992:	      </div>
+2993:	    )
+2994:	  }
+2995:	
+2996:	            return (
+2997:	            <div className="space-y-6">
+2998:	              <section id="inventory-hero" className="inventory-hero">
+2999:	                <div className="inventory-hero__shell">
+3000:	                  <div className="inventory-hero__headline">
+3001:	                    <span className="inventory-hero__chip"><Trans>Stock hub</Trans></span>
+3002:	                    <h3 className="inventory-hero__title"><Trans>{totalProducts} products available</Trans></h3>
+3003:	                    <p className="inventory-hero__meta">
+3004:	                      <Trans>{inStockCount} in stock • {outOfStockCount} out of stock</Trans>
+3005:	                    </p>
+3006:	                    <div className="inventory-order-cta">
+3007:	                      <div>
+3008:	                        <p className="inventory-order-cta__title">Need to top-up stock?</p>
+3009:	                        <p className="inventory-order-cta__meta">
+3010:	                          Enter bank details and raise a request for Admin approval.
+3011:	                        </p>
