@@ -4,7 +4,7 @@ import { Layout, Container, Section } from '../components/Layout'
 import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import * as websiteApi from '../services/websiteApi'
-import { getPrimaryImageUrl } from '../utils/productImages'
+import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
 import '../styles/website.css'
 
@@ -326,15 +326,22 @@ export function HomePage() {
                   style={{ animationDelay: `${idx * 100}ms` }}
                   onClick={() => handleProductClick(productId)}
                 >
-                  <div className="relative aspect-[3/4] overflow-hidden bg-[#F9F9F9] mb-8 border border-brand/20 group-hover:border-brand/50 transition-colors">
+                  <div className="relative aspect-[3/4] overflow-hidden bg-[#F9F9F9] mb-8 border border-brand/20 group-hover:border-brand/50 transition-colors product-card-container">
                     <img
                       src={productImage}
                       alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                      className="w-full h-full object-cover product-image-primary"
+                    />
+
+                    {/* Secondary Image for Hover (Smooth Transition) */}
+                    <img
+                      src={getImageUrlAt(product, 1)}
+                      alt={`${product.name} alternate view`}
+                      className="product-image-secondary"
                     />
 
                     {/* Minimalist Hover Overlay */}
-                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />
 
                     {/* Quick Add / Wishlist Button (Subtle) */}
                     <button

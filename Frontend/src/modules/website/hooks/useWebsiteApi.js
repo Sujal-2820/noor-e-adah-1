@@ -195,17 +195,17 @@ export function useWebsiteApi() {
     if (!cartData?.items) {
       return []
     }
-    
+
     const mappedItems = cartData.items
       .map((item) => {
         const cartItemId = resolveId(item.id || item._id)
         const product = item.product || item.productId || {}
         const productId = resolveId(product.id || product._id || item.productId)
-        
+
         if (!productId) {
           return null
         }
-        
+
         // Use variant-specific price (unitPrice) if available, otherwise fallback
         const price =
           typeof item.unitPrice === 'number'
@@ -215,10 +215,10 @@ export function useWebsiteApi() {
               : typeof product.price === 'number'
                 ? product.price
                 : 0
-        
+
         // Extract variant attributes if present
         const variantAttributes = item.variantAttributes || null
-        
+
         const mappedItem = {
           id: cartItemId,
           cartItemId,
@@ -232,11 +232,11 @@ export function useWebsiteApi() {
           deliveryTime: product.deliveryTime || null,
           variantAttributes: variantAttributes,
         }
-        
+
         return mappedItem
       })
       .filter(Boolean)
-    
+
     return mappedItems
   }, [resolveId])
 
@@ -253,7 +253,7 @@ export function useWebsiteApi() {
       if (variantAttributes && Object.keys(variantAttributes).length > 0) {
         payload.attributes = variantAttributes
       }
-      
+
       setLoading(true)
       setError(null)
       try {
@@ -263,6 +263,8 @@ export function useWebsiteApi() {
           if (result.data?.cart) {
             syncCartState(result.data.cart)
           }
+          // Open cart sidebar
+          dispatch({ type: 'SET_CART_OPEN', payload: true })
           return { data: result.data, error: null }
         } else {
           setError(result.error?.message || 'Failed to add to cart')

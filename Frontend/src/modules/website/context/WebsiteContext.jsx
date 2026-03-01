@@ -32,10 +32,16 @@ const initialState = {
     isInBufferZone: false,
   },
   realtimeConnected: false,
+  cartOpen: false,
 }
 
 function reducer(state, action) {
   switch (action.type) {
+    case 'SET_CART_OPEN':
+      return {
+        ...state,
+        cartOpen: action.payload,
+      }
     case 'AUTH_LOGIN':
       return {
         ...state,

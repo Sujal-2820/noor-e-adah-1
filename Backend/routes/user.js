@@ -54,6 +54,45 @@ router.get('/auth/profile', authorizeUser, userController.getProfile);
 router.put('/auth/profile', authorizeUser, userController.updateProfile);
 
 // ============================================================================
+// ADDRESS MANAGEMENT ROUTES
+// ============================================================================
+
+/**
+ * @route   GET /api/users/addresses
+ * @desc    Get user addresses
+ * @access  Private (User)
+ */
+router.get('/addresses', authorizeUser, userController.getAddresses);
+
+/**
+ * @route   POST /api/users/addresses
+ * @desc    Add new address
+ * @access  Private (User)
+ */
+router.post('/addresses', authorizeUser, userController.addAddress);
+
+/**
+ * @route   PUT /api/users/addresses/:addressId
+ * @desc    Update address
+ * @access  Private (User)
+ */
+router.put('/addresses/:addressId', authorizeUser, userController.updateAddress);
+
+/**
+ * @route   DELETE /api/users/addresses/:addressId
+ * @desc    Delete address
+ * @access  Private (User)
+ */
+router.delete('/addresses/:addressId', authorizeUser, userController.deleteAddress);
+
+/**
+ * @route   PUT /api/users/addresses/:addressId/default
+ * @desc    Set default address
+ * @access  Private (User)
+ */
+router.put('/addresses/:addressId/default', authorizeUser, userController.setDefaultAddress);
+
+// ============================================================================
 // DASHBOARD ROUTES
 // ============================================================================
 

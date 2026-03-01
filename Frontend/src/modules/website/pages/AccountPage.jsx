@@ -524,15 +524,247 @@ export function AccountProfilePage() {
 }
 
 export function AccountAddressesPage() {
-  const { profile, addresses } = useWebsiteState()
+  const { addresses } = useWebsiteState()
+  const dispatch = useWebsiteDispatch()
+  const { addAddress, deleteAddress, setDefaultAddress } = useWebsiteApi()
+
+  const [isAdding, setIsAdding] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    isDefault: false,
+  })
+
+  // Show form if no addresses exist
+  useEffect(() => {
+    if (addresses.length === 0) {
+      setIsAdding(true)
+    } else {
+      setIsAdding(false)
+    }
+  }, [addresses.length])
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      // If it's the first address, make it default regardless of checkbox
+      const dataToSubmit = {
+        ...formData,
+        isDefault: addresses.length === 0 ? true : formData.isDefault,
+      }
+      const result = await addAddress(dataToSubmit)
+      if (result.data) {
+        // Success handled by hook dispatching ADD_ADDRESS
+        setIsAdding(false)
+        setFormData({ name: '', phone: '', address: '', city: '', state: '', pincode: '', isDefault: false })
+      }
+    } catch (err) {
+      console.error('Error adding address:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this address?')) return
+    await deleteAddress(id)
+  }
+
+  const handleSetDefault = async (id) => {
+    await setDefaultAddress(id)
+  }
 
   return (
     <div className="account-addresses">
-      <h2 className="account-addresses__title">Delivery Addresses</h2>
-      <p className="account-addresses__description">
-        Manage your delivery addresses for faster checkout.
-      </p>
-      {/* Address management will be implemented in a future enhancement */}
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h2 className="account-addresses__title">Delivery Addresses</h2>
+          <p className="account-addresses__description">Manage your delivery addresses for faster checkout.</p>
+        </div>
+        {addresses.length > 0 && !isAdding && (
+          <button
+            onClick={() => setIsAdding(true)}
+            className="account-support__button !mt-0"
+          >
+            Add New Address
+          </button>
+        )}
+      </div>
+
+      {isAdding ? (
+        <div className="account-addresses__form-container">
+          <h3 className="text-xl font-bold mb-6">{addresses.length === 0 ? 'Set Your First Address' : 'Add New Address'}</h3>
+          <form onSubmit={handleSubmit}>
+            <div className="account-addresses__form-grid">
+              <div className="account-addresses__form-group">
+                <label className="account-addresses__form-label">Full Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  className="account-addresses__form-input"
+                  placeholder="Receiver's name"
+                />
+              </div>
+              <div className="account-addresses__form-group">
+                <label className="account-addresses__form-label">Phone Number</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  required
+                  className="account-addresses__form-input"
+                  placeholder="10-digit mobile number"
+                />
+              </div>
+              <div className="account-addresses__form-group account-addresses__form-group--full">
+                <label className="account-addresses__form-label">Address (House No, Building, Street, Area)</label>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  required
+                  className="account-addresses__form-input"
+                  placeholder="Complete address details"
+                />
+              </div>
+              <div className="account-addresses__form-group">
+                <label className="account-addresses__form-label">City</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  required
+                  className="account-addresses__form-input"
+                  placeholder="City"
+                />
+              </div>
+              <div className="account-addresses__form-group">
+                <label className="account-addresses__form-label">State</label>
+                <input
+                  type="text"
+                  name="state"
+                  value={formData.state}
+                  onChange={handleInputChange}
+                  required
+                  className="account-addresses__form-input"
+                  placeholder="State"
+                />
+              </div>
+              <div className="account-addresses__form-group">
+                <label className="account-addresses__form-label">Pincode</label>
+                <input
+                  type="text"
+                  name="pincode"
+                  value={formData.pincode}
+                  onChange={handleInputChange}
+                  required
+                  className="account-addresses__form-input"
+                  placeholder="6-digit pincode"
+                />
+              </div>
+              {addresses.length > 0 && (
+                <div className="account-addresses__form-group account-addresses__form-checkbox">
+                  <input
+                    type="checkbox"
+                    id="isDefault"
+                    name="isDefault"
+                    checked={formData.isDefault}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 accent-green-600"
+                  />
+                  <label htmlFor="isDefault" className="text-sm font-semibold cursor-pointer">Set as default address</label>
+                </div>
+              )}
+            </div>
+
+            <div className="account-addresses__form-actions">
+              {addresses.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsAdding(false)}
+                  className="px-8 py-3 font-semibold text-brand hover:text-accent transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="account-support__button !mt-0 px-12"
+              >
+                {loading ? 'Saving...' : 'Save Address'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <div className="account-addresses__list">
+          {addresses.map((addr) => (
+            <div
+              key={addr.id}
+              className={cn(
+                'account-addresses__card',
+                addr.isDefault && 'account-addresses__card--default'
+              )}
+            >
+              {addr.isDefault && <span className="account-addresses__card-label">Default Address</span>}
+              <h3 className="account-addresses__card-name">{addr.name}</h3>
+              <p className="account-addresses__card-text">{addr.address}</p>
+              <p className="account-addresses__card-text">{addr.city}, {addr.state} - {addr.pincode}</p>
+              <p className="account-addresses__card-text">Phone: {addr.phone}</p>
+
+              <div className="account-addresses__card-actions">
+                {!addr.isDefault && (
+                  <button
+                    onClick={() => handleSetDefault(addr.id)}
+                    className="account-addresses__action-btn"
+                  >
+                    Set as Default
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(addr.id)}
+                  className="account-addresses__action-btn account-addresses__action-btn--delete"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button
+            onClick={() => setIsAdding(true)}
+            className="account-addresses__add-btn"
+          >
+            <div className="p-3 bg-brand/5 rounded-full mb-2">
+              <svg className="w-6 h-6 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <span className="font-bold text-sm uppercase tracking-wider">Add Another Address</span>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

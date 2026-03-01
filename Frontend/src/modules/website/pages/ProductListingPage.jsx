@@ -4,7 +4,7 @@ import { Layout, Container } from '../components/Layout'
 import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import * as websiteApi from '../services/websiteApi'
-import { getPrimaryImageUrl } from '../utils/productImages'
+import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
 import '../styles/website.css'
 import { useTranslation } from '../../../context/TranslationContext'
@@ -229,17 +229,24 @@ export function ProductListingPage() {
                     style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div
-                      className="relative aspect-[3/4] overflow-hidden bg-surface-muted/30 w-full mb-6 cursor-pointer border border-brand/20 group-hover:border-brand/50 transition-all duration-700"
+                      className="relative aspect-[3/4] overflow-hidden bg-surface-muted/30 w-full mb-6 cursor-pointer border border-brand/20 group-hover:border-brand/50 transition-all duration-700 product-card-container"
                       onClick={() => navigate(`/product/${productId}`)}
                     >
                       <img
                         src={productImage}
                         alt={product.name}
-                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                        className="w-full h-full object-cover product-image-primary"
                       />
 
-                      {/* Premium Hover Actions */}
-                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      {/* Secondary Image for Hover (Smooth Transition) */}
+                      <img
+                        src={getImageUrlAt(product, 1)}
+                        alt={`${product.name} alternate view`}
+                        className="product-image-secondary"
+                      />
+
+                      {/* Premium Hover Actions Overlay */}
+                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />
 
                       <div className="absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out z-10 flex flex-col gap-3">
                         <button

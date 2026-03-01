@@ -1,4 +1,5 @@
 require('dotenv').config();
+// Trigger restart for new routes
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -79,7 +80,8 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
-    message: 'Noor E Adah Backend Server is running',
+    version: '1.0.1',
+    message: 'Noor E Adah Backend Server is running correctly',
     timestamp: new Date().toISOString(),
   });
 });

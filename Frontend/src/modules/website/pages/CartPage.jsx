@@ -5,7 +5,7 @@ import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import { MIN_ORDER_VALUE } from '../services/websiteData'
 import * as websiteApi from '../services/websiteApi'
-import { getPrimaryImageUrl } from '../utils/productImages'
+import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
 import '../styles/website.css'
 
@@ -13,147 +13,50 @@ export function CartPage() {
   const navigate = useNavigate()
   const dispatch = useWebsiteDispatch()
   const { cart } = useWebsiteState()
-  const { updateCartItem, removeFromCart, fetchProducts, getProductDetails, addToCart } = useWebsiteApi()
+  const { updateCartItem, removeFromCart } = useWebsiteApi()
 
-  const [suggestedProducts, setSuggestedProducts] = useState([])
   const [cartProducts, setCartProducts] = useState({})
-  const [expandedVariants, setExpandedVariants] = useState({})
+  const [couponOpen, setCouponOpen] = useState(false)
+  const [deliveryOpen, setDeliveryOpen] = useState(true)
+  const [shippingMethod, setShippingMethod] = useState('standard')
   const fetchingProductsRef = useRef(new Set())
-
-  // Fetch suggested products
-  useEffect(() => {
-    const loadSuggested = async () => {
-      try {
-        const cartProductIds = cart.map((item) => item.productId)
-        const result = await fetchProducts({ limit: 20 })
-        if (result.data?.products) {
-          const available = result.data.products.filter(
-            (p) => !cartProductIds.includes(p._id || p.id)
-          )
-          const shuffled = [...available].sort(() => Math.random() - 0.5)
-          setSuggestedProducts(shuffled.slice(0, 8))
-        }
-      } catch (error) {
-        console.error('Error loading suggested products:', error)
-      }
-    }
-
-    if (cart.length > 0) {
-      loadSuggested()
-    }
-  }, [cart, fetchProducts])
 
   // Fetch product details for cart items
   useEffect(() => {
-    const loadCartProducts = async () => {
-      setCartProducts(currentProducts => {
-        const productsToFetch = cart.filter(item =>
-          !currentProducts[item.productId] && !fetchingProductsRef.current.has(item.productId)
-        )
+    const productsToFetch = cart.filter(item =>
+      !cartProducts[item.productId] && !fetchingProductsRef.current.has(item.productId)
+    )
 
-        if (productsToFetch.length === 0) {
-          return currentProducts
-        }
-
-        productsToFetch.forEach(item => fetchingProductsRef.current.add(item.productId))
-
-        productsToFetch.forEach(async (item) => {
-          try {
-            const result = await websiteApi.getProductDetails(item.productId)
-            if (result.success && result.data?.product) {
-              setCartProducts(prev => ({
-                ...prev,
-                [item.productId]: result.data.product
-              }))
-            }
-          } catch (error) {
-            console.error(`Error loading product ${item.productId}:`, error)
-          } finally {
-            fetchingProductsRef.current.delete(item.productId)
+    if (productsToFetch.length > 0) {
+      productsToFetch.forEach(async (item) => {
+        fetchingProductsRef.current.add(item.productId)
+        try {
+          const result = await websiteApi.getProductDetails(item.productId)
+          if (result.success && result.data?.product) {
+            setCartProducts(prev => ({ ...prev, [item.productId]: result.data.product }))
           }
-        })
-
-        return currentProducts
+        } catch (error) {
+          console.error(`Error loading product ${item.productId}:`, error)
+        } finally {
+          fetchingProductsRef.current.delete(item.productId)
+        }
       })
     }
-
-    if (cart.length > 0) {
-      loadCartProducts()
-    } else {
-      setCartProducts({})
-      fetchingProductsRef.current.clear()
-    }
-  }, [cart])
-
-  // Group items by productId with variants
-  const groupedCartItems = useMemo(() => {
-    const grouped = {}
-
-    cart.forEach((item) => {
-      const product = cartProducts[item.productId]
-      const unitPrice = item.unitPrice || item.price || (product ? (product.priceToUser || product.price || 0) : 0)
-      const variantAttrs = item.variantAttributes || {}
-      const hasVariants = variantAttrs && typeof variantAttrs === 'object' && Object.keys(variantAttrs).length > 0
-      const key = item.productId
-
-      if (!grouped[key]) {
-        grouped[key] = {
-          productId: item.productId,
-          product,
-          name: item.name || product?.name || 'Product',
-          image: product ? getPrimaryImageUrl(product) : (item.image || 'https://via.placeholder.com/400'),
-          variants: [],
-          hasVariants: false,
-        }
-      }
-
-      const variantItem = {
-        ...item,
-        id: item.id || item._id || item.cartItemId,
-        cartItemId: item.id || item._id || item.cartItemId,
-        product,
-        unitPrice,
-        variantAttributes: variantAttrs,
-        hasVariants,
-      }
-
-      grouped[key].variants.push(variantItem)
-
-      if (hasVariants) {
-        grouped[key].hasVariants = true
-      }
-    })
-
-    return Object.values(grouped)
   }, [cart, cartProducts])
 
   const totals = useMemo(() => {
-    const subtotal = groupedCartItems.reduce((sum, group) => {
-      return sum + group.variants.reduce((variantSum, variant) => {
-        return variantSum + (variant.unitPrice * variant.quantity)
-      }, 0)
-    }, 0)
-    const delivery = subtotal >= 5000 ? 0 : 50
-    const total = subtotal + delivery
-    const meetsMinimum = total >= MIN_ORDER_VALUE
+    const subtotal = cart.reduce((sum, item) => sum + (item.unitPrice || item.price || 0) * item.quantity, 0)
+    const discount = subtotal > 10000 ? subtotal * 0.1 : 0 // Example discount
+    const delivery = shippingMethod === 'express' ? 500 : 300
+    const total = subtotal - discount + delivery
 
-    return {
-      subtotal,
-      delivery,
-      total,
-      meetsMinimum,
-      shortfall: meetsMinimum ? 0 : MIN_ORDER_VALUE - total,
-    }
-  }, [groupedCartItems])
+    return { subtotal, discount, delivery, total }
+  }, [cart, shippingMethod])
 
-  const totalItemsCount = useMemo(() => {
-    return groupedCartItems.reduce((sum, group) => sum + group.variants.length, 0)
-  }, [groupedCartItems])
-
-  const handleUpdateQuantity = async (variantId, newQuantity) => {
+  const handleUpdateQuantity = async (cartItemId, newQuantity) => {
     if (newQuantity < 1) return
     try {
-      await updateCartItem(variantId, newQuantity)
+      await updateCartItem(cartItemId, newQuantity)
     } catch (error) {
       console.error('Error updating quantity:', error)
     }
@@ -167,29 +70,15 @@ export function CartPage() {
     }
   }
 
-  const handleAddSuggestedToCart = async (productId) => {
-    try {
-      await addToCart(productId, 1)
-    } catch (error) {
-      console.error('Error adding to cart:', error)
-    }
-  }
-
-  const handleCheckout = () => {
-    if (totals.meetsMinimum) {
-      navigate('/checkout')
-    }
-  }
-
-  if (groupedCartItems.length === 0) {
+  if (cart.length === 0) {
     return (
       <Layout>
-        <Container className="cart-page">
-          <div className="cart-page__empty">
-            <h1 className="cart-page__title">Your cart is empty</h1>
-            <p className="cart-page__empty-text">Add some products to get started</p>
-            <Link to="/products" className="cart-page__continue">
-              Continue Shopping
+        <Container className="cart-page-new">
+          <div className="text-center py-20 space-y-8">
+            <h1 className="text-[28px] font-serif uppercase tracking-[0.1em]">Your cart is currently empty</h1>
+            <p className="text-brand/40 text-xs tracking-widest uppercase">Add some pieces to get started</p>
+            <Link to="/home/shop" className="inline-block bg-brand text-white px-12 py-5 text-[11px] font-bold tracking-[0.3em] uppercase hover:bg-accent transition-all">
+              Return to shop
             </Link>
           </div>
         </Container>
@@ -199,247 +88,190 @@ export function CartPage() {
 
   return (
     <Layout>
-      <Container className="cart-page">
-        <div className="cart-page__header flex items-baseline justify-between mb-12 border-b border-muted/10 pb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl storefront-heading">Shopping Bag</h1>
-          <p className="text-[10px] lg:text-[11px] tracking-[0.15em] uppercase text-brand/30 font-semibold italic">
-            {totalItemsCount} {totalItemsCount === 1 ? 'piece' : 'pieces'}
-          </p>
+      <Container className="cart-page-new">
+        {/* Breadcrumbs */}
+        <div className="cart-breadcrumbs">
+          <span className="cart-breadcrumb-item active">Shopping Cart</span>
+          <span className="cart-breadcrumb-item">→</span>
+          <span className="cart-breadcrumb-item">Checkout</span>
+          <span className="cart-breadcrumb-item">→</span>
+          <span className="cart-breadcrumb-item">Order Complete</span>
         </div>
 
-        <div className="cart-page__layout">
-          {/* Left: Cart Items */}
-          <div className="cart-page__items">
-            {groupedCartItems.map((group) => (
-              <div key={group.productId} className="cart-page__item-group">
-                {/* Product Header */}
-                <div className="cart-page__item-header">
-                  <div className="cart-page__item-image-wrapper">
-                    <img src={group.image} alt={group.name} className="cart-page__item-image" />
-                  </div>
-                  <div className="cart-page__item-info">
-                    <h3 className="text-[11px] lg:text-[13px] font-semibold tracking-[0.1em] uppercase text-brand mb-1">
-                      {group.name}
-                    </h3>
-                    {group.product?.category && (
-                      <p className="text-[8px] lg:text-[10px] tracking-[0.05em] text-brand/30 uppercase font-medium">
-                        {group.product.category.name}
-                      </p>
-                    )}
-                  </div>
-                </div>
+        <div className="cart-layout-grid">
+          {/* Left: Product Table */}
+          <div className="cart-items-section">
+            <div className="cart-table-header">
+              <span className="cart-table-label">Product</span>
+              <span className="cart-table-label">Total</span>
+            </div>
 
-                {/* Variants List */}
-                <div className="cart-page__variants">
-                  {group.variants.map((variant, variantIdx) => {
-                    const variantId = variant.id || variant._id || variant.cartItemId
-                    const cartItemId = variant.cartItemId || variant.id || variant._id
-                    const isExpanded = expandedVariants[variantId] || false
-
-                    return (
-                      <div key={variantId} className="cart-page__variant">
-                        {/* Variant Header - Collapsible */}
-                        <button
-                          type="button"
-                          onClick={() => setExpandedVariants(prev => ({ ...prev, [variantId]: !prev[variantId] }))}
-                          className="cart-page__variant-header"
-                        >
-                          <div className="cart-page__variant-info">
-                            <div className="text-[8px] lg:text-[10px] font-semibold tracking-[0.15em] uppercase text-brand/40 mb-1">
-                              <span>Variant {variantIdx + 1}</span>
-                            </div>
-                            {variant.variantAttributes && Object.keys(variant.variantAttributes).length > 0 ? (
-                              <div className="text-[10px] lg:text-[12px] text-brand/80">
-                                {Object.entries(variant.variantAttributes).slice(0, 2).map(([key, value], idx) => (
-                                  <span key={key}>
-                                    {idx > 0 && ", "}
-                                    <span className="font-bold uppercase tracking-wider text-[8px] mr-1">{key}:</span> {value}
-                                  </span>
-                                ))}
-                                {Object.keys(variant.variantAttributes).length > 2 && ' + more'}
-                              </div>
-                            ) : (
-                              <p className="text-[10px] lg:text-[12px] text-brand/30 uppercase tracking-[0.1em] italic">Standard Piece</p>
-                            )}
-                            <div className="text-[9px] lg:text-[11px] font-bold tracking-[0.05em] text-accent mt-2">
-                              ₹{(variant.unitPrice || 0).toLocaleString('en-IN')}
-                            </div>
-                          </div>
-                          <svg
-                            className={cn(
-                              "cart-page__variant-chevron",
-                              isExpanded && "cart-page__variant-chevron--expanded"
-                            )}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-
-                        {/* Expanded Variant Details */}
-                        {isExpanded && (
-                          <div className="cart-page__variant-details">
-                            {variant.variantAttributes && Object.keys(variant.variantAttributes).length > 0 ? (
-                              <div className="cart-page__variant-properties">
-                                <p className="cart-page__variant-properties-title">Variant Properties:</p>
-                                {Object.entries(variant.variantAttributes).map(([key, value]) => (
-                                  <div key={key} className="cart-page__variant-property">
-                                    <span className="cart-page__variant-property-key">{key}:</span>
-                                    <span className="cart-page__variant-property-value">{value}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="cart-page__variant-no-properties">No variant properties available</p>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Variant Controls */}
-                        <div className="cart-page__variant-controls">
-                          <div className="cart-page__quantity-controls">
-                            <button
-                              type="button"
-                              className="cart-page__quantity-button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleUpdateQuantity(variantId, variant.quantity - 1)
-                              }}
-                              disabled={variant.quantity <= 1}
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                              </svg>
-                            </button>
-                            <span className="cart-page__quantity-value">{variant.quantity}</span>
-                            <button
-                              type="button"
-                              className="cart-page__quantity-button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleUpdateQuantity(variantId, variant.quantity + 1)
-                              }}
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                            </button>
-                          </div>
-
-                          <div className="text-sm lg:text-[18px] font-bold tracking-[0.1em] text-brand">
-                            ₹{((variant.unitPrice || 0) * variant.quantity).toLocaleString('en-IN')}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="cart-page__variant-remove"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRemove(cartItemId)
-                            }}
-                          >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+            <div className="divide-y divide-black/5">
+              {cart.map((item) => (
+                <div key={item.id || item.cartItemId} className="cart-item-new">
+                  <div className="cart-item-product-info">
+                    <div className="cart-item-image-box">
+                      <img src={item.image} alt={item.name} />
+                    </div>
+                    <div className="cart-item-details">
+                      <div className="space-y-2">
+                        <h3 className="cart-item-title uppercase line-clamp-2">{item.name}</h3>
+                        <p className="cart-item-price">₹{(item.unitPrice || item.price || 0).toLocaleString('en-IN')}</p>
+                        <div className="cart-item-meta uppercase tracking-wider">
+                          <span>Size: {item.variantAttributes?.Size || 'S'}</span>
                         </div>
                       </div>
-                    )
-                  })}
+
+                      <div className="mt-6 flex flex-col gap-4">
+                        <div className="cart-quantity-box">
+                          <button
+                            className="cart-quantity-btn"
+                            onClick={() => handleUpdateQuantity(item.id || item.cartItemId, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
+                          >
+                            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 12H4" /></svg>
+                          </button>
+                          <span className="cart-quantity-input">{item.quantity}</span>
+                          <button
+                            className="cart-quantity-btn"
+                            onClick={() => handleUpdateQuantity(item.id || item.cartItemId, item.quantity + 1)}
+                          >
+                            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 4v16m8-8H4" /></svg>
+                          </button>
+                        </div>
+                        <button
+                          className="cart-remove-link w-fit"
+                          onClick={() => handleRemove(item.id || item.cartItemId)}
+                        >
+                          Remove item
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="cart-item-total pt-1">
+                    ₹{((item.unitPrice || item.price || 0) * item.quantity).toLocaleString('en-IN')}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Right: Summary */}
-          <div className="cart-page__summary">
-            <div className="cart-page__summary-card bg-surface-muted p-10">
-              <h3 className="text-[11px] lg:text-[12px] font-bold tracking-[0.2em] uppercase mb-10 text-brand">Order Summary</h3>
+          {/* Right: Cart Totals */}
+          <div className="cart-totals-section">
+            <div className="cart-sidebar-card">
+              <h2 className="cart-sidebar-title">Cart Totals</h2>
 
-              <div className="cart-page__summary-row">
-                <span>Subtotal</span>
-                <span>₹{totals.subtotal.toLocaleString('en-IN')}</span>
+              {/* Coupon Collapsible */}
+              <div className="border-b border-black/5">
+                <button
+                  onClick={() => setCouponOpen(!couponOpen)}
+                  className="collapsible-header"
+                >
+                  <span>Add a coupon</span>
+                  <svg className={`w-3 h-3 transition-transform ${couponOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6" /></svg>
+                </button>
+                {couponOpen && (
+                  <div className="py-5 flex gap-2">
+                    <input type="text" className="cart-input-field" placeholder="Coupon code" />
+                    <button className="bg-brand text-white px-5 text-[10px] font-bold uppercase tracking-widest">Apply</button>
+                  </div>
+                )}
               </div>
 
-              <div className="cart-page__summary-row">
-                <span>Delivery</span>
-                <span>{totals.delivery === 0 ? 'Free' : `₹${totals.delivery}`}</span>
+              {/* Summary Rows */}
+              <div className="sidebar-row">
+                <span className="sidebar-row-label">Subtotal</span>
+                <span className="sidebar-row-value">₹{totals.subtotal.toLocaleString('en-IN')}</span>
               </div>
 
-              <div className="cart-page__summary-row cart-page__summary-row--total">
-                <span>Total</span>
-                <span>₹{totals.total.toLocaleString('en-IN')}</span>
-              </div>
-
-              {!totals.meetsMinimum && (
-                <div className="cart-page__summary-warning">
-                  <p>
-                    Add ₹{totals.shortfall.toLocaleString('en-IN')} more to reach minimum order value of ₹{MIN_ORDER_VALUE.toLocaleString('en-IN')}
-                  </p>
+              {totals.discount > 0 && (
+                <div className="sidebar-row">
+                  <span className="sidebar-row-label flex items-center">
+                    Discount
+                    <span className="discount-badge">special</span>
+                  </span>
+                  <span className="sidebar-row-value text-green-600">-₹{totals.discount.toLocaleString('en-IN')}</span>
                 </div>
               )}
 
-              <button
-                type="button"
-                className={cn(
-                  'cart-page__checkout-button',
-                  !totals.meetsMinimum && 'cart-page__checkout-button--disabled'
+              <div className="sidebar-row">
+                <span className="sidebar-row-label">Delivery</span>
+                <span className="sidebar-row-value">₹{totals.delivery.toLocaleString('en-IN')}</span>
+              </div>
+
+              {/* Delivery Address Collapsible */}
+              <div className="border-b border-black/5">
+                <button
+                  onClick={() => setDeliveryOpen(!deliveryOpen)}
+                  className="collapsible-header"
+                >
+                  <span className="uppercase text-[11px] tracking-widest">Delivers to Haryana, India</span>
+                  <svg className={`w-3 h-3 transition-transform ${deliveryOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6" /></svg>
+                </button>
+                {deliveryOpen && (
+                  <div className="address-fields-grid">
+                    <select className="cart-select-field">
+                      <option>India</option>
+                    </select>
+                    <input type="text" className="cart-input-field" placeholder="City" />
+                    <select className="cart-select-field">
+                      <option>Haryana</option>
+                    </select>
+                    <input type="text" className="cart-input-field" placeholder="PIN Code" />
+                    <button className="check-options-btn">Check Delivery Options</button>
+                  </div>
                 )}
-                onClick={handleCheckout}
-                disabled={!totals.meetsMinimum}
+              </div>
+
+              {/* Shipping Options */}
+              <div className="shipping-options-list">
+                <div
+                  className="shipping-option-item"
+                  onClick={() => setShippingMethod('standard')}
+                >
+                  <input
+                    type="radio"
+                    checked={shippingMethod === 'standard'}
+                    onChange={() => { }}
+                    className="shipping-option-radio"
+                  />
+                  <div className="shipping-option-label">
+                    <span className="shipping-name uppercase">Standard Shipping</span>
+                    <span className="shipping-price">₹300.00</span>
+                  </div>
+                </div>
+                <div
+                  className="shipping-option-item"
+                  onClick={() => setShippingMethod('express')}
+                >
+                  <input
+                    type="radio"
+                    checked={shippingMethod === 'express'}
+                    onChange={() => { }}
+                    className="shipping-option-radio"
+                  />
+                  <div className="shipping-option-label">
+                    <span className="shipping-name uppercase">Express Shipping</span>
+                    <span className="shipping-price">₹500.00</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Final Total */}
+              <div className="cart-total-footer">
+                <span className="cart-total-label">Total</span>
+                <span className="cart-total-amount">₹{totals.total.toLocaleString('en-IN')}</span>
+              </div>
+
+              <button
+                onClick={() => navigate('/checkout')}
+                className="proceed-checkout-btn"
               >
-                {totals.meetsMinimum ? 'Proceed to Checkout' : `Add ₹${totals.shortfall.toLocaleString('en-IN')} more`}
+                Proceed to Checkout
               </button>
             </div>
           </div>
         </div>
-
-        {/* Suggested Items Section */}
-        {suggestedProducts.length > 0 && (
-          <div className="cart-page__suggested pt-32">
-            <h3 className="text-xl sm:text-2xl storefront-heading text-center mb-16">The Curated Edit</h3>
-            <div className="cart-page__suggested-grid">
-              {suggestedProducts.map((product) => {
-                const productId = product._id || product.id
-                return (
-                  <div key={productId} className="cart-page__suggested-card">
-                    <div className="cart-page__suggested-image-wrapper">
-                      <img
-                        src={getPrimaryImageUrl(product)}
-                        alt={product.name}
-                        className="cart-page__suggested-image"
-                        onClick={() => navigate(`/product/${productId}`)}
-                      />
-                    </div>
-                    <div className="cart-page__suggested-content">
-                      <h4
-                        className="text-[9px] lg:text-[11px] font-semibold tracking-[0.1em] uppercase text-brand mb-1.5 cursor-pointer hover:text-accent transition-colors"
-                        onClick={() => navigate(`/product/${productId}`)}
-                      >
-                        {product.name}
-                      </h4>
-                      <div className="text-xs lg:text-base font-bold tracking-[0.05em] text-brand">
-                        ₹{(product.priceToUser || product.price || 0).toLocaleString('en-IN')}
-                      </div>
-                      <button
-                        type="button"
-                        className="cart-page__suggested-add-btn"
-                        onClick={() => handleAddSuggestedToCart(productId)}
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span>Add</span>
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </Container>
     </Layout>
   )

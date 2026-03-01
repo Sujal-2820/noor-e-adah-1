@@ -1,11 +1,13 @@
 import { WebsiteHeader } from './WebsiteHeader'
 import { WebsiteFooter } from './WebsiteFooter'
+import { CartSidebar } from './CartSidebar'
 import '../styles/website.css'
 
 export function Layout({ children }) {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <WebsiteHeader />
+      <CartSidebar />
       <main className="flex-grow pt-[120px] lg:pt-[140px]">
         {children}
       </main>

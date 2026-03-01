@@ -4,7 +4,7 @@ import { Layout, Container } from '../components/Layout'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import * as websiteApi from '../services/websiteApi'
-import { getPrimaryImageUrl } from '../utils/productImages'
+import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
 import '../styles/website.css'
 
@@ -13,7 +13,7 @@ export function FavouritesPage() {
   const dispatch = useWebsiteDispatch()
   const { favourites, authenticated } = useWebsiteState()
   const { removeFromFavourites, addToCart } = useWebsiteApi()
-  
+
   const [favouriteProducts, setFavouriteProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -42,7 +42,7 @@ export function FavouritesPage() {
         setLoading(false)
       }
     }
-    
+
     if (favourites.length > 0) {
       loadFavourites()
     } else {
@@ -114,18 +114,25 @@ export function FavouritesPage() {
               const productId = product._id || product.id
               const inStock = (product.stock || 0) > 0
               const productImage = getPrimaryImageUrl(product)
-              
+
               return (
                 <div
                   key={productId}
-                  className="favourites-page__card"
+                  className="favourites-page__card group"
                   onClick={() => handleProductClick(productId)}
                 >
-                  <div className="favourites-page__card-image-wrapper">
+                  <div className="favourites-page__card-image-wrapper product-card-container">
                     <img
                       src={productImage}
                       alt={product.name}
-                      className="favourites-page__card-image"
+                      className="favourites-page__card-image product-image-primary"
+                    />
+
+                    {/* Secondary Image for Hover (Smooth Transition) */}
+                    <img
+                      src={getImageUrlAt(product, 1)}
+                      alt={`${product.name} alternate view`}
+                      className="product-image-secondary"
                     />
                     <button
                       type="button"

@@ -4,7 +4,7 @@ import { Layout, Container, Section } from '../components/Layout'
 import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import * as websiteApi from '../services/websiteApi'
-import { getAllImageUrls, getPrimaryImageUrl } from '../utils/productImages'
+import { getAllImageUrls, getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
 import '../styles/website.css'
 
@@ -629,11 +629,18 @@ export function ProductDetailPage() {
                     to={`/product/${p._id || p.id}`}
                     className="group"
                   >
-                    <div className="aspect-[3/4] bg-surface-muted overflow-hidden mb-6 relative">
+                    <div className="aspect-[3/4] bg-surface-muted overflow-hidden mb-6 relative product-card-container">
                       <img
                         src={getPrimaryImageUrl(p)}
                         alt={p.name}
-                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                        className="w-full h-full object-cover product-image-primary"
+                      />
+
+                      {/* Secondary Image for Hover (Smooth Transition) */}
+                      <img
+                        src={getImageUrlAt(p, 1)}
+                        alt={`${p.name} alternate view`}
+                        className="product-image-secondary"
                       />
                     </div>
                     <div className="text-center">

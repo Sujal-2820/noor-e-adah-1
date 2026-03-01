@@ -334,7 +334,11 @@ export function WebsiteHeader() {
                 )}
               </Link>
 
-              <Link to="/cart" className="relative hover:text-accent transition-colors group/cart" aria-label="Cart">
+              <button
+                onClick={() => dispatch({ type: 'SET_CART_OPEN', payload: true })}
+                className="relative hover:text-accent transition-colors group/cart"
+                aria-label="Cart"
+              >
                 <svg className="w-5 h-5 group-hover/cart:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" />
                 </svg>
@@ -343,7 +347,7 @@ export function WebsiteHeader() {
                     {cartCount}
                   </span>
                 )}
-              </Link>
+              </button>
 
               {/* Hamburger - Mobile */}
               <button

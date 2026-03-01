@@ -4,7 +4,7 @@ import { Layout, Container } from '../components/Layout'
 import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import * as websiteApi from '../services/websiteApi'
-import { getPrimaryImageUrl } from '../utils/productImages'
+import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
 import '../styles/website.css'
 
@@ -220,14 +220,21 @@ export function CategoryProductsPage() {
               return (
                 <div
                   key={productId}
-                  className="category-products-page__card"
+                  className="category-products-page__card group"
                   onClick={() => handleProductClick(productId)}
                 >
-                  <div className="category-products-page__card-image-wrapper border border-brand/20 group-hover:border-brand/50 transition-all duration-700 shadow-sm mb-6">
+                  <div className="category-products-page__card-image-wrapper border border-brand/20 group-hover:border-brand/50 transition-all duration-700 shadow-sm mb-6 product-card-container">
                     <img
                       src={productImage}
                       alt={product.name}
-                      className="category-products-page__card-image"
+                      className="category-products-page__card-image product-image-primary"
+                    />
+
+                    {/* Secondary Image for Hover (Smooth Transition) */}
+                    <img
+                      src={getImageUrlAt(product, 1)}
+                      alt={`${product.name} alternate view`}
+                      className="product-image-secondary"
                     />
                     {authenticated && (
                       <button

@@ -15,6 +15,7 @@ const BankAccount = require('../models/BankAccount');
 const PaymentHistory = require('../models/PaymentHistory');
 const UserNotification = require('../models/UserNotification');
 const Settings = require('../models/Settings');
+const Address = require('../models/Address');
 const razorpayService = require('../services/razorpayService');
 const { admin } = require('../services/firebaseAdmin');
 
@@ -5007,6 +5008,194 @@ exports.getNotifications = async (req, res, next) => {
           itemsPerPage: limitNum,
         },
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// ADDRESS MANAGEMENT CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get user addresses
+ * @route   GET /api/users/addresses
+ * @access  Private (User)
+ */
+exports.getAddresses = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    console.log(`🏠 Fetching addresses for user: ${userId}`);
+
+    const addresses = await Address.find({ userId }).sort({ isDefault: -1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        addresses: addresses.map(addr => ({
+          id: addr._id,
+          name: addr.name,
+          phone: addr.phone,
+          address: addr.address,
+          city: addr.city,
+          state: addr.state,
+          pincode: addr.pincode,
+          isDefault: addr.isDefault,
+          landmark: addr.landmark,
+          addressType: addr.addressType
+        }))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Add new address
+ * @route   POST /api/users/addresses
+ * @access  Private (User)
+ */
+exports.addAddress = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { name, phone, address, city, state, pincode, isDefault, landmark, addressType } = req.body;
+
+    // Validate required fields
+    if (!name || !phone || !address || !city || !state || !pincode) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields (name, phone, address, city, state, pincode) are required'
+      });
+    }
+
+    // Generate addressId
+    const addressId = await generateUniqueId(Address, 'ADD', 'addressId');
+
+    const newAddress = new Address({
+      userId,
+      addressId,
+      name,
+      phone,
+      address,
+      city,
+      state,
+      pincode,
+      isDefault: !!isDefault,
+      landmark,
+      addressType
+    });
+
+    await newAddress.save();
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: newAddress._id,
+        ...req.body,
+        isDefault: newAddress.isDefault
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update address
+ * @route   PUT /api/users/addresses/:addressId
+ * @access  Private (User)
+ */
+exports.updateAddress = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { addressId } = req.params;
+
+    const updatedAddress = await Address.findOneAndUpdate(
+      { _id: addressId, userId },
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedAddress) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedAddress
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete address
+ * @route   DELETE /api/users/addresses/:addressId
+ * @access  Private (User)
+ */
+exports.deleteAddress = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { addressId } = req.params;
+
+    const address = await Address.findOneAndDelete({ _id: addressId, userId });
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    // If deleted address was default, set another one as default if exists
+    if (address.isDefault) {
+      const anotherAddress = await Address.findOne({ userId });
+      if (anotherAddress) {
+        anotherAddress.isDefault = true;
+        await anotherAddress.save();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Address deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Set default address
+ * @route   PUT /api/users/addresses/:addressId/default
+ * @access  Private (User)
+ */
+exports.setDefaultAddress = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { addressId } = req.params;
+
+    const address = await Address.findOne({ _id: addressId, userId });
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    address.isDefault = true;
+    await address.save(); // Model hook handles unsetting others
+
+    res.status(200).json({
+      success: true,
+      message: 'Default address updated'
     });
   } catch (error) {
     next(error);
