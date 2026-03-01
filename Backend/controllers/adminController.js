@@ -1,0 +1,7803 @@
+/**
+ * Admin Controller
+ * 
+ * Handles all admin-related operations
+ */
+
+const Admin = require('../models/Admin');
+// const User = require('../models/User');
+const User = require('../models/User');
+const Product = require('../models/Product');
+const ProductAssignment = require('../models/ProductAssignment');
+const WithdrawalRequest = require('../models/WithdrawalRequest');
+const UserEarning = require('../models/UserEarning');
+const BankAccount = require('../models/BankAccount');
+const Order = require('../models/Order');
+const Payment = require('../models/Payment');
+
+const PaymentHistory = require('../models/PaymentHistory');
+const Settings = require('../models/Settings');
+const Notification = require('../models/Notification');
+const UserNotification = require('../models/UserNotification');
+const Offer = require('../models/Offer');
+const Review = require('../models/Review');
+const Category = require('../models/Category');
+
+const razorpayService = require('../services/razorpayService');
+const { USER_COVERAGE_RADIUS_KM, MIN_USER_PURCHASE, DELIVERY_TIMELINE_HOURS, ORDER_STATUS, PAYMENT_STATUS } = require('../utils/constants');
+
+const { sendOTP } = require('../utils/otp');
+const { getTestOTPInfo } = require('../services/smsIndiaHubService');
+const { findPhoneInModel } = require('../utils/phoneNormalize');
+const { OTP_EXPIRY_MINUTES } = require('../utils/constants');
+const { generateToken } = require('../middleware/auth');
+const { isSpecialBypassNumber, SPECIAL_BYPASS_OTP } = require('../utils/phoneValidation');
+const { generateUniqueId } = require('../utils/generateUniqueId');
+const { createPaymentHistory, createProductAssignment, createNotification, createOffer } = require('../utils/createWithId');
+const { safeUserCount, safeSellerCount } = require('../utils/faultTolerantQuery');
+
+// Auto-finalize expired status update grace periods (runs in background)
+async function processExpiredStatusUpdates() {
+  try {
+    const now = new Date();
+    const expiredStatusUpdates = await Order.find({
+      'statusUpdateGracePeriod.isActive': true,
+      'statusUpdateGracePeriod.expiresAt': { $lte: now },
+    });
+
+    if (expiredStatusUpdates.length === 0) {
+      return;
+    }
+
+    for (const order of expiredStatusUpdates) {
+      order.statusUpdateGracePeriod.isActive = false;
+      order.statusUpdateGracePeriod.finalizedAt = now;
+      order.statusUpdateGracePeriod.previousPaymentStatus = undefined;
+      order.statusUpdateGracePeriod.previousRemainingAmount = undefined;
+
+      order.statusTimeline.push({
+        status: order.status,
+        timestamp: now,
+        updatedBy: 'system',
+        note: `Status update finalized after 1-hour grace period expired. Status is now locked at ${order.status}.`,
+      });
+
+      await order.save();
+      console.log(`✅ Order ${order.orderNumber} status update finalized after grace period expired`);
+    }
+  } catch (error) {
+    console.error('Failed to process expired status updates:', error);
+  }
+}
+
+/**
+ * @desc    Admin login (Step 1: Phone only)
+ * @route   POST /api/admin/auth/login
+ * @access  Public
+ */
+exports.login = async (req, res, next) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required',
+      });
+    }
+
+    // Special bypass number - skip all checks and proceed to OTP
+    if (isSpecialBypassNumber(phone)) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          requiresOtp: true,
+          message: 'OTP sent to phone',
+          phone: phone,
+          expiresIn: OTP_EXPIRY_MINUTES * 60, // seconds
+        },
+      });
+    }
+
+    // Find admin by phone - handle both +91 and non-prefix formats
+    let admin = await findPhoneInModel(Admin, phone);
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found',
+      });
+    }
+
+    // Check if admin is active
+    if (!admin.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin account is deactivated',
+      });
+    }
+
+    // Clear any existing OTP before generating new one
+    admin.clearOTP();
+
+    // Generate new unique OTP
+    const otpCode = admin.generateOTP();
+    await admin.save();
+
+    // Send OTP to phone via SMS
+    try {
+      await sendOTP(admin.phone, otpCode, 'login');
+      console.log(`✅ OTP sent to admin phone: ${admin.phone}`);
+    } catch (error) {
+      console.error('Failed to send OTP:', error);
+      // Continue even if SMS fails - OTP is stored in database and can be retrieved for testing
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        requiresOtp: true,
+        message: 'OTP sent to phone',
+        phone: admin.phone,
+        expiresIn: OTP_EXPIRY_MINUTES * 60, // seconds
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Request OTP for admin
+ * @route   POST /api/admin/auth/request-otp
+ * @access  Public
+ */
+exports.requestOTP = async (req, res, next) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required',
+      });
+    }
+
+    // Special bypass number - skip all checks and proceed to OTP
+    if (isSpecialBypassNumber(phone)) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          message: 'OTP sent successfully',
+          expiresIn: OTP_EXPIRY_MINUTES * 60, // seconds
+        },
+      });
+    }
+
+    // Find admin - handle both +91 and non-prefix formats
+    let admin = await findPhoneInModel(Admin, phone);
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found',
+      });
+    }
+
+    // Clear any existing OTP before generating new one
+    admin.clearOTP();
+
+    // Check if this is a test phone number - use default OTP 123456
+    const testOTPInfo = getTestOTPInfo(admin.phone);
+    let otpCode;
+    if (testOTPInfo.isTest) {
+      // For test numbers, set OTP directly to 123456
+      otpCode = testOTPInfo.defaultOTP;
+      admin.otp = {
+        code: otpCode,
+        expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+      };
+    } else {
+      // Generate new unique OTP for regular numbers
+      otpCode = admin.generateOTP();
+    }
+    await admin.save();
+
+    // Send OTP to phone via SMS
+    try {
+      await sendOTP(admin.phone, otpCode, 'login');
+      console.log(`✅ OTP sent to admin phone: ${admin.phone}`);
+    } catch (error) {
+      console.error('Failed to send OTP:', error);
+      // Continue even if SMS fails - OTP is stored in database and can be retrieved for testing
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'OTP sent successfully',
+        expiresIn: OTP_EXPIRY_MINUTES * 60, // seconds
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Verify OTP and complete login
+ * @route   POST /api/admin/auth/verify-otp
+ * @access  Public
+ */
+exports.verifyOTP = async (req, res, next) => {
+  try {
+    const { phone, otp } = req.body;
+
+    if (!phone || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number and OTP are required',
+      });
+    }
+
+    // Special bypass number - accept OTP 123456 and create/find admin
+    if (isSpecialBypassNumber(phone)) {
+      if (otp !== SPECIAL_BYPASS_OTP) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid or expired OTP',
+        });
+      }
+
+      // Find or create admin for special bypass number
+      let admin = await findPhoneInModel(Admin, phone);
+
+      if (!admin) {
+        // Generate unique admin ID
+        const adminId = await generateUniqueId(Admin, 'ADM', 'adminId', 101);
+        // Create admin if doesn't exist
+        admin = new Admin({
+          adminId,
+          phone: phone,
+          name: 'Special Bypass Admin',
+          role: 'admin',
+          isActive: true,
+        });
+        await admin.save();
+        console.log(`✅ Special bypass admin created: ${phone} with ID: ${adminId}`);
+      }
+
+      admin.lastLogin = new Date();
+      await admin.save();
+
+      // Generate JWT token
+      const token = generateToken({
+        adminId: admin._id,
+        phone: admin.phone,
+        role: admin.role,
+        type: 'admin',
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          token,
+          admin: {
+            id: admin._id,
+            phone: admin.phone,
+            name: admin.name,
+            role: admin.role,
+          },
+        },
+      });
+    }
+
+    // Find admin - handle both +91 and non-prefix formats
+    let admin = await findPhoneInModel(Admin, phone);
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found',
+      });
+    }
+
+    // Verify OTP
+    const isOtpValid = admin.verifyOTP(otp);
+
+    if (!isOtpValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired OTP',
+      });
+    }
+
+    // Clear OTP after successful verification
+    admin.clearOTP();
+    admin.lastLogin = new Date();
+    await admin.save();
+
+    // Log successful login
+    console.log(`\n✅ Admin logged in: ${admin.phone} (Role: ${admin.role}) at ${new Date().toISOString()}\n`);
+
+    // Generate JWT token
+    const token = generateToken({
+      adminId: admin._id,
+      phone: admin.phone,
+      role: admin.role,
+      type: 'admin',
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token,
+        admin: {
+          id: admin._id,
+          phone: admin.phone,
+          name: admin.name,
+          role: admin.role,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Admin logout
+ * @route   POST /api/admin/auth/logout
+ * @access  Private (Admin)
+ */
+exports.logout = async (req, res, next) => {
+  try {
+    // TODO: Implement token blacklisting or refresh token invalidation
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get admin profile
+ * @route   GET /api/admin/auth/profile
+ * @access  Private (Admin)
+ */
+exports.getProfile = async (req, res, next) => {
+  try {
+    // Admin is attached by authorizeAdmin middleware
+    const admin = req.admin;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        admin: {
+          id: admin._id,
+          phone: admin.phone,
+          name: admin.name,
+          role: admin.role,
+          lastLogin: admin.lastLogin,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get dashboard overview
+ * @route   GET /api/admin/dashboard
+ * @access  Private (Admin)
+ */
+exports.getDashboard = async (req, res, next) => {
+  try {
+    // Generate counts for Admin Dashboard
+    const [
+      totalUsers,
+      activeUsers,
+      blockedUsers,
+      approvedUsers,
+      pendingUsers,
+      totalProducts,
+      activeProducts,
+      totalOrders,
+      pendingOrders,
+      processingOrders,
+      deliveredOrders,
+      cancelledOrders,
+      totalPayments,
+      pendingPayments,
+      completedPayments,
+      pendingWithdrawals,
+    ] = await Promise.all([
+      // User counts (formerly Vendors)
+      User.countDocuments(),
+      User.countDocuments({ isActive: true, isBlocked: false }),
+      User.countDocuments({ isBlocked: true }),
+      User.countDocuments({ status: 'approved' }),
+      User.countDocuments({ status: 'pending' }),
+
+      // Products
+      Product.countDocuments(),
+      Product.countDocuments({ isActive: true }),
+
+      // Orders
+      Order.countDocuments(),
+      Order.countDocuments({ status: 'pending' }),
+      Order.countDocuments({ status: { $in: ['awaiting', 'processing', 'dispatched'] } }),
+      Order.countDocuments({ status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] } }),
+      Order.countDocuments({ status: 'cancelled' }),
+
+      // Payments
+      Payment.countDocuments(),
+      Payment.countDocuments({ status: 'pending' }),
+      Payment.countDocuments({ status: 'fully_paid' }),
+
+      // Withdrawal Requests
+      WithdrawalRequest.countDocuments({ status: 'pending' }),
+    ]);
+
+    // Calculate revenue (from completed orders)
+    const revenueStats = await Order.aggregate([
+      {
+        $match: {
+          status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
+          paymentStatus: PAYMENT_STATUS.FULLY_PAID,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$totalAmount' },
+          totalOrders: { $sum: 1 },
+          averageOrderValue: { $avg: '$totalAmount' },
+        },
+      },
+    ]);
+
+    // Calculate revenue by time period (last 30 days, last 7 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [revenueLast30Days, revenueLast7Days] = await Promise.all([
+      Order.aggregate([
+        {
+          $match: {
+            status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
+            paymentStatus: PAYMENT_STATUS.FULLY_PAID,
+            createdAt: { $gte: thirtyDaysAgo },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: '$totalAmount' },
+            orderCount: { $sum: 1 },
+          },
+        },
+      ]),
+      Order.aggregate([
+        {
+          $match: {
+            status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
+            paymentStatus: PAYMENT_STATUS.FULLY_PAID,
+            createdAt: { $gte: sevenDaysAgo },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: '$totalAmount' },
+            orderCount: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    // Calculate pending payments amount
+    const pendingPaymentStats = await Payment.aggregate([
+      {
+        $match: {
+          status: 'pending',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Calculate pending withdrawals amount
+    const pendingWithdrawalStats = await WithdrawalRequest.aggregate([
+      {
+        $match: {
+          status: 'pending',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Extract aggregated data
+    const totalRevenue = revenueStats[0]?.totalRevenue || 0;
+    const averageOrderValue = revenueStats[0]?.averageOrderValue || 0;
+    const revenueLast30DaysAmount = revenueLast30Days[0]?.totalRevenue || 0;
+    const revenueLast7DaysAmount = revenueLast7Days[0]?.totalRevenue || 0;
+    const pendingPaymentsAmount = pendingPaymentStats[0]?.totalAmount || 0;
+    const pendingWithdrawalsAmount = pendingWithdrawalStats[0]?.totalAmount || 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        overview: {
+          users: {
+            total: totalUsers,
+            active: activeUsers,
+            blocked: blockedUsers,
+          },
+          products: {
+            total: totalProducts,
+            active: activeProducts,
+          },
+          orders: {
+            total: totalOrders,
+            pending: pendingOrders,
+            processing: processingOrders,
+            delivered: deliveredOrders,
+            cancelled: cancelledOrders,
+          },
+          finance: {
+            revenue: totalRevenue,
+            averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+            revenueLast30Days: revenueLast30DaysAmount,
+            revenueLast7Days: revenueLast7DaysAmount,
+          },
+        },
+        summary: {
+          totalOrders: totalOrders,
+          totalRevenue: totalRevenue,
+          pendingActions: pendingOrders,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// PRODUCT MANAGEMENT CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get all products with filtering and pagination
+ * @route   GET /api/admin/products
+ * @access  Private (Admin)
+ */
+exports.getProducts = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      category,
+      isActive,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (category) {
+      query.category = category.toLowerCase();
+    }
+
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    }
+
+    if (search) {
+      // Search by product ID, name, or text search
+      query.$or = [
+        { productId: { $regex: search, $options: 'i' } }, // Search by unique product ID
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } },
+        { sku: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query
+    const products = await Product.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .select('-__v');
+
+    const total = await Product.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        products,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get single product details
+ * @route   GET /api/admin/products/:productId
+ * @access  Private (Admin)
+ */
+exports.getProductDetails = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId).select('-__v');
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    // Get User assignments for this product
+    const assignments = await ProductAssignment.find({ productId, isActive: true })
+      .populate('UserId', 'name phone location')
+      .select('-__v');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        product,
+        assignments,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Create new product
+ * @route   POST /api/admin/products
+ * @access  Private (Admin)
+ */
+exports.createProduct = async (req, res, next) => {
+  try {
+    const {
+      name,
+      category,        // fashion category (required)
+      look,            // fashion look (optional)
+      theme,           // fashion theme (optional)
+      collection,      // fashion collection (optional)
+      description,
+      shortDescription,
+      wholesalePrice,
+      publicPrice,
+      discountWholesale,
+      discountPublic,
+      actualStock,
+      displayStock,
+      stock,           // Legacy field support
+      stockUnit,
+      sizes,           // Fashion size variants [{ label, actualStock, displayStock, price? }]
+      images,          // Array of image objects {url, publicId, isPrimary, order}
+      expiry,
+      brand,
+      weight,
+      tags,
+      specifications,
+      sku,
+      batchNumber,
+      attributeStocks, // Legacy: Array of stock entries per attribute combination
+      longDescription, // Detailed formatted description
+      occasions,       // Festival occasions
+      sizeChart,       // Dynamic size chart
+      relatedProducts, // Explicit related products
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !description || !category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: name, description, category',
+      });
+    }
+
+    // Validate shortDescription - use fallback if not provided
+    const shortDescriptionValue = shortDescription?.trim() || description?.substring(0, 150) || name.substring(0, 150);
+    if (!shortDescriptionValue || shortDescriptionValue.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Short description is required',
+      });
+    }
+
+    // Validate stock fields
+    const actualStockValue = parseInt(actualStock) || 0;
+    const displayStockValue = parseInt(displayStock) || parseInt(stock) || 0;
+
+    if (actualStockValue < 0 || displayStockValue < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Stock quantities cannot be negative',
+      });
+    }
+
+    // Prices are optional — fashion products may use per-size pricing via sizes[]
+    // Only reject explicitly negative values
+    if (wholesalePrice !== undefined && parseFloat(wholesalePrice) < 0) {
+      return res.status(400).json({ success: false, message: 'Wholesale price cannot be negative' });
+    }
+    if (publicPrice !== undefined && parseFloat(publicPrice) < 0) {
+      return res.status(400).json({ success: false, message: 'Customer price cannot be negative' });
+    }
+
+    // Category validation: Standardized for Noor E Adah
+    const categoryLower = category.toString().toLowerCase();
+
+    // Look up category — handle ID, slug, or name
+    let dbCategory = null;
+    if (mongoose.Types.ObjectId.isValid(category)) {
+      dbCategory = await Category.findById(category);
+    }
+
+    if (!dbCategory) {
+      dbCategory = await Category.findOne({
+        $or: [
+          { slug: categoryLower },
+          { name: new RegExp('^' + categoryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+        ]
+      });
+    }
+
+    // Helper to find other taxonomy IDs
+    const findTaxonomyId = async (input) => {
+      if (!input) return null;
+      if (mongoose.Types.ObjectId.isValid(input)) return input;
+      const found = await Category.findOne({
+        $or: [
+          { slug: input.toLowerCase() },
+          { name: new RegExp('^' + input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+        ]
+      });
+      return found ? found._id : null;
+    };
+
+    const lookId = await findTaxonomyId(look);
+    const themeId = await findTaxonomyId(theme);
+    const collectionId = await findTaxonomyId(collection);
+
+    // Create product
+    // Handle prices - if using attributeStocks and main prices are undefined, calculate from attributeStocks or use defaults
+    let finalWholesalePrice = wholesalePrice;
+    let finalPublicPrice = publicPrice;
+
+    if ((finalWholesalePrice === undefined || finalPublicPrice === undefined) && attributeStocks && Array.isArray(attributeStocks) && attributeStocks.length > 0) {
+      // Calculate weighted average prices from attributeStocks
+      let totalStock = 0;
+      let weightedWholesalePrice = 0;
+      let weightedPublicPrice = 0;
+
+      attributeStocks.forEach(astock => {
+        const stockQty = parseFloat(astock.displayStock) || parseFloat(astock.actualStock) || 0;
+        if (stockQty > 0 && astock.wholesalePrice !== undefined && astock.publicPrice !== undefined) {
+          totalStock += stockQty;
+          weightedWholesalePrice += (parseFloat(astock.wholesalePrice) || 0) * stockQty;
+          weightedPublicPrice += (parseFloat(astock.publicPrice) || 0) * stockQty;
+        }
+      });
+
+      if (totalStock > 0) {
+        finalWholesalePrice = Math.round(weightedWholesalePrice / totalStock);
+        finalPublicPrice = Math.round(weightedPublicPrice / totalStock);
+      } else {
+        // Fallback to first entry's prices
+        const firstEntry = attributeStocks[0];
+        finalWholesalePrice = parseFloat(firstEntry.wholesalePrice) || 0;
+        finalPublicPrice = parseFloat(firstEntry.publicPrice) || 0;
+      }
+    }
+
+    // Ensure prices are always defined (required by schema)
+    finalWholesalePrice = Math.max(0, finalWholesalePrice || 0);
+    finalPublicPrice = Math.max(0, finalPublicPrice || 0);
+
+    // Handle enhanced details - Provide professional defaults for Noor E Adah
+    const defaultShippingPolicy = `<h2>DOMESTIC SHIPPING POLICY</h2><p>Thankyou for visiting and shopping at Talara Edit. Following are the terms and condition that constitute our shipping policy.</p><h3>Shipment processing time</h3><p>All orders are processed within 1-2 business Days.orders not shipping or delivered on weekends or holidays.</p><h3>Shipping rates & delivery estimates</h3><table><thead><tr><th>Shipment method</th><th>Estimated delivery time</th><th>Shipment cost</th></tr></thead><tbody><tr><td>Standard Shipping</td><td>5-12 business days</td><td>300/-</td></tr><tr><td>Express Shipping</td><td>2-6 business days</td><td>800/-</td></tr></tbody></table>`;
+
+    const defaultFaqs = [
+      { question: "HOW DO I PLACE AN ORDER?", answer: "You can log on to our website: www.Talaraedit.com to place a direct order. In case of any assistance required, please contact us on +91 8851800094." },
+      { question: "DO I NEED TO SET UP AN ACCOUNT TO PLACE AN ORDER?", answer: "No, you can guest checkout, but an account helps track orders." },
+      { question: "HOW DO I MAKE THE PAYMENT?", answer: "We accept all major credit/debit cards, UPI, and net banking." },
+      { question: "HOW DO I TRACK MY ORDER?", answer: "You will receive a tracking link via SMS/Email once it ships." },
+      { question: "CAN I ORDER FOR COD (CASH ON DELIVERY)?", answer: "Yes, COD is available for select pin codes." },
+      { question: "HOW DO I KNOW MY SIZE?", answer: "Refer to our size chart on the product page." }
+    ];
+
+    const productData = {
+      name,
+      description,
+      shortDescription: shortDescriptionValue.trim(),
+      category: dbCategory ? dbCategory._id : category,
+      look: lookId,
+      theme: themeId,
+      collection: collectionId,
+      wholesalePrice: finalWholesalePrice,
+      publicPrice: finalPublicPrice,
+      actualStock: actualStockValue,
+      displayStock: displayStockValue,
+      stock: displayStockValue,
+      longDescription: longDescription || description,
+      occasions: Array.isArray(occasions) ? occasions : [],
+      additionalInformation: req.body.additionalInformation || "",
+      shippingPolicy: req.body.shippingPolicy || defaultShippingPolicy,
+      faqs: (Array.isArray(req.body.faqs) && req.body.faqs.length > 0) ? req.body.faqs : defaultFaqs,
+      sizeChart: sizeChart || null,
+      relatedProducts: Array.isArray(relatedProducts) ? relatedProducts : [],
+      ...(Array.isArray(sizes) && sizes.length > 0 && { sizes }),
+    };
+
+    if (images && Array.isArray(images)) {
+      // Validate and normalize image objects
+      const validImages = images
+        .filter(img => img && img.url) // Must have URL
+        .map((img, index) => ({
+          url: img.url,
+          publicId: img.publicId || '',
+          isPrimary: index === 0, // First image is primary
+          order: index,
+        }))
+        .slice(0, 4); // Max 4 images
+
+      if (validImages.length > 0) {
+        productData.images = validImages;
+      }
+    }
+
+    if (expiry) productData.expiry = expiry;
+    if (brand) productData.brand = brand;
+    if (weight) productData.weight = weight;
+    if (stockUnit) {
+      // Store unit in weight.unit for consistency
+      productData.weight = { ...(productData.weight || {}), unit: stockUnit };
+    }
+    // Handle tags - normalize: trim, lowercase, remove empty strings
+    if (tags && Array.isArray(tags)) {
+      productData.tags = tags
+        .map(tag => String(tag).trim().toLowerCase())
+        .filter(tag => tag.length > 0);
+    }
+    // Handle specifications (attributes) - Mongoose will convert plain object to Map
+    if (specifications && typeof specifications === 'object' && !Array.isArray(specifications)) {
+      // Filter out empty values and convert to strings
+      const cleanSpecs = {};
+      Object.keys(specifications).forEach(key => {
+        const value = specifications[key];
+        if (value !== null && value !== undefined && value !== '') {
+          cleanSpecs[key] = String(value);
+        }
+      });
+      if (Object.keys(cleanSpecs).length > 0) {
+        productData.specifications = cleanSpecs;
+      }
+    }
+    if (sku) productData.sku = sku.toUpperCase();
+    if (batchNumber) productData.batchNumber = batchNumber.trim();
+
+    // Handle attributeStocks array
+    if (attributeStocks && Array.isArray(attributeStocks) && attributeStocks.length > 0) {
+      // Validate and normalize attributeStocks
+      const validAttributeStocks = attributeStocks
+        .filter(stock => stock && stock.attributes && Object.keys(stock.attributes).length > 0)
+        .map(stock => {
+          // Convert attributes object to Map-compatible format
+          const attributesMap = {};
+          Object.keys(stock.attributes).forEach(key => {
+            const value = stock.attributes[key];
+            if (value !== null && value !== undefined && value !== '') {
+              attributesMap[key] = String(value);
+            }
+          });
+
+          // Validate prices
+          const UserPriceValue = parseFloat(stock.UserPrice);
+          const userPriceValue = parseFloat(stock.userPrice);
+
+          if (isNaN(UserPriceValue) || UserPriceValue < 0) {
+            throw new Error(`Invalid User price for attribute stock entry`);
+          }
+          if (isNaN(userPriceValue) || userPriceValue < 0) {
+            throw new Error(`Invalid user price for attribute stock entry`);
+          }
+          if (userPriceValue <= UserPriceValue) {
+            throw new Error(`User price must be greater than User price for attribute stock entry`);
+          }
+
+          return {
+            attributes: attributesMap,
+            actualStock: parseFloat(stock.actualStock) || 0,
+            displayStock: parseFloat(stock.displayStock) || 0,
+            stockUnit: stock.stockUnit || stockUnit || 'kg',
+            UserPrice: Math.round(UserPriceValue),
+            userPrice: Math.round(userPriceValue),
+            ...(stock.batchNumber && { batchNumber: String(stock.batchNumber).trim() }),
+            ...(stock.expiry && { expiry: stock.expiry }),
+          };
+        })
+        .filter(stock => Object.keys(stock.attributes).length > 0); // Only include entries with at least one attribute
+
+      if (validAttributeStocks.length > 0) {
+        productData.attributeStocks = validAttributeStocks;
+      }
+    }
+
+    // Generate unique product ID
+    const productId = await generateUniqueId(Product, 'PRD', 'productId', 101);
+    productData.productId = productId;
+
+    const product = await Product.create(productData);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        product,
+        message: 'Product created successfully',
+      },
+    });
+  } catch (error) {
+    // Handle duplicate SKU
+    if (error.code === 11000 && error.keyPattern?.sku) {
+      return res.status(400).json({
+        success: false,
+        message: 'SKU already exists',
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update product
+ * @route   PUT /api/admin/products/:productId
+ * @access  Private (Admin)
+ */
+exports.updateProduct = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const updateData = req.body;
+
+    // Find product
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    // Normalize and validate category if provided
+    if (updateData.category) {
+      const categoryLower = updateData.category.toLowerCase();
+      // For now, accept any category provided or validated existence in DB
+      const dbCategory = await Category.findOne({
+        $or: [
+          { slug: categoryLower },
+          { name: new RegExp('^' + updateData.category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+        ]
+      });
+      updateData.category = categoryLower;
+    }
+
+    // Normalize SKU if provided
+    if (updateData.sku) {
+      updateData.sku = updateData.sku.toUpperCase();
+    }
+
+    // Handle stock fields
+    if (updateData.actualStock !== undefined) {
+      product.actualStock = updateData.actualStock;
+    }
+    if (updateData.displayStock !== undefined) {
+      product.displayStock = updateData.displayStock;
+      product.stock = updateData.displayStock; // Sync legacy field
+    }
+    // Legacy stock field support
+    if (updateData.stock !== undefined && updateData.displayStock === undefined) {
+      product.displayStock = updateData.stock;
+      product.actualStock = updateData.actualStock !== undefined ? updateData.actualStock : updateData.stock;
+      product.stock = updateData.stock;
+    }
+
+    // Handle stockUnit
+    if (updateData.stockUnit !== undefined) {
+      product.weight = product.weight || {};
+      product.weight.unit = updateData.stockUnit;
+    }
+
+    // Handle batchNumber
+    if (updateData.batchNumber !== undefined) {
+      product.batchNumber = updateData.batchNumber.trim();
+    }
+
+    // Handle isActive separately
+    if (updateData.isActive !== undefined) {
+      product.isActive = updateData.isActive;
+    }
+
+    // Handle occasions
+    if (updateData.occasions !== undefined) {
+      if (Array.isArray(updateData.occasions)) {
+        product.occasions = updateData.occasions
+          .map(occ => String(occ).trim().toLowerCase())
+          .filter(occ => occ.length > 0);
+      } else {
+        product.occasions = [];
+      }
+    }
+
+    // Handle tags
+    if (updateData.tags !== undefined) {
+      if (Array.isArray(updateData.tags)) {
+        product.tags = updateData.tags
+          .map(tag => String(tag).trim().toLowerCase())
+          .filter(tag => tag.length > 0);
+      } else {
+        product.tags = [];
+      }
+    }
+
+    // Handle specifications
+    if (updateData.specifications !== undefined) {
+      if (updateData.specifications && typeof updateData.specifications === 'object' && !Array.isArray(updateData.specifications)) {
+        const cleanSpecs = {};
+        Object.keys(updateData.specifications).forEach(key => {
+          const value = updateData.specifications[key];
+          if (value !== null && value !== undefined && value !== '') {
+            cleanSpecs[key] = String(value);
+          }
+        });
+        product.specifications = cleanSpecs;
+      } else {
+        product.specifications = {};
+      }
+    }
+
+    // Handle images
+    if (updateData.images !== undefined) {
+      if (Array.isArray(updateData.images)) {
+        const validImages = updateData.images
+          .filter(img => img && img.url)
+          .map((img, index) => ({
+            url: img.url,
+            publicId: img.publicId || '',
+            isPrimary: index === 0,
+            order: index,
+          }))
+          .slice(0, 10); // increased limit
+
+        product.images = validImages;
+      } else {
+        product.images = [];
+      }
+    }
+
+    // Handle enhanced details
+    // Handle enhanced details
+    if (updateData.additionalInformation !== undefined) {
+      product.additionalInformation = updateData.additionalInformation;
+    }
+    if (updateData.shippingPolicy !== undefined) {
+      product.shippingPolicy = updateData.shippingPolicy;
+    }
+    if (updateData.faqs !== undefined) {
+      if (Array.isArray(updateData.faqs)) {
+        product.faqs = updateData.faqs.filter(f => f.question && f.answer);
+      }
+    }
+
+    // Update other fields
+    const excludedFields = ['actualStock', 'displayStock', 'stock', 'stockUnit', 'batchNumber', 'isActive', 'tags', 'specifications', 'images', 'attributeStocks', 'additionalInformation', 'shippingPolicy', 'faqs'];
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined && !excludedFields.includes(key)) {
+        product[key] = updateData[key];
+      }
+    });
+
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        product,
+        message: 'Product updated successfully',
+      },
+    });
+  } catch (error) {
+    // Handle duplicate SKU
+    if (error.code === 11000 && error.keyPattern?.sku) {
+      return res.status(400).json({
+        success: false,
+        message: 'SKU already exists',
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete product
+ * @route   DELETE /api/admin/products/:productId
+ * @access  Private (Admin)
+ */
+exports.deleteProduct = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    // Check if product has active assignments
+    const activeAssignments = await ProductAssignment.countDocuments({
+      productId,
+      isActive: true,
+    });
+
+    if (activeAssignments > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete product. It has ${activeAssignments} active User assignment(s). Please remove assignments first or deactivate the product.`,
+      });
+    }
+
+    // Delete product
+    await Product.findByIdAndDelete(productId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Product deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Assign product to User
+ * @route   POST /api/admin/products/:productId/assign
+ * @access  Private (Admin)
+ */
+exports.assignProductToUser = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const { UserId, region, notes } = req.body;
+
+    if (!UserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required',
+      });
+    }
+
+    // Check if product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    // Check if User exists and is approved
+    const user = await User.findById(UserId);
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (User.status !== 'approved' || !User.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must be approved and active to receive product assignments',
+      });
+    }
+
+    // Check if assignment already exists
+    const existingAssignment = await ProductAssignment.findOne({
+      productId,
+      UserId,
+    });
+
+    if (existingAssignment) {
+      // Update existing assignment
+      existingAssignment.isActive = true;
+      if (region) existingAssignment.region = region;
+      if (notes) existingAssignment.notes = notes;
+      existingAssignment.assignedBy = req.admin._id;
+      existingAssignment.assignedAt = new Date();
+      await existingAssignment.save();
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          assignment: existingAssignment,
+          message: 'Product assignment updated successfully',
+        },
+      });
+    }
+
+    // Create new assignment
+    const assignment = await createProductAssignment({
+      productId,
+      UserId,
+      region,
+      notes,
+      assignedBy: req.admin._id,
+    });
+
+    // TODO: Create Inventory entry for User when Inventory model is created
+
+    res.status(201).json({
+      success: true,
+      data: {
+        assignment,
+        message: 'Product assigned to User successfully',
+      },
+    });
+  } catch (error) {
+    // Handle duplicate assignment
+    if (error.code === 11000 && error.keyPattern?.productId && error.keyPattern?.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product is already assigned to this User',
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Toggle product visibility (active/inactive)
+ * @route   PUT /api/admin/products/:productId/visibility
+ * @access  Private (Admin)
+ */
+exports.toggleProductVisibility = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    // Toggle visibility
+    product.isActive = !product.isActive;
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        product,
+        message: `Product ${product.isActive ? 'activated' : 'deactivated'} successfully`,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// User MANAGEMENT CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get all Users with filtering and pagination
+ * @route   GET /api/admin/Users
+ * @access  Private (Admin)
+ */
+exports.getUsers = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      isActive,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      includeDeleted = 'false',
+    } = req.query;
+
+    // Build query
+    const query = {};
+
+    // By default, exclude deleted Users unless explicitly requested
+    if (includeDeleted !== 'true') {
+      query.isDeleted = { $ne: true };
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    }
+
+    if (search) {
+      query.$or = [
+        { userId: { $regex: search, $options: 'i' } }, // Search by unique User ID
+        { name: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { 'location.address': { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query
+    const Users = await User.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .select('-__v -otp')
+      .populate('approvedBy', 'name email')
+      .populate('deletedBy', 'name email')
+      .lean();
+
+    // Manually populate nested banInfo fields if they exist
+    const mongoose = require('mongoose');
+    const adminIdsToPopulate = new Set();
+
+    Users.forEach(User => {
+      if (User.banInfo?.bannedBy && mongoose.Types.ObjectId.isValid(User.banInfo.bannedBy)) {
+        adminIdsToPopulate.add(User.banInfo.bannedBy);
+      }
+      if (User.banInfo?.revokedBy && mongoose.Types.ObjectId.isValid(User.banInfo.revokedBy)) {
+        adminIdsToPopulate.add(User.banInfo.revokedBy);
+      }
+    });
+
+    // Fetch all admins at once for efficiency
+    const adminsMap = new Map();
+    if (adminIdsToPopulate.size > 0) {
+      const adminIdsArray = Array.from(adminIdsToPopulate).map(id => new mongoose.Types.ObjectId(id));
+      const admins = await Admin.find({ _id: { $in: adminIdsArray } })
+        .select('name phone')
+        .lean();
+      admins.forEach(admin => {
+        adminsMap.set(admin._id.toString(), { name: admin.name, phone: admin.phone });
+      });
+    }
+
+    // Populate the banInfo fields
+    Users.forEach(User => {
+      if (User.banInfo?.bannedBy) {
+        const adminId = User.banInfo.bannedBy.toString();
+        User.banInfo.bannedBy = adminsMap.get(adminId) || null;
+      }
+      if (User.banInfo?.revokedBy) {
+        const adminId = User.banInfo.revokedBy.toString();
+        User.banInfo.revokedBy = adminsMap.get(adminId) || null;
+      }
+    });
+
+    const total = await User.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        Users,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get single User details
+ * @route   GET /api/admin/Users/:UserId
+ * @access  Private (Admin)
+ */
+exports.getUserDetails = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+
+    const user = await User.findById(UserId)
+      .select('-__v -otp')
+      .populate('approvedBy', 'name email');
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Get User's credit purchases
+    const purchases = await CreditPurchase.find({ UserId })
+      .populate('items.productId', 'name sku')
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select('-__v');
+
+    // Get User's product assignments
+    const assignments = await ProductAssignment.find({ UserId, isActive: true })
+      .populate('productId', 'name sku category')
+      .select('-__v');
+
+    // Calculate credit statistics
+    const creditRemaining = User.creditPolicy.limit - User.creditUsed;
+    const creditUtilization = User.creditPolicy.limit > 0
+      ? (User.creditUsed / User.creditPolicy.limit) * 100
+      : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        User,
+        creditInfo: {
+          limit: User.creditPolicy.limit,
+          used: User.creditUsed,
+          remaining: creditRemaining,
+          utilization: Math.round(creditUtilization * 100) / 100,
+          dueDate: User.creditPolicy.dueDate,
+        },
+        escalationInfo: {
+          count: User.escalationCount || 0,
+          history: User.escalationHistory || [],
+          canBan: (User.escalationCount || 0) > 3,
+        },
+        banInfo: User.banInfo || {},
+        purchases,
+        assignments,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Approve User registration
+ * @route   POST /api/admin/Users/:UserId/approve
+ * @access  Private (Admin)
+ */
+exports.approveUser = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+
+    const user = await User.findById(UserId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (User.status === 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already approved',
+      });
+    }
+
+    // Geographic rule (20km radius) removed per user request.
+    // Any User can be approved regardless of proximity to others.
+
+    // Approve User and set default credit policy
+    User.status = 'approved';
+    User.isActive = true;
+    User.approvedAt = new Date();
+    User.approvedBy = req.admin._id;
+
+    // Set default credit policy (no limit, 30 days repayment, 2% penalty)
+    if (!User.creditPolicy) {
+      User.creditPolicy = {
+        repaymentDays: 30,
+        penaltyRate: 2,
+      };
+    } else {
+      // Ensure defaults if missing
+      if (!User.creditPolicy.repaymentDays) {
+        User.creditPolicy.repaymentDays = 30;
+      }
+      if (User.creditPolicy.penaltyRate === undefined || User.creditPolicy.penaltyRate === null) {
+        User.creditPolicy.penaltyRate = 2;
+      }
+    }
+
+    await User.save();
+
+    // TODO: Send notification to User (SMS/Email)
+    console.log(`✅ User approved: ${user.name} (${user.phone})`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        User,
+        message: 'User approved successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reject User registration
+ * @route   POST /api/admin/Users/:UserId/reject
+ * @access  Private (Admin)
+ */
+exports.rejectUser = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+    const { reason } = req.body;
+
+    const user = await User.findById(UserId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (User.status === 'rejected') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already rejected',
+      });
+    }
+
+    // Reject User
+    User.status = 'rejected';
+    User.isActive = false;
+    await User.save();
+
+    // TODO: Send rejection notification to User with reason
+    console.log(`❌ User rejected: ${user.name} (${user.phone})${reason ? ` - Reason: ${reason}` : ''}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        User,
+        message: 'User rejected successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+/**
+ * @desc    Get all User purchase requests (global)
+ * @route   GET /api/admin/Users/purchases
+ * @access  Private (Admin)
+ */
+exports.getAllUserPurchases = async (req, res, next) => {
+  try {
+    const { status, UserId, page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (UserId) {
+      query.userId = UserId;
+    }
+
+    // Search functionality (by User name or purchase amount)
+    if (search) {
+      // If search is provided, we'll need to populate User first and filter
+      // For now, we can search by amount or use text search if available
+      const searchNum = parseFloat(search);
+      if (!isNaN(searchNum)) {
+        // Search by amount
+        query.totalAmount = { $gte: searchNum * 0.9, $lte: searchNum * 1.1 }; // Allow 10% tolerance
+      }
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query with User population
+    const purchases = await CreditPurchase.find(query)
+      .populate('UserId', 'name phone email location creditUsed creditLimit creditPolicy')
+      .populate('items.productId', 'name sku category wholesalePrice publicPrice')
+      .populate('reviewedBy', 'name email')
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .select('-__v');
+
+    // If search was provided and it's a string, filter by User name
+    let filteredPurchases = purchases;
+    if (search && isNaN(parseFloat(search))) {
+      filteredPurchases = purchases.filter(purchase => {
+        const UserName = purchase.userId?.name || '';
+        return UserName.toLowerCase().includes(search.toLowerCase());
+      });
+    }
+
+    // Get total count (after search filter if applicable)
+    let total = await CreditPurchase.countDocuments(query);
+    if (search && isNaN(parseFloat(search))) {
+      // Recalculate total for string searches (approximate)
+      total = filteredPurchases.length;
+    }
+
+    // Add User performance data to each purchase
+    const purchasesWithPerformance = await Promise.all(filteredPurchases.map(async (purchase) => {
+      const User = purchase.userId;
+
+      if (!User) {
+        return {
+          ...purchase.toObject(),
+          UserPerformance: null
+        };
+      }
+
+      // Calculate outstanding dues (unpaid purchases)
+      const outstandingPurchases = await CreditPurchase.find({
+        userId: user._id,
+        status: { $in: ['approved', 'sent'] }
+      });
+
+      const outstandingAmount = outstandingPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+      const creditLimit = User.creditLimit || 0;
+      const creditUsed = User.creditUsed || 0;
+      const creditUtilization = creditLimit > 0 ? (creditUsed / creditLimit) * 100 : 0;
+
+      return {
+        ...purchase.toObject(),
+        UserPerformance: {
+          creditLimit,
+          creditUsed,
+          outstandingAmount,
+          hasOutstandingDues: outstandingAmount > 0,
+          creditUtilization: Math.round(creditUtilization * 10) / 10 // Round to 1 decimal
+        }
+      };
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        purchases: purchasesWithPerformance,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get User purchase requests (User-specific)
+ * @route   GET /api/admin/Users/:UserId/purchases
+ * @access  Private (Admin)
+ */
+exports.getUserPurchases = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const query = { UserId };
+
+    if (status) {
+      query.status = status;
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const purchases = await CreditPurchase.find(query)
+      .populate('items.productId', 'name sku category wholesalePrice publicPrice')
+      .populate('reviewedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .select('-__v');
+
+    const total = await CreditPurchase.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        purchases,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Approve User purchase request
+ * @route   POST /api/admin/Users/purchases/:requestId/approve
+ * @access  Private (Admin)
+ */
+exports.approveUserPurchase = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { shortDescription } = req.body;
+
+    console.log('=== APPROVE PURCHASE REQUEST ===');
+    console.log('Request ID:', requestId);
+    console.log('Request Body:', JSON.stringify(req.body, null, 2));
+    console.log('Request Body Keys:', Object.keys(req.body || {}));
+    console.log('Short Description:', shortDescription);
+    console.log('Short Description Type:', typeof shortDescription);
+    console.log('Short Description Value:', shortDescription);
+    console.log('Is Undefined:', shortDescription === undefined);
+    console.log('Is Null:', shortDescription === null);
+    console.log('Is Empty String:', shortDescription === '');
+    console.log('Trimmed:', shortDescription ? shortDescription.trim() : 'N/A');
+    console.log('===============================');
+
+    // Validate shortDescription - it's required
+    if (!shortDescription || typeof shortDescription !== 'string' || !shortDescription.trim()) {
+      console.log('❌ VALIDATION FAILED');
+      console.log('Reason:', {
+        isFalsy: !shortDescription,
+        isNotString: typeof shortDescription !== 'string',
+        isEmptyAfterTrim: shortDescription && !shortDescription.trim()
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Short description is required',
+      });
+    }
+
+    console.log('✅ VALIDATION PASSED');
+
+    const purchase = await CreditPurchase.findById(requestId)
+      .populate('items.productId', 'name sku wholesalePrice publicPrice');
+
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase request not found',
+      });
+    }
+
+    if (purchase.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Purchase request is already ${purchase.status}`,
+      });
+    }
+
+    const user = await User.findById(purchase.userId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Update User credit used (no limit check)
+    const newCreditUsed = (User.creditUsed || 0) + purchase.totalAmount;
+
+    // Validate and reserve admin stock
+    for (const item of purchase.items) {
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: 'One of the requested products no longer exists.',
+        });
+      }
+
+      // Check if this is a variant product (has attributeCombination)
+      const hasVariantAttributes = item.attributeCombination &&
+        (item.attributeCombination instanceof Map ? item.attributeCombination.size > 0 : Object.keys(item.attributeCombination || {}).length > 0);
+
+      if (hasVariantAttributes && product.attributeStocks && product.attributeStocks.length > 0) {
+        // Handle variant stock reduction
+        const attributeCombination = item.attributeCombination instanceof Map
+          ? Object.fromEntries(item.attributeCombination)
+          : item.attributeCombination || {};
+
+        // Find matching variant in attributeStocks
+        const matchingVariantIndex = product.attributeStocks.findIndex((variantStock) => {
+          if (!variantStock.attributes) return false;
+          const variantAttrs = variantStock.attributes instanceof Map
+            ? Object.fromEntries(variantStock.attributes)
+            : variantStock.attributes || {};
+
+          // Check if all attributes match
+          return Object.keys(attributeCombination).every(key => {
+            const variantValue = variantAttrs[key];
+            const requestedValue = attributeCombination[key];
+            return variantValue === requestedValue;
+          });
+        });
+
+        if (matchingVariantIndex === -1) {
+          return res.status(400).json({
+            success: false,
+            message: `Variant not found for ${product.name} with the selected attributes.`,
+          });
+        }
+
+        const variantStock = product.attributeStocks[matchingVariantIndex];
+        const variantDisplayStock = variantStock.displayStock || 0;
+        const variantActualStock = variantStock.actualStock || 0;
+
+        if (item.quantity > variantDisplayStock) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient variant stock for ${product.name}. Available: ${variantDisplayStock}, Requested: ${item.quantity}`,
+          });
+        }
+
+        // Update variant stock in attributeStocks array
+        product.attributeStocks[matchingVariantIndex].displayStock = Math.max(0, variantDisplayStock - item.quantity);
+        product.attributeStocks[matchingVariantIndex].actualStock = Math.max(0, variantActualStock - item.quantity);
+
+        // Update product with modified attributeStocks
+        await Product.updateOne(
+          { _id: item.productId },
+          {
+            $set: {
+              attributeStocks: product.attributeStocks,
+            }
+          }
+        );
+
+        console.log(`✅ Variant stock updated for ${product.name}:`, {
+          variant: attributeCombination,
+          displayStock: `${variantDisplayStock} → ${product.attributeStocks[matchingVariantIndex].displayStock}`,
+          actualStock: `${variantActualStock} → ${product.attributeStocks[matchingVariantIndex].actualStock}`,
+        });
+      } else {
+        // Handle non-variant product stock reduction
+        const adminStock = product.displayStock ?? product.stock ?? 0;
+        if (item.quantity > adminStock) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient admin stock for ${product.name}. Available: ${adminStock}, Requested: ${item.quantity}`,
+          });
+        }
+
+        // Update stock without triggering full validation
+        // Use updateOne to avoid validation errors for existing products
+        await Product.updateOne(
+          { _id: item.productId },
+          {
+            $set: {
+              displayStock: Math.max(0, adminStock - item.quantity),
+              actualStock: Math.max(0, (product.actualStock ?? adminStock) - item.quantity),
+            }
+          }
+        );
+
+        console.log(`✅ Main product stock updated for ${product.name}:`, {
+          displayStock: `${adminStock} → ${Math.max(0, adminStock - item.quantity)}`,
+          actualStock: `${product.actualStock ?? adminStock} → ${Math.max(0, (product.actualStock ?? adminStock) - item.quantity)}`,
+        });
+      }
+
+      await ProductAssignment.findOneAndUpdate(
+        { productId: item.productId, userId: user._id },
+        {
+          $setOnInsert: {
+            assignedBy: req.admin._id,
+            assignedAt: new Date(),
+            stock: 0,
+            isActive: true,
+            notes: 'Auto-assigned during purchase approval',
+          },
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    const expectedDeliveryAt = new Date(Date.now() + (DELIVERY_TIMELINE_HOURS || 24) * 60 * 60 * 1000);
+
+    // Approve purchase
+    purchase.status = 'approved';
+    purchase.reviewedBy = req.admin._id;
+    purchase.reviewedAt = new Date();
+    purchase.reviewedAt = new Date();
+    purchase.deliveryStatus = 'pending';
+    purchase.expectedDeliveryAt = expectedDeliveryAt;
+    purchase.deliveryNotes = `Purchase approved. Awaiting stock dispatch.`;
+    await purchase.save();
+
+    // Update User credit
+    User.creditUsed = newCreditUsed;
+    if (User.creditPolicy.dueDate === undefined && User.creditPolicy.repaymentDays) {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + User.creditPolicy.repaymentDays);
+      User.creditPolicy.dueDate = dueDate;
+    }
+    await User.save();
+
+    // Process Purchase Incentives (Phase 4)
+    try {
+      await incentiveService.processIncentivesForPurchase(purchase._id, user._id, purchase.totalAmount);
+    } catch (incentiveError) {
+      console.error('Failed to process incentives:', incentiveError);
+      // Don't fail the whole approval if incentives fail
+    }
+
+    // SEND User NOTIFICATION: Credit Purchase Approved
+    try {
+      await UserNotification.createNotification({
+        userId: user._id,
+        type: 'credit_purchase_approved',
+        title: 'Stock Purchase Approved',
+        message: `Your stock purchase of ₹${purchase.totalAmount} has been approved and is scheduled for delivery.`,
+        relatedEntityType: 'credit_purchase',
+        relatedEntityId: purchase._id,
+        priority: 'normal',
+        metadata: { purchaseId: purchase.creditPurchaseId, amount: purchase.totalAmount }
+      });
+    } catch (notifError) {
+      console.error('Failed to send purchase approval notification:', notifError);
+    }
+
+    console.log(`✅ Purchase approved: ₹${purchase.totalAmount} for User ${user.name}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        purchase,
+        User: {
+          id: user._id,
+          name: user.name,
+          creditUsed: User.creditUsed,
+        },
+        message: 'Purchase request approved successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reject User purchase request
+ * @route   POST /api/admin/Users/purchases/:requestId/reject
+ * @access  Private (Admin)
+ */
+exports.rejectUserPurchase = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { reason } = req.body;
+
+    const purchase = await CreditPurchase.findById(requestId);
+
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase request not found',
+      });
+    }
+
+    if (purchase.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Purchase request is already ${purchase.status}`,
+      });
+    }
+
+    // Reject purchase
+    purchase.status = 'rejected';
+    purchase.reviewedBy = req.admin._id;
+    purchase.reviewedAt = new Date();
+    if (reason) {
+      purchase.rejectionReason = reason;
+    }
+    await purchase.save();
+
+    // Send rejection notification to User with reason
+    try {
+      await UserNotification.createNotification({
+        userId: purchase.userId,
+        type: 'credit_purchase_rejected',
+        title: 'Stock Purchase Rejected',
+        message: `Your stock purchase of ₹${purchase.totalAmount} has been rejected.${reason ? ` Reason: ${reason}` : ''}`,
+        relatedEntityType: 'credit_purchase',
+        relatedEntityId: purchase._id,
+        priority: 'high',
+        metadata: { purchaseId: purchase.creditPurchaseId, reason }
+      });
+    } catch (notifError) {
+      console.error('Failed to send purchase rejection notification:', notifError);
+    }
+
+    console.log(`❌ Purchase rejected: ₹${purchase.totalAmount}${reason ? ` - Reason: ${reason}` : ''}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        purchase,
+        message: 'Purchase request rejected successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete User purchase invoice
+ * @route   DELETE /api/admin/Users/purchases/:requestId
+ * @access  Private (Admin)
+ */
+exports.deleteUserPurchase = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+
+    // Find the purchase record
+    const purchase = await CreditPurchase.findById(requestId);
+
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase invoice not found',
+      });
+    }
+
+    // If purchase was approved, we must revert the changes to User credit and product stock
+    if (purchase.status === 'approved') {
+      console.log(`[AdminDelete] Reverting approved purchase ${requestId}...`);
+
+      // 1. Revert User Credit
+      const user = await User.findById(purchase.userId);
+      if (User) {
+        const oldCreditUsed = User.creditUsed || 0;
+        User.creditUsed = Math.max(0, oldCreditUsed - purchase.totalAmount);
+        await User.save();
+        console.log(`[AdminDelete] Reverted credit for User ${user.name}: ${oldCreditUsed} -> ${User.creditUsed}`);
+      }
+
+      // 2. Revert Product Stock
+      for (const item of purchase.items) {
+        try {
+          const product = await Product.findById(item.productId);
+          if (product) {
+            // Check if it was a variant product
+            const hasVariantAttributes = item.attributeCombination &&
+              (item.attributeCombination instanceof Map ? item.attributeCombination.size > 0 : Object.keys(item.attributeCombination || {}).length > 0);
+
+            if (hasVariantAttributes && product.attributeStocks && product.attributeStocks.length > 0) {
+              const attributeCombination = item.attributeCombination instanceof Map
+                ? Object.fromEntries(item.attributeCombination)
+                : item.attributeCombination || {};
+
+              const matchingVariantIndex = product.attributeStocks.findIndex((variantStock) => {
+                if (!variantStock.attributes) return false;
+                const variantAttrs = variantStock.attributes instanceof Map
+                  ? Object.fromEntries(variantStock.attributes)
+                  : variantStock.attributes || {};
+
+                return Object.keys(attributeCombination).every(key => {
+                  return String(variantAttrs[key]) === String(attributeCombination[key]);
+                });
+              });
+
+              if (matchingVariantIndex !== -1) {
+                product.attributeStocks[matchingVariantIndex].displayStock = (product.attributeStocks[matchingVariantIndex].displayStock || 0) + item.quantity;
+                product.attributeStocks[matchingVariantIndex].actualStock = (product.attributeStocks[matchingVariantIndex].actualStock || 0) + item.quantity;
+
+                await Product.updateOne(
+                  { _id: item.productId },
+                  { $set: { attributeStocks: product.attributeStocks } }
+                );
+                console.log(`[AdminDelete] Reverted variant stock for ${product.name}`);
+              }
+            } else {
+              // Non-variant product
+              await Product.updateOne(
+                { _id: item.productId },
+                {
+                  $inc: {
+                    displayStock: item.quantity,
+                    actualStock: item.quantity,
+                  }
+                }
+              );
+              console.log(`[AdminDelete] Reverted standard stock for ${product.name}: +${item.quantity}`);
+            }
+          }
+        } catch (stockError) {
+          console.error(`[AdminDelete] Failed to revert stock for item ${item.productId}:`, stockError);
+        }
+      }
+
+      // 3. Revert Incentives
+      try {
+        const PurchaseIncentive = require('../models/PurchaseIncentive');
+
+        const relatedIncentives = await UserIncentiveHistory.find({ purchaseOrderId: requestId });
+        for (const claim of relatedIncentives) {
+          // Decrement currentRedemptions on the scheme
+          await PurchaseIncentive.updateOne(
+            { _id: claim.incentiveId },
+            { $inc: { currentRedemptions: -1 } }
+          );
+        }
+        // Remove incentive history records
+        await UserIncentiveHistory.deleteMany({ purchaseOrderId: requestId });
+        console.log(`[AdminDelete] Reverted ${relatedIncentives.length} incentives related to purchase ${requestId}`);
+      } catch (incentiveError) {
+        console.error(`[AdminDelete] Error reverting incentives for purchase ${requestId}:`, incentiveError);
+      }
+    }
+
+    // Finally delete the purchase record
+    await CreditPurchase.findByIdAndDelete(requestId);
+    console.log(`[AdminDelete] Purchase invoice ${requestId} permanently removed from system.`);
+
+    res.status(200).json({
+      success: true,
+      data: { id: requestId },
+      message: 'Purchase invoice deleted successfully. Credit and stock have been reverted.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+/**
+ * @desc    Mark purchase as being processed (packing/readying)
+ * @route   POST /api/admin/Users/purchases/:requestId/process
+ * @access  Private (Admin)
+ */
+exports.processUserPurchase = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { deliveryNotes } = req.body;
+
+    const purchase = await CreditPurchase.findById(requestId);
+
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase request not found',
+      });
+    }
+
+    if (purchase.status !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: `Purchase can only be processed if approved. Current status: ${purchase.status}`,
+      });
+    }
+
+    purchase.deliveryStatus = 'processing';
+    if (deliveryNotes) {
+      purchase.deliveryNotes = deliveryNotes;
+    }
+    await purchase.save();
+
+    // SEND User NOTIFICATION: Purchase Processing
+    try {
+      await UserNotification.createNotification({
+        userId: purchase.userId,
+        type: 'credit_purchase_processing',
+        title: 'Order Processing',
+        message: `Your stock purchase #${purchase.creditPurchaseId || purchase._id} is now being processed.`,
+        relatedEntityType: 'credit_purchase',
+        relatedEntityId: purchase._id,
+        priority: 'normal',
+        metadata: { purchaseId: purchase.creditPurchaseId, status: 'processing' }
+      });
+    } catch (notifError) {
+      console.error('Failed to send purchase processing notification:', notifError);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { purchase, message: 'Stock marked as processing (packing)' },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Mark stock as sent (in transit)
+ * @route   POST /api/admin/Users/purchases/:requestId/send
+ * @access  Private (Admin)
+ */
+exports.sendUserPurchaseStock = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { deliveryNotes } = req.body;
+
+    const purchase = await CreditPurchase.findById(requestId);
+
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase request not found',
+      });
+    }
+
+    if (purchase.status !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: `Stock can only be sent for approved requests. Current status: ${purchase.status}`,
+      });
+    }
+
+    purchase.deliveryStatus = 'in_transit';
+    if (deliveryNotes) {
+      purchase.deliveryNotes = deliveryNotes;
+    }
+    await purchase.save();
+
+    // SEND User NOTIFICATION: Purchase Dispatched
+    try {
+      await UserNotification.createNotification({
+        userId: purchase.userId,
+        type: 'credit_purchase_dispatched',
+        title: 'Order Dispatched',
+        message: `Your stock purchase #${purchase.creditPurchaseId || purchase._id} has been dispatched and is on the way.`,
+        relatedEntityType: 'credit_purchase',
+        relatedEntityId: purchase._id,
+        priority: 'high',
+        metadata: { purchaseId: purchase.creditPurchaseId, status: 'dispatched' }
+      });
+    } catch (notifError) {
+      console.error('Failed to send purchase dispatch notification:', notifError);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { purchase, message: 'Stock marked as in-transit' },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Confirm delivery and update User inventory
+ * @route   POST /api/admin/Users/purchases/:requestId/confirm-delivery
+ * @access  Private (Admin)
+ */
+exports.confirmUserPurchaseDelivery = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { deliveryNotes } = req.body;
+
+    const purchase = await CreditPurchase.findById(requestId);
+
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase request not found',
+      });
+    }
+
+    if (purchase.deliveryStatus === 'delivered') {
+      return res.status(400).json({
+        success: false,
+        message: 'Purchase is already marked as delivered',
+      });
+    }
+
+    // Logic to update User inventory (ProductAssignment)
+
+    for (const item of purchase.items) {
+      let assignment = await ProductAssignment.findOne({
+        userId: purchase.userId,
+        productId: item.productId,
+      });
+
+      if (!assignment) {
+        assignment = await ProductAssignment.create({
+          userId: purchase.userId,
+          productId: item.productId,
+          assignedBy: req.admin._id,
+          assignedAt: new Date(),
+          stock: 0,
+          isActive: true,
+          notes: 'Auto-created during confirmed stock delivery',
+        });
+      }
+
+      // Update Global Stock
+      assignment.stock += (Number(item.quantity) || 0);
+
+      // Update Attribute Stock if variants exist
+      const attributeCombination = item.attributeCombination instanceof Map
+        ? Object.fromEntries(item.attributeCombination)
+        : item.attributeCombination || {};
+
+      const hasVariants = Object.keys(attributeCombination).length > 0;
+
+      if (hasVariants) {
+        if (!assignment.attributeStocks) assignment.attributeStocks = [];
+
+        const matchingVariant = assignment.attributeStocks.find(variant => {
+          if (!variant.attributes) return false;
+          const variantAttrs = variant.attributes instanceof Map
+            ? Object.fromEntries(variant.attributes)
+            : variant.attributes;
+
+          return Object.keys(attributeCombination).every(key => String(variantAttrs[key]) === String(attributeCombination[key]));
+        });
+
+        if (matchingVariant) {
+          matchingVariant.stock = (matchingVariant.stock || 0) + (Number(item.quantity) || 0);
+        } else {
+          assignment.attributeStocks.push({
+            attributes: attributeCombination,
+            stock: Number(item.quantity) || 0,
+            isActive: true
+          });
+        }
+      }
+
+      await assignment.save();
+    }
+
+    purchase.deliveryStatus = 'delivered';
+    purchase.deliveredAt = new Date();
+    if (deliveryNotes) {
+      purchase.deliveryNotes = deliveryNotes;
+    }
+    await purchase.save();
+
+    // SEND User NOTIFICATION: Purchase Delivered
+    try {
+      await UserNotification.createNotification({
+        userId: purchase.userId,
+        type: 'credit_purchase_delivered',
+        title: 'Order Delivered',
+        message: `Your stock purchase #${purchase.creditPurchaseId || purchase._id} has been successfully delivered and added to your inventory.`,
+        relatedEntityType: 'credit_purchase',
+        relatedEntityId: purchase._id,
+        priority: 'high',
+        metadata: { purchaseId: purchase.creditPurchaseId, status: 'delivered' }
+      });
+    } catch (notifError) {
+      console.error('Failed to send purchase delivery notification:', notifError);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { purchase, message: 'Stock delivery confirmed and inventory updated' },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Ban User (temporary or permanent) - requires >3 escalations
+ * @route   PUT /api/admin/Users/:UserId/ban
+ * @access  Private (Admin)
+ */
+exports.banUser = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+    const { banType = 'temporary', banReason, banExpiry } = req.body; // banType: 'temporary' or 'permanent'
+
+    if (!['temporary', 'permanent'].includes(banType)) {
+      return res.status(400).json({
+        success: false,
+        message: "banType must be 'temporary' or 'permanent'",
+      });
+    }
+
+    const user = await User.findById(UserId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check if User is already banned
+    if (User.banInfo.isBanned) {
+      return res.status(400).json({
+        success: false,
+        message: `User is already banned (${User.banInfo.banType}). Please unban first if you want to change the ban type.`,
+      });
+    }
+
+    // Set ban information
+    User.banInfo.isBanned = true;
+    User.banInfo.banType = banType;
+    User.banInfo.bannedAt = new Date();
+    User.banInfo.bannedBy = req.admin._id;
+    User.banInfo.banReason = banReason || 'Banned due to multiple order escalations';
+
+    // Set ban expiry for temporary bans
+    if (banType === 'temporary') {
+      if (banExpiry) {
+        User.banInfo.banExpiry = new Date(banExpiry);
+      } else {
+        // Default: 30 days from now
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 30);
+        User.banInfo.banExpiry = expiryDate;
+      }
+    } else {
+      // Permanent ban - no expiry
+      User.banInfo.banExpiry = undefined;
+    }
+
+    // Update User status
+    User.status = banType === 'temporary' ? 'temporarily_banned' : 'permanently_banned';
+    User.isActive = false;
+
+    await User.save();
+
+    // TODO: Send notification to User
+    console.log(`🚫 User banned: ${user.name} (${user.phone}) - Type: ${banType}${banReason ? ` - Reason: ${banReason}` : ''}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        User: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+          status: User.status,
+          banInfo: User.banInfo,
+        },
+        message: `User ${banType === 'temporary' ? 'temporarily' : 'permanently'} banned successfully`,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Revoke temporary ban
+ * @route   PUT /api/admin/Users/:UserId/unban
+ * @access  Private (Admin)
+ */
+exports.unbanUser = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+    const { revocationReason } = req.body;
+
+    const user = await User.findById(UserId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check if User is banned
+    if (!User.banInfo.isBanned) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is not currently banned',
+      });
+    }
+
+    // Can only unban temporary bans (permanent bans require deletion)
+    if (User.banInfo.banType === 'permanent') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot unban a permanently banned User. Use delete User instead if needed.',
+      });
+    }
+
+    // Revoke ban
+    User.banInfo.isBanned = false;
+    User.banInfo.banType = 'none';
+    User.banInfo.revokedAt = new Date();
+    User.banInfo.revokedBy = req.admin._id;
+    User.banInfo.revocationReason = revocationReason || 'Ban revoked by admin';
+
+    // Update User status
+    User.status = 'approved';
+    User.isActive = true;
+
+    await User.save();
+
+    // TODO: Send notification to User
+    console.log(`✅ User ban revoked: ${user.name} (${user.phone})${revocationReason ? ` - Reason: ${revocationReason}` : ''}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        User: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+          status: User.status,
+          banInfo: User.banInfo,
+        },
+        message: 'User ban revoked successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Permanently delete User (soft delete - activities persist) - requires >3 escalations
+ * @route   DELETE /api/admin/Users/:UserId
+ * @access  Private (Admin)
+ */
+exports.deleteUser = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+    const { deletionReason } = req.body;
+
+    const user = await User.findById(UserId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check if User is already deleted
+    if (User.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already deleted',
+      });
+    }
+
+    // Check escalation count (requires >3 escalations)
+    if ((User.escalationCount || 0) <= 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete User. Requires more than 3 escalations. Current escalation count: ' + (User.escalationCount || 0),
+      });
+    }
+
+    // Soft delete User (activities persist)
+    User.isDeleted = true;
+    User.deletedAt = new Date();
+    User.deletedBy = req.admin._id;
+    User.deletionReason = deletionReason || 'Deleted due to multiple order escalations';
+    User.status = 'permanently_banned';
+    User.isActive = false;
+
+    // Also update ban info if not already set
+    if (!User.banInfo.isBanned) {
+      User.banInfo.isBanned = true;
+      User.banInfo.banType = 'permanent';
+      User.banInfo.bannedAt = new Date();
+      User.banInfo.bannedBy = req.admin._id;
+      User.banInfo.banReason = 'Permanently banned and deleted';
+    }
+
+    await User.save();
+
+    // TODO: Send notification
+    console.log(`🗑️ User deleted: ${user.name} (${user.phone})${deletionReason ? ` - Reason: ${deletionReason}` : ''}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        User: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+          isDeleted: User.isDeleted,
+          deletedAt: User.deletedAt,
+        },
+        message: 'User deleted successfully (soft delete - activities persist)',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// User WITHDRAWAL MANAGEMENT CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get all User withdrawal requests (global)
+ * @route   GET /api/admin/Users/withdrawals
+ * @access  Private (Admin)
+ */
+
+/**
+ * @desc    Get User rankings based on performance metrics
+ * @route   GET /api/admin/Users/rankings
+ * @access  Private (Admin)
+ */
+exports.getUserRankings = async (req, res, next) => {
+  try {
+    const { sortBy = 'creditScore', order = 'desc', limit = 100 } = req.query;
+
+    const sortOrder = order === 'asc' ? 1 : -1;
+    let sortStage = {};
+
+    // Map frontend sort keys to backend fields
+    switch (sortBy) {
+      case 'orderFrequency':
+        sortStage = { orderCount: sortOrder };
+        break;
+      case 'repaymentFrequency':
+        sortStage = { 'creditHistory.totalRepaymentCount': sortOrder };
+        break;
+      case 'repaymentAmount':
+        sortStage = { 'creditHistory.totalRepaid': sortOrder };
+        break;
+      case 'creditScore':
+      default:
+        sortStage = { 'creditHistory.creditScore': sortOrder };
+        break;
+    }
+
+    const Users = await User.aggregate([
+      {
+        $match: {
+          status: 'approved',
+          isDeleted: { $ne: true }
+        }
+      },
+      // Lookup Purchases
+      {
+        $lookup: {
+          from: 'creditpurchases',
+          localField: '_id',
+          foreignField: 'UserId',
+          as: 'purchases'
+        }
+      },
+      // Lookup SUCCESSFUL Repayments
+      {
+        $lookup: {
+          from: 'creditrepayments',
+          let: { vId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$UserId', '$$vId'] },
+                status: 'completed'
+              }
+            }
+          ],
+          as: 'repayments'
+        }
+      },
+      {
+        $addFields: {
+          orderCount: { $size: '$purchases' },
+          repaymentFrequency: { $size: '$repayments' },
+          repaidAmountTotal: { $sum: '$repayments.totalAmount' }
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          userId: 1,
+          email: 1,
+          phone: 1,
+          shopName: 1,
+          'location.city': 1,
+          'location.state': 1,
+          creditHistory: {
+            creditScore: '$creditHistory.creditScore',
+            // Map our calculated fields to the expected keys
+            totalRepaid: '$repaidAmountTotal',
+            totalRepaymentCount: '$repaymentFrequency'
+          },
+          performanceTier: 1,
+          orderCount: 1,
+        }
+      },
+      { $sort: sortStage },
+      { $limit: parseInt(limit) }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        rankings: Users
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getAllUserWithdrawals = async (req, res, next) => {
+  try {
+    const { status, UserId, page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+
+    // Build query
+    const query = {
+      userType: 'User',
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (UserId) {
+      query.userId = UserId;
+    }
+
+    // Search functionality (by User name or amount)
+    if (search) {
+      const searchNum = parseFloat(search);
+      if (!isNaN(searchNum)) {
+        // Search by amount
+        query.amount = { $gte: searchNum * 0.9, $lte: searchNum * 1.1 }; // Allow 10% tolerance
+      }
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query with User population
+    const withdrawals = await WithdrawalRequest.find(query)
+      .populate('UserId', 'name phone email')
+      .populate('bankAccountId')
+      .populate('reviewedBy', 'name email')
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .select('-__v');
+
+    // If search was provided and it's a string, filter by User name
+    let filteredWithdrawals = withdrawals;
+    if (search && isNaN(parseFloat(search))) {
+      filteredWithdrawals = withdrawals.filter(withdrawal => {
+        const UserName = withdrawal.userId?.name || '';
+        return UserName.toLowerCase().includes(search.toLowerCase());
+      });
+    }
+
+    // Get total count (after search filter if applicable)
+    let total = await WithdrawalRequest.countDocuments(query);
+    if (search && isNaN(parseFloat(search))) {
+      total = filteredWithdrawals.length;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        withdrawals: filteredWithdrawals,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Create payment intent for User withdrawal
+ * @route   POST /api/admin/Users/withdrawals/:requestId/payment-intent
+ * @access  Private (Admin)
+ */
+exports.createUserWithdrawalPaymentIntent = async (req, res, next) => {
+  try {
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Starting...');
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Request params:', req.params);
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Request body:', req.body);
+
+    const { requestId } = req.params;
+    const { amount } = req.body;
+
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Looking for withdrawal:', requestId);
+
+    const withdrawal = await WithdrawalRequest.findById(requestId)
+      .populate('UserId');
+
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Withdrawal found:', withdrawal ? 'Yes' : 'No');
+    if (withdrawal) {
+      console.log('🔍 [createUserWithdrawalPaymentIntent] Withdrawal status:', withdrawal.status);
+      console.log('🔍 [createUserWithdrawalPaymentIntent] Withdrawal userType:', withdrawal.userType);
+      console.log('🔍 [createUserWithdrawalPaymentIntent] Withdrawal amount:', withdrawal.amount);
+      console.log('🔍 [createUserWithdrawalPaymentIntent] User populated:', withdrawal.userId ? 'Yes' : 'No');
+      if (withdrawal.userId) {
+        console.log('🔍 [createUserWithdrawalPaymentIntent] User ID:', withdrawal.userId._id);
+        console.log('🔍 [createUserWithdrawalPaymentIntent] User name:', withdrawal.userId.name);
+      }
+    }
+
+    if (!withdrawal) {
+      console.error('❌ [createUserWithdrawalPaymentIntent] Withdrawal not found');
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found',
+      });
+    }
+
+    if (withdrawal.userType !== 'User') {
+      console.error('❌ [createUserWithdrawalPaymentIntent] Invalid userType:', withdrawal.userType);
+      return res.status(400).json({
+        success: false,
+        message: 'This is not a User withdrawal request',
+      });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      console.error('❌ [createUserWithdrawalPaymentIntent] Invalid status:', withdrawal.status);
+      return res.status(400).json({
+        success: false,
+        message: `Withdrawal request is already ${withdrawal.status}`,
+      });
+    }
+
+    // Use withdrawal amount if not provided
+    const paymentAmount = amount || withdrawal.amount;
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Payment amount:', paymentAmount);
+
+    // Ensure User is populated
+    if (!withdrawal.userId || !withdrawal.userId._id) {
+      console.error('❌ [createUserWithdrawalPaymentIntent] User information not found');
+      console.error('❌ [createUserWithdrawalPaymentIntent] withdrawal.userId:', withdrawal.userId);
+      return res.status(400).json({
+        success: false,
+        message: 'User information not found',
+      });
+    }
+
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Creating Razorpay order...');
+    console.log('🔍 [createUserWithdrawalPaymentIntent] razorpayService available:', typeof razorpayService !== 'undefined' ? 'Yes' : 'No');
+    console.log('🔍 [createUserWithdrawalPaymentIntent] razorpayService.createOrder:', typeof razorpayService?.createOrder === 'function' ? 'Yes' : 'No');
+
+    // Create Razorpay order
+    // Receipt must be max 40 characters (Razorpay requirement)
+    const receiptPrefix = `wd_${withdrawal._id.toString().slice(-8)}_`;
+    const timestamp = Date.now().toString().slice(-8);
+    const receipt = (receiptPrefix + timestamp).slice(0, 40); // Ensure max 40 chars
+
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Receipt generated:', receipt, 'Length:', receipt.length);
+
+    const razorpayOrder = await razorpayService.createOrder({
+      amount: paymentAmount,
+      currency: 'INR',
+      receipt: receipt,
+      notes: {
+        withdrawalRequestId: withdrawal._id.toString(),
+        userId: withdrawal.userId._id.toString(),
+        UserName: withdrawal.userId.name || 'Unknown User',
+        type: 'User_withdrawal',
+      },
+    });
+
+    console.log('✅ [createUserWithdrawalPaymentIntent] Razorpay order created:', razorpayOrder?.id);
+
+    // Get Razorpay Key ID
+    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_key';
+    console.log('🔍 [createUserWithdrawalPaymentIntent] Razorpay Key ID:', keyId ? 'Present' : 'Missing');
+
+    const response = {
+      success: true,
+      data: {
+        paymentIntent: {
+          id: razorpayOrder.id,
+          amount: paymentAmount,
+          currency: 'INR',
+          status: razorpayOrder.status,
+          razorpayOrderId: razorpayOrder.id,
+          keyId: keyId,
+          receipt: razorpayOrder.receipt,
+          createdAt: new Date(),
+          isTestMode: !process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET,
+        },
+        message: process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
+          ? 'Payment intent created successfully'
+          : 'Payment intent created (Test Mode)',
+      },
+    };
+
+    console.log('✅ [createUserWithdrawalPaymentIntent] Sending success response');
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('❌ [createUserWithdrawalPaymentIntent] Error occurred:');
+    console.error('❌ [createUserWithdrawalPaymentIntent] Error message:', error.message);
+    console.error('❌ [createUserWithdrawalPaymentIntent] Error stack:', error.stack);
+    console.error('❌ [createUserWithdrawalPaymentIntent] Full error:', error);
+    next(error);
+  }
+};
+
+/**
+ * @desc    Approve User withdrawal request
+ * @route   POST /api/admin/Users/withdrawals/:requestId/approve
+ * @access  Private (Admin)
+ */
+exports.approveUserWithdrawal = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { paymentReference, paymentMethod, paymentDate, adminRemarks } = req.body;
+
+    const withdrawal = await WithdrawalRequest.findById(requestId)
+      .populate('UserId')
+      .populate('bankAccountId');
+
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found',
+      });
+    }
+
+    if (withdrawal.userType !== 'User') {
+      return res.status(400).json({
+        success: false,
+        message: 'This is not a User withdrawal request',
+      });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Withdrawal request is already ${withdrawal.status}`,
+      });
+    }
+
+    const user = await User.findById(withdrawal.userId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Calculate available balance
+    const totalEarningsResult = await UserEarning.aggregate([
+      {
+        $match: {
+          userId: user._id,
+          status: 'processed',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalEarnings: { $sum: '$earnings' },
+        },
+      },
+    ]);
+
+    const totalEarnings = totalEarningsResult[0]?.totalEarnings || 0;
+
+    const pendingWithdrawals = await WithdrawalRequest.aggregate([
+      {
+        $match: {
+          userId: user._id,
+          status: 'pending',
+          _id: { $ne: withdrawal._id },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    const pendingWithdrawalAmount = pendingWithdrawals[0]?.totalAmount || 0;
+    const availableBalance = totalEarnings - pendingWithdrawalAmount;
+
+    if (withdrawal.amount > availableBalance) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient balance. Available: ₹${Math.round(availableBalance * 100) / 100}, Requested: ₹${withdrawal.amount}`,
+      });
+    }
+
+    // Approve withdrawal
+    withdrawal.status = 'approved';
+    withdrawal.reviewedBy = req.admin._id;
+    withdrawal.reviewedAt = new Date();
+    if (paymentReference) withdrawal.paymentReference = paymentReference;
+    if (paymentMethod) withdrawal.paymentMethod = paymentMethod;
+    if (paymentDate) withdrawal.paymentDate = new Date(paymentDate);
+    if (adminRemarks) withdrawal.adminRemarks = adminRemarks;
+
+    // Store payment gateway details if provided
+    if (req.body.gatewayPaymentId) withdrawal.gatewayPaymentId = req.body.gatewayPaymentId;
+    if (req.body.gatewayOrderId) withdrawal.gatewayOrderId = req.body.gatewayOrderId;
+    if (req.body.gatewaySignature) withdrawal.gatewaySignature = req.body.gatewaySignature;
+
+    await withdrawal.save();
+
+    // SEND User NOTIFICATION: Withdrawal Approved
+    try {
+      await UserNotification.createNotification({
+        userId: user._id,
+        type: 'withdrawal_approved',
+        title: 'Withdrawal Approved',
+        message: `Your withdrawal request for ₹${withdrawal.amount} has been approved and processed.`,
+        relatedEntityType: 'withdrawal',
+        relatedEntityId: withdrawal._id,
+        priority: 'normal',
+        metadata: { amount: withdrawal.amount, paymentMethod: paymentMethod || 'manual' }
+      });
+    } catch (notifError) {
+      console.error('Failed to send User withdrawal notification:', notifError);
+    }
+
+    // Mark User earnings as withdrawn (oldest first until withdrawal amount is covered)
+    let remainingAmount = withdrawal.amount;
+    const earningsToMark = await UserEarning.find({
+      userId: user._id,
+      status: 'processed',
+    }).sort({ processedAt: 1 }); // Oldest first
+
+    for (const earning of earningsToMark) {
+      if (remainingAmount <= 0) break;
+
+      if (earning.earnings <= remainingAmount) {
+        // Mark entire earning as withdrawn
+        earning.status = 'withdrawn';
+        earning.withdrawnAt = new Date();
+        earning.withdrawalRequestId = withdrawal._id;
+        remainingAmount -= earning.earnings;
+        await earning.save();
+      } else {
+        // Partial withdrawal - create a new earning record for remaining amount
+        const remainingEarning = new UserEarning({
+          userId: earning.userId,
+          orderId: earning.orderId,
+          productId: earning.productId,
+          productName: earning.productName,
+          quantity: earning.quantity,
+          userPrice: earning.userPrice,
+          UserPrice: earning.UserPrice,
+          earnings: earning.earnings - remainingAmount,
+          status: 'processed',
+          processedAt: earning.processedAt,
+          notes: `Remaining amount after withdrawal ${withdrawal._id}`,
+        });
+        await remainingEarning.save();
+
+        // Mark original earning as withdrawn
+        earning.earnings = remainingAmount;
+        earning.status = 'withdrawn';
+        earning.withdrawnAt = new Date();
+        earning.withdrawalRequestId = withdrawal._id;
+        await earning.save();
+        remainingAmount = 0;
+      }
+    }
+
+    // Log to payment history
+    try {
+      const bankAccount = withdrawal.bankAccountId;
+      await createPaymentHistory({
+        activityType: 'User_withdrawal_approved',
+        userId: user._id,
+        withdrawalRequestId: withdrawal._id,
+        bankAccountId: bankAccount?._id,
+        amount: withdrawal.amount,
+        status: 'completed',
+        paymentMethod: paymentMethod || 'razorpay',
+        bankDetails: bankAccount ? {
+          accountHolderName: bankAccount.accountHolderName,
+          accountNumber: bankAccount.accountNumber,
+          ifscCode: bankAccount.ifscCode,
+          bankName: bankAccount.bankName,
+        } : undefined,
+        processedBy: req.admin._id,
+        description: `User withdrawal of ₹${withdrawal.amount} approved and paid for ${user.name}`,
+        metadata: {
+          UserName: user.name,
+          UserPhone: user.phone,
+          paymentReference,
+          gatewayPaymentId: req.body.gatewayPaymentId,
+          gatewayOrderId: req.body.gatewayOrderId,
+          adminRemarks,
+        },
+      });
+    } catch (historyError) {
+      console.error('Error logging withdrawal history:', historyError);
+      // Don't fail approval if history logging fails
+    }
+
+    console.log(`✅ User withdrawal approved: ₹${withdrawal.amount} for User ${user.name} (${user.phone})`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        withdrawal,
+        User: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+        },
+        message: 'Withdrawal approved successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reject User withdrawal request
+ * @route   POST /api/admin/Users/withdrawals/:requestId/reject
+ * @access  Private (Admin)
+ */
+exports.rejectUserWithdrawal = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { reason, adminRemarks } = req.body;
+
+    const withdrawal = await WithdrawalRequest.findById(requestId)
+      .populate('UserId');
+
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found',
+      });
+    }
+
+    if (withdrawal.userType !== 'User') {
+      return res.status(400).json({
+        success: false,
+        message: 'This is not a User withdrawal request',
+      });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Withdrawal request is already ${withdrawal.status}`,
+      });
+    }
+
+    const user = await User.findById(withdrawal.userId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Reject withdrawal
+    withdrawal.status = 'rejected';
+    withdrawal.reviewedBy = req.admin._id;
+    withdrawal.reviewedAt = new Date();
+    if (reason) {
+      withdrawal.rejectionReason = reason;
+    }
+    if (adminRemarks) {
+      withdrawal.adminRemarks = adminRemarks;
+    }
+    await withdrawal.save();
+
+    // Log to payment history
+    try {
+      await createPaymentHistory({
+        activityType: 'User_withdrawal_rejected',
+        userId: user._id,
+        withdrawalRequestId: withdrawal._id,
+        amount: withdrawal.amount,
+        status: 'rejected',
+        processedBy: req.admin._id,
+        description: `User withdrawal of ₹${withdrawal.amount} rejected${reason ? ` - Reason: ${reason}` : ''}`,
+        metadata: {
+          UserName: user.name,
+          UserPhone: user.phone,
+          reason,
+          adminRemarks,
+        },
+      });
+    } catch (historyError) {
+      console.error('Error logging withdrawal history:', historyError);
+      // Don't fail rejection if history logging fails
+    }
+
+    console.log(`❌ User withdrawal rejected: ₹${withdrawal.amount}${reason ? ` - Reason: ${reason}` : ''}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        withdrawal,
+        User: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+        },
+        message: 'Withdrawal rejected successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Mark User withdrawal as completed (after payment processed)
+ * @route   PUT /api/admin/Users/withdrawals/:requestId/complete
+ * @access  Private (Admin)
+ */
+exports.completeUserWithdrawal = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { paymentReference, paymentMethod, paymentDate } = req.body;
+
+    const withdrawal = await WithdrawalRequest.findById(requestId)
+      .populate('UserId');
+
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found',
+      });
+    }
+
+    if (withdrawal.userType !== 'User') {
+      return res.status(400).json({
+        success: false,
+        message: 'This is not a User withdrawal request',
+      });
+    }
+
+    if (withdrawal.status !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: `Withdrawal request must be approved before marking as completed. Current status: ${withdrawal.status}`,
+      });
+    }
+
+    // Mark as completed
+    withdrawal.status = 'completed';
+    withdrawal.processedAt = new Date();
+    if (paymentReference) withdrawal.paymentReference = paymentReference;
+    if (paymentMethod) withdrawal.paymentMethod = paymentMethod;
+    if (paymentDate) withdrawal.paymentDate = new Date(paymentDate);
+    await withdrawal.save();
+
+    // Log to payment history
+    try {
+      const user = await User.findById(withdrawal.userId);
+      const bankAccount = await BankAccount.findById(withdrawal.bankAccountId);
+      await createPaymentHistory({
+        activityType: 'User_withdrawal_completed',
+        userId: withdrawal.userId,
+        withdrawalRequestId: withdrawal._id,
+        bankAccountId: withdrawal.bankAccountId,
+        amount: withdrawal.amount,
+        status: 'completed',
+        paymentMethod: paymentMethod || 'bank_transfer',
+        bankDetails: bankAccount ? {
+          accountHolderName: bankAccount.accountHolderName,
+          accountNumber: bankAccount.accountNumber,
+          ifscCode: bankAccount.ifscCode,
+          bankName: bankAccount.bankName,
+        } : undefined,
+        processedBy: req.admin._id,
+        description: `User withdrawal of ₹${withdrawal.amount} completed${paymentReference ? ` - Reference: ${paymentReference}` : ''}`,
+        metadata: {
+          UserName: User?.name,
+          paymentReference,
+          paymentDate,
+        },
+      });
+    } catch (historyError) {
+      console.error('Error logging withdrawal history:', historyError);
+      // Don't fail completion if history logging fails
+    }
+
+    console.log(`✅ User withdrawal completed: ₹${withdrawal.amount} for User ${withdrawal.userId?.name}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        withdrawal,
+        message: 'Withdrawal marked as completed successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get payment history for admin
+ * @route   GET /api/admin/payment-history
+ * @access  Private (Admin)
+ */
+exports.getPaymentHistory = async (req, res, next) => {
+  try {
+    const {
+      activityType,
+      userId,
+      UserId,
+      sellerId,
+      orderId,
+      startDate,
+      endDate,
+      status,
+      page = 1,
+      limit = 50,
+      search,
+    } = req.query;
+
+    console.log('🔍 [PaymentHistory] Request params:', {
+      activityType,
+      userId,
+      UserId,
+      sellerId,
+      orderId,
+      startDate,
+      endDate,
+      status,
+      page,
+      limit,
+      search,
+    });
+
+    const query = {};
+
+    // Filter by activity type
+    if (activityType) {
+      query.activityType = activityType;
+    }
+
+    // Filter by user
+    if (userId) {
+      query.userId = userId;
+    }
+
+    // Filter by User
+    if (UserId) {
+      query.userId = UserId;
+    }
+
+
+    // Filter by order
+    if (orderId) {
+      query.orderId = orderId;
+    }
+
+    // Filter by status
+    if (status) {
+      query.status = status;
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build aggregation pipeline for search
+    let pipeline = [{ $match: query }];
+
+    // If search is provided, search in description and metadata
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { description: { $regex: search, $options: 'i' } },
+            { 'metadata.UserName': { $regex: search, $options: 'i' } },
+            { 'metadata.sellerName': { $regex: search, $options: 'i' } },
+            { 'metadata.orderNumber': { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    // Add population and sorting
+    pipeline.push(
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limitNum },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order',
+        },
+      },
+      {
+        $project: {
+          activityType: 1,
+          amount: 1,
+          currency: 1,
+          status: 1,
+          paymentMethod: 1,
+          bankDetails: 1,
+          description: 1,
+          metadata: 1,
+          processedBy: 1,
+          processedAt: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          userId: 1,
+          orderId: 1,
+          withdrawalRequestId: 1,
+          bankAccountId: 1,
+          user: { $arrayElemAt: ['$user', 0] },
+          order: { $arrayElemAt: ['$order', 0] },
+        },
+      }
+    );
+
+    // Get PaymentHistory records
+    console.log('📊 [PaymentHistory] Query:', JSON.stringify(query, null, 2));
+    const [history, totalResult] = await Promise.all([
+      PaymentHistory.aggregate(pipeline),
+      PaymentHistory.countDocuments(query),
+    ]);
+
+    console.log(`📊 [PaymentHistory] Found ${history.length} PaymentHistory records, total: ${totalResult}`);
+
+    // Also include Payment records that might not be in PaymentHistory
+    // This ensures we show all payments even if PaymentHistory logging failed
+    const shouldIncludePayments = !activityType || activityType === 'all' ||
+      activityType === 'user_payment_advance' || activityType === 'user_payment_remaining';
+
+    // Also include CreditRepayment records for credit repayments
+    const shouldIncludeCreditRepayments = !activityType || activityType === 'all' ||
+      activityType === 'User_credit_repayment';
+
+    let combinedHistory = history;
+    let totalCount = totalResult;
+
+    if (shouldIncludePayments) {
+      const paymentQuery = {};
+
+      // Apply date filter to payments
+      if (startDate || endDate) {
+        paymentQuery.createdAt = {};
+        if (startDate) paymentQuery.createdAt.$gte = new Date(startDate);
+        if (endDate) paymentQuery.createdAt.$lte = new Date(endDate);
+      }
+
+      // Apply status filter - map PaymentHistory status to Payment status
+      if (status && status !== 'all') {
+        if (status === 'completed') {
+          paymentQuery.status = PAYMENT_STATUS.FULLY_PAID;
+        } else if (status === 'pending') {
+          paymentQuery.status = PAYMENT_STATUS.PARTIAL_PAID;
+        } else {
+          paymentQuery.status = status;
+        }
+      }
+
+      // Apply user filter
+      if (userId) {
+        paymentQuery.userId = userId;
+      }
+
+      // Apply order filter
+      if (orderId) {
+        paymentQuery.orderId = orderId;
+      }
+
+      // Filter by payment type if specific activity type is requested
+      if (activityType === 'user_payment_advance') {
+        paymentQuery.paymentType = { $in: ['advance', 'full'] };
+      } else if (activityType === 'user_payment_remaining') {
+        paymentQuery.paymentType = 'remaining';
+      }
+
+      // Get all payments (we'll merge and paginate after)
+      console.log('💳 [PaymentHistory] Payment query:', JSON.stringify(paymentQuery, null, 2));
+      const allPayments = await Payment.find(paymentQuery)
+        .sort({ createdAt: -1 })
+        .populate('userId', 'name phone userId')
+        .populate('orderId', 'orderNumber totalAmount')
+        .select('-__v');
+
+      console.log(`💳 [PaymentHistory] Found ${allPayments.length} Payment records`);
+
+      // Convert Payment records to PaymentHistory format for consistency
+      const paymentHistoryEntries = allPayments.map(payment => {
+        // Determine activity type based on payment type
+        let activityTypeFromPayment = 'user_payment_advance';
+        if (payment.paymentType === 'remaining') {
+          activityTypeFromPayment = 'user_payment_remaining';
+        } else if (payment.paymentType === 'full') {
+          activityTypeFromPayment = 'user_payment_advance';
+        }
+
+        return {
+          _id: payment._id,
+          historyId: payment.paymentId,
+          activityType: activityTypeFromPayment,
+          userId: payment.userId?._id,
+          orderId: payment.orderId?._id,
+          paymentId: payment._id,
+          amount: payment.amount,
+          currency: 'INR',
+          status: payment.status === PAYMENT_STATUS.FULLY_PAID ? 'completed' :
+            payment.status === PAYMENT_STATUS.PARTIAL_PAID ? 'pending' :
+              payment.status,
+          paymentMethod: payment.paymentMethod,
+          description: `User ${payment.paymentType} payment of ₹${payment.amount}${payment.orderId?.orderNumber ? ` for order ${payment.orderId.orderNumber}` : ''}`,
+          metadata: {
+            orderNumber: payment.orderId?.orderNumber,
+            paymentId: payment.paymentId,
+            paymentType: payment.paymentType,
+          },
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt,
+          processedAt: payment.paidAt || payment.createdAt,
+          user: payment.userId ? {
+            _id: payment.userId._id,
+            name: payment.userId.name,
+            phone: payment.userId.phone,
+            userId: payment.userId.userId,
+          } : null,
+          order: payment.orderId ? {
+            _id: payment.orderId._id,
+            orderNumber: payment.orderId.orderNumber,
+            totalAmount: payment.orderId.totalAmount,
+          } : null,
+        };
+      });
+
+      // Merge PaymentHistory and Payment records, removing duplicates
+      // A payment is a duplicate if it has the same paymentId in metadata
+      const existingPaymentIds = new Set(
+        history
+          .filter(h => h.metadata?.paymentId)
+          .map(h => h.metadata.paymentId)
+      );
+
+      const uniquePaymentEntries = paymentHistoryEntries.filter(
+        entry => !existingPaymentIds.has(entry.metadata?.paymentId)
+      );
+
+      console.log(`💳 [PaymentHistory] Unique Payment entries after deduplication: ${uniquePaymentEntries.length}`);
+
+      // Combine and sort by date
+      combinedHistory = [...history, ...uniquePaymentEntries]
+        .sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.processedAt || 0);
+          const dateB = new Date(b.createdAt || b.processedAt || 0);
+          return dateB - dateA;
+        });
+
+      // Apply pagination after merging
+      const skip = (pageNum - 1) * limitNum;
+      combinedHistory = combinedHistory.slice(skip, skip + limitNum);
+
+      // Update total count
+      totalCount = history.length + uniquePaymentEntries.length;
+    }
+
+    // Include CreditRepayment records
+    if (shouldIncludeCreditRepayments) {
+      const creditRepaymentQuery = {};
+
+      // Apply date filter
+      if (startDate || endDate) {
+        creditRepaymentQuery.createdAt = {};
+        if (startDate) creditRepaymentQuery.createdAt.$gte = new Date(startDate);
+        if (endDate) creditRepaymentQuery.createdAt.$lte = new Date(endDate);
+      }
+
+      // Apply status filter
+      if (status && status !== 'all') {
+        if (status === 'completed') {
+          creditRepaymentQuery.status = 'completed';
+        } else {
+          creditRepaymentQuery.status = status;
+        }
+      } else {
+        // Only show completed repayments by default
+        creditRepaymentQuery.status = 'completed';
+      }
+
+      // Apply User filter
+      if (UserId) {
+        creditRepaymentQuery.userId = UserId;
+      }
+
+      console.log('💰 [PaymentHistory] CreditRepayment query:', JSON.stringify(creditRepaymentQuery, null, 2));
+      const allCreditRepayments = await CreditRepayment.find(creditRepaymentQuery)
+        .sort({ createdAt: -1 })
+        .populate('UserId', 'name phone UserId')
+        .select('-__v');
+
+      console.log(`💰 [PaymentHistory] Found ${allCreditRepayments.length} CreditRepayment records`);
+
+      // Convert CreditRepayment records to PaymentHistory format
+      const creditRepaymentEntries = allCreditRepayments.map(repayment => {
+        return {
+          _id: repayment._id,
+          historyId: repayment.repaymentId,
+          activityType: 'User_credit_repayment',
+          userId: repayment.userId?._id,
+          amount: repayment.amount,
+          currency: 'INR',
+          status: repayment.status === 'completed' ? 'completed' : repayment.status,
+          paymentMethod: 'razorpay',
+          description: `User credit repayment of ₹${repayment.amount}${repayment.penaltyAmount > 0 ? ` (including ₹${repayment.penaltyAmount} penalty)` : ''}`,
+          metadata: {
+            repaymentId: repayment.repaymentId,
+            creditUsedBefore: repayment.creditUsedBefore,
+            creditUsedAfter: repayment.creditUsedAfter,
+            penaltyAmount: repayment.penaltyAmount,
+            razorpayPaymentId: repayment.razorpayPaymentId,
+          },
+          createdAt: repayment.createdAt,
+          updatedAt: repayment.updatedAt,
+          processedAt: repayment.paidAt || repayment.createdAt,
+          User: repayment.userId ? {
+            _id: repayment.userId._id,
+            name: repayment.userId.name,
+            phone: repayment.userId.phone,
+            userId: repayment.userId.userId,
+          } : null,
+        };
+      });
+
+      // Merge with existing history
+      combinedHistory = [...combinedHistory, ...creditRepaymentEntries]
+        .sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.processedAt || 0);
+          const dateB = new Date(b.createdAt || b.processedAt || 0);
+          return dateB - dateA;
+        });
+
+      // Apply pagination after merging
+      const skip = (pageNum - 1) * limitNum;
+      combinedHistory = combinedHistory.slice(skip, skip + limitNum);
+
+      // Update total count
+      totalCount = combinedHistory.length;
+    }
+
+    // Calculate summary statistics
+    const summaryPipeline = [
+      { $match: query },
+      {
+        $group: {
+          _id: '$activityType',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$amount' },
+        },
+      },
+    ];
+
+    const summary = await PaymentHistory.aggregate(summaryPipeline);
+
+    console.log(`✅ [PaymentHistory] Returning ${combinedHistory.length} records, total: ${totalCount}, page: ${pageNum}/${Math.ceil(totalCount / limitNum)}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        history: combinedHistory,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limitNum),
+        },
+        summary,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get payment history statistics
+ * @route   GET /api/admin/payment-history/stats
+ * @access  Private (Admin)
+ */
+exports.getPaymentHistoryStats = async (req, res, next) => {
+  try {
+    const { startDate, endDate, status } = req.query;
+
+    console.log('📊 [PaymentHistoryStats] Calculating stats with params:', { startDate, endDate, status });
+
+    const query = {};
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    // Determine status filter - default to completed/credited/approved if not specified
+    let statusFilter = { $in: ['completed', 'credited', 'approved'] };
+    if (status && status !== 'all') {
+      if (status === 'completed') {
+        statusFilter = { $in: ['completed', 'credited', 'approved'] };
+      } else if (status === 'pending') {
+        statusFilter = { $in: ['pending', 'requested'] };
+      } else if (status === 'rejected') {
+        statusFilter = 'rejected';
+      } else {
+        statusFilter = status;
+      }
+    }
+
+    // Get stats from PaymentHistory - filter by status
+    const historyStatsCompleted = await PaymentHistory.aggregate([
+      {
+        $match: {
+          ...query,
+          status: statusFilter
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalUserPayments: {
+            $sum: {
+              $cond: [
+                // BROKEN_KEY_REMOVED: { $in: ['$activityType', ['user_payment_advance', 'user_payment_remaining']] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+          totalUserEarnings: {
+            $sum: {
+              $cond: [{ $eq: ['$activityType', 'User_earning_credited'] }, '$amount', 0],
+            },
+          },
+          totalSellerCommissions: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$activityType', 'seller_commission_credited'] },
+                    // BROKEN_KEY_REMOVED: { $in: ['$status', ['completed', 'credited', 'approved']] }
+                  ]
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+          totalUserWithdrawals: {
+            $sum: {
+              $cond: [
+                // BROKEN_KEY_REMOVED: { $in: ['$activityType', ['User_withdrawal_approved', 'User_withdrawal_completed']] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+          totalSellerWithdrawals: {
+            $sum: {
+              $cond: [
+                // BROKEN_KEY_REMOVED: { $in: ['$activityType', ['seller_withdrawal_approved', 'seller_withdrawal_completed']] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    // Get total activities count (all statuses)
+    const totalActivitiesResult = await PaymentHistory.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalActivities: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Get Payment records stats - filter by status
+    const paymentQuery = {};
+    if (startDate || endDate) {
+      paymentQuery.createdAt = {};
+      if (startDate) paymentQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) paymentQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    // Map PaymentHistory status to Payment status
+    if (status && status !== 'all') {
+      if (status === 'completed') {
+        paymentQuery.status = PAYMENT_STATUS.FULLY_PAID;
+      } else if (status === 'pending') {
+        paymentQuery.status = PAYMENT_STATUS.PARTIAL_PAID;
+      } else if (status === 'rejected') {
+        paymentQuery.status = PAYMENT_STATUS.FAILED;
+      }
+    } else {
+      // Default: only count fully paid payments
+      paymentQuery.status = PAYMENT_STATUS.FULLY_PAID;
+    }
+
+    // Get Payment IDs that are already in PaymentHistory to avoid double counting
+    const existingPaymentIds = await PaymentHistory.distinct('metadata.paymentId', {
+      ...query,
+      'metadata.paymentId': { $exists: true, $ne: null }
+    });
+
+    console.log(`📊 [PaymentHistoryStats] Found ${existingPaymentIds.length} Payment IDs already in PaymentHistory`);
+
+    // Get Payment records that are NOT in PaymentHistory
+    // Note: We match by paymentId field (string) against metadata.paymentId from PaymentHistory
+    const paymentQueryUnique = {
+      ...paymentQuery,
+    };
+
+    // Only filter out existing payments if we have any
+    if (existingPaymentIds.length > 0) {
+      paymentQueryUnique.paymentId = { $nin: existingPaymentIds };
+    }
+
+    const paymentStats = await Payment.aggregate([
+      { $match: paymentQueryUnique },
+      {
+        $group: {
+          _id: null,
+          totalUserPayments: { $sum: '$amount' },
+          totalPayments: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Get CreditRepayment stats - filter by status
+    const creditRepaymentQuery = {};
+    if (startDate || endDate) {
+      creditRepaymentQuery.createdAt = {};
+      if (startDate) creditRepaymentQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) creditRepaymentQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    if (status && status !== 'all') {
+      creditRepaymentQuery.status = status === 'completed' ? 'completed' : status;
+    } else {
+      // Default: only count completed repayments
+      creditRepaymentQuery.status = 'completed';
+    }
+
+    const creditRepaymentStats = await CreditRepayment.aggregate([
+      { $match: creditRepaymentQuery },
+      {
+        $group: {
+          _id: null,
+          totalCreditRepayments: { $sum: '$amount' },
+          totalRepayments: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const historyResult = historyStatsCompleted[0] || {
+      totalUserPayments: 0,
+      totalUserEarnings: 0,
+      totalUserWithdrawals: 0,
+    };
+
+    const paymentResult = paymentStats[0] || {
+      totalUserPayments: 0,
+      totalPayments: 0,
+    };
+
+    const creditRepaymentResult = creditRepaymentStats[0] || {
+      totalCreditRepayments: 0,
+      totalRepayments: 0,
+    };
+
+
+    // Get total activities count including all sources
+    // Count PaymentHistory records (already includes most activities)
+    const totalActivities = totalActivitiesResult[0]?.totalActivities || 0;
+
+    // Count Payment records that are NOT in PaymentHistory (to avoid double counting)
+    const paymentCountQuery = { ...paymentQueryUnique };
+    const paymentCount = await Payment.countDocuments(paymentCountQuery);
+
+
+    // Count CreditRepayment records that are NOT in PaymentHistory
+    // Check which repayment IDs are already in PaymentHistory
+    const existingRepaymentIds = await PaymentHistory.distinct('metadata.repaymentId', {
+      ...query,
+      'metadata.repaymentId': { $exists: true, $ne: null }
+    });
+
+    const creditRepaymentCountQuery = { ...creditRepaymentQuery };
+    if (existingRepaymentIds.length > 0) {
+      creditRepaymentCountQuery.repaymentId = { $nin: existingRepaymentIds };
+    }
+    const creditRepaymentCount = await CreditRepayment.countDocuments(creditRepaymentCountQuery);
+
+    console.log(`📊 [PaymentHistoryStats] Activity counts:`, {
+      paymentHistory: totalActivities,
+      payments: paymentCount,
+      creditRepayments: creditRepaymentCount,
+      total: totalActivities + paymentCount + creditRepaymentCount,
+    });
+
+    // Combine stats
+    const combinedStats = {
+      totalUserPayments: historyResult.totalUserPayments + paymentResult.totalUserPayments,
+      totalUserEarnings: historyResult.totalUserEarnings,
+      totalUserWithdrawals: historyResult.totalUserWithdrawals,
+      totalActivities: totalActivities + paymentCount + creditRepaymentCount,
+    };
+
+    console.log('📊 [PaymentHistoryStats] Calculated stats:', {
+      historyResult,
+      paymentResult,
+      creditRepaymentResult,
+      totalActivities,
+      combinedStats,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: combinedStats,
+    });
+  } catch (error) {
+    console.error('❌ [PaymentHistoryStats] Error:', error);
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all withdrawals (Users + sellers) for admin dashboard
+ * @route   GET /api/admin/withdrawals
+ * @access  Private (Admin)
+ */
+exports.getAllWithdrawals = async (req, res, next) => {
+  try {
+    const { userType, status, page = 1, limit = 20, search } = req.query;
+
+    const query = {};
+
+    if (userType) {
+      query.userType = userType;
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build population based on userType
+    let withdrawals = await WithdrawalRequest.find(query)
+      .populate('UserId', 'name phone email')
+      .populate('sellerId', 'sellerId name phone email wallet')
+      .populate('bankAccountId')
+      .populate('reviewedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .select('-__v');
+
+    // Search filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      withdrawals = withdrawals.filter(withdrawal => {
+        if (withdrawal.userType === 'User') {
+          return withdrawal.userId?.name?.toLowerCase().includes(searchLower) ||
+            withdrawal.userId?.phone?.includes(search);
+        } else {
+          return withdrawal.sellerId?.name?.toLowerCase().includes(searchLower) ||
+            withdrawal.sellerId?.sellerId?.toLowerCase().includes(searchLower) ||
+            withdrawal.sellerId?.phone?.includes(search);
+        }
+      });
+    }
+
+    const total = await WithdrawalRequest.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        withdrawals,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// USER MANAGEMENT CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get all users with filtering and pagination
+ * @route   GET /api/admin/users
+ * @access  Private (Admin)
+ */
+exports.getUsers = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      isActive,
+      isBlocked,
+      sellerId,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    }
+
+    if (isBlocked !== undefined) {
+      query.isBlocked = isBlocked === 'true';
+    }
+
+    if (sellerId) {
+      query.sellerId = sellerId;
+    }
+
+    if (search) {
+      query.$or = [
+        { userId: { $regex: search, $options: 'i' } }, // Search by unique user ID
+        { name: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { 'location.address': { $regex: search, $options: 'i' } },
+        { 'location.city': { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query
+    const users = await User.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .select('-__v -otp')
+      .populate('seller', 'sellerId name')
+      .populate('assignedUser', 'name phone');
+
+    const total = await User.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get single user details
+ * @route   GET /api/admin/users/:userId
+ * @access  Private (Admin)
+ */
+exports.getUserDetails = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId)
+      .select('-__v -otp')
+      .populate('seller', 'sellerId name phone email')
+      .populate('assignedUser', 'name phone location');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Get user's orders count and stats
+
+    const ordersCount = await Order.countDocuments({ assignedassigneduserId: user._id });
+    const totalSpentResult = await Order.aggregate([
+      { $match: { userId: user._id, status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] }, paymentStatus: PAYMENT_STATUS.FULLY_PAID } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const totalSpent = totalSpentResult[0]?.total || 0;
+
+    // Get user's recent orders
+    const recentOrders = await Order.find({ assignedassigneduserId: user._id })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select('orderNumber totalAmount status createdAt paymentStatus')
+      .lean();
+
+    // Get user's payments
+    const payments = await Payment.find({ userId: user._id })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate('orderId', 'orderNumber totalAmount')
+      .select('-__v');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+        stats: {
+          ordersCount,
+          totalSpent,
+          recentOrders: recentOrders.length,
+        },
+        recentOrders: recentOrders.map(order => ({
+          id: order._id,
+          orderNumber: order.orderNumber,
+          value: order.totalAmount,
+          date: order.createdAt,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+        })),
+        payments: payments.map(payment => ({
+          id: payment._id,
+          paymentId: payment.paymentId,
+          amount: payment.amount,
+          date: payment.createdAt,
+          description: `Payment for Order ${payment.orderId?.orderNumber || 'N/A'}`,
+          status: payment.status === 'fully_paid' ? 'completed' : payment.status,
+          orderNumber: payment.orderId?.orderNumber,
+        })),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Block/Unblock user
+ * @route   PUT /api/admin/users/:userId/block
+ * @access  Private (Admin)
+ */
+exports.blockUser = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { block = true, reason } = req.body; // block: true to block, false to unblock
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Block/Unblock user
+    user.isBlocked = block === true || block === 'true';
+    user.isActive = !user.isBlocked; // If blocked, set inactive
+
+    await user.save();
+
+    const action = user.isBlocked ? 'blocked' : 'unblocked';
+    console.log(`✅ User ${action}: ${user.name} (${user.phone})${reason ? ` - Reason: ${reason}` : ''}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+          isBlocked: user.isBlocked,
+          isActive: user.isActive,
+        },
+        message: `User ${action} successfully`,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// ORDER & PAYMENT MANAGEMENT CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get all orders with filtering and pagination
+ * @route   GET /api/admin/orders
+ * @access  Private (Admin)
+ */
+exports.getOrders = async (req, res, next) => {
+  try {
+    // Process expired status updates in background (non-blocking)
+    processExpiredStatusUpdates().catch(() => { });
+
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      paymentStatus,
+      UserId,
+      userId,
+      assignedTo,
+      dateFrom,
+      dateTo,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (paymentStatus) {
+      query.paymentStatus = paymentStatus;
+    }
+
+    if (UserId) {
+      query.userId = UserId;
+    }
+
+    if (userId) {
+      query.userId = userId;
+    }
+
+    if (assignedTo) {
+      query.assignedTo = assignedTo;
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) {
+        query.createdAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = toDate;
+      }
+    }
+
+    // Search by order number, user ID/name, or User ID/name
+    if (search) {
+      // Find all users (partners and customers) matching the search
+      const matchingUsers = await User.find({
+        $or: [
+          { userId: { $regex: search, $options: 'i' } },
+          { name: { $regex: search, $options: 'i' } },
+          { phone: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+        ],
+      }).select('_id').lean();
+
+      const userIds = matchingUsers.map(u => u._id);
+
+      query.$or = [
+        { orderNumber: { $regex: search, $options: 'i' } },
+        ...(userIds.length > 0 ? [
+          { userId: { $in: userIds } },
+          { assignedUserId: { $in: userIds } }
+        ] : []),
+      ];
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query
+    const orders = await Order.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .populate('userId', 'name phone email location')
+      .populate('UserId', 'name phone location')
+      .populate('seller', 'sellerId name phone')
+      .select('-__v')
+      .lean();
+
+    const total = await Order.countDocuments(query);
+
+    // Filter orders in grace period - show as 'pending' to admin (not accepted yet)
+    const filteredOrders = orders.map(order => {
+      // If order is in grace period, show status as 'pending' instead of actual status
+      if (order.acceptanceGracePeriod?.isActive) {
+        return {
+          ...order,
+          status: 'pending', // Show as pending during grace period
+        };
+      }
+      return order;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        orders: filteredOrders,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get single order details
+ * @route   GET /api/admin/orders/:orderId
+ * @access  Private (Admin)
+ */
+exports.getOrderDetails = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await Order.findById(orderId)
+      .populate('userId', 'name phone email location')
+      .populate('UserId', 'name phone location')
+      .populate('seller', 'sellerId name phone')
+      .populate('items.productId', 'name sku category wholesalePrice publicPrice')
+      .populate('parentOrderId')
+      .populate('childOrderIds')
+      .select('-__v');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    // Get order payments
+    const payments = await Payment.find({ orderId })
+      .sort({ createdAt: -1 })
+      .select('-__v');
+
+    // Calculate payment summary
+    const totalPaid = payments
+      .filter(p => p.status === 'fully_paid' || p.status === 'partial_paid')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const totalPending = payments
+      .filter(p => p.status === 'pending')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        order,
+        payments,
+        paymentSummary: {
+          totalAmount: order.totalAmount,
+          totalPaid,
+          totalPending,
+          remaining: order.totalAmount - totalPaid,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all commissions with order and user details
+ * @route   GET /api/admin/commissions
+ * @access  Private (Admin)
+ */
+
+/**
+ * @desc    Generate invoice PDF for order
+ * @route   GET /api/admin/orders/:orderId/invoice
+ * @access  Private (Admin)
+ */
+exports.generateInvoice = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await Order.findById(orderId)
+      .populate('userId', 'name phone email location')
+      .populate('UserId', 'name phone location')
+      .populate('seller', 'sellerId name phone')
+      .populate('items.productId', 'name sku category wholesalePrice publicPrice')
+      .select('-__v');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    // Get order payments
+    const payments = await Payment.find({ orderId })
+      .sort({ createdAt: -1 })
+      .select('-__v');
+
+    const totalPaid = payments
+      .filter(p => p.status === 'fully_paid' || p.status === 'partial_paid')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Format date
+    const formatDate = (date) => {
+      if (!date) return 'N/A';
+      return new Date(date).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    };
+
+    // Format currency
+    const formatCurrency = (amount) => {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+      }).format(amount || 0);
+    };
+
+    // Generate HTML invoice
+    const invoiceHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice - ${order.orderNumber}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 40px;
+      background: #f5f5f5;
+    }
+    .invoice-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #10b981;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
+      color: #10b981;
+    }
+    .invoice-title {
+      text-align: right;
+    }
+    .invoice-title h1 {
+      font-size: 32px;
+      color: #1f2937;
+      margin-bottom: 5px;
+    }
+    .invoice-title p {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    .details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+    .detail-section h3 {
+      color: #374151;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .detail-section p {
+      color: #6b7280;
+      font-size: 14px;
+      margin: 5px 0;
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+    .items-table thead {
+      background: #f3f4f6;
+    }
+    .items-table th {
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #374151;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .items-table td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      color: #1f2937;
+    }
+    .items-table tbody tr:hover {
+      background: #f9fafb;
+    }
+    .text-right {
+      text-align: right;
+    }
+    .totals {
+      margin-top: 20px;
+      margin-left: auto;
+      width: 300px;
+    }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .total-row:last-child {
+      border-bottom: none;
+    }
+    .total-label {
+      font-weight: 600;
+      color: #374151;
+    }
+    .total-amount {
+      font-weight: bold;
+      color: #1f2937;
+    }
+    .grand-total {
+      background: #10b981;
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    .grand-total .total-label {
+      color: white;
+      font-size: 18px;
+    }
+    .grand-total .total-amount {
+      color: white;
+      font-size: 20px;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      color: #6b7280;
+      font-size: 12px;
+    }
+    .payment-info {
+      background: #fef3c7;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+    .payment-info h4 {
+      color: #92400e;
+      margin-bottom: 8px;
+    }
+    .payment-info p {
+      color: #78350f;
+      font-size: 13px;
+      margin: 3px 0;
+    }
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .invoice-container {
+        box-shadow: none;
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-container">
+    <div class="header">
+      <div class="logo">IRA SATHI</div>
+      <div class="invoice-title">
+        <h1>INVOICE</h1>
+        <p>Order #${order.orderNumber}</p>
+      </div>
+    </div>
+
+    <div class="details">
+      <div class="detail-section">
+        <h3>Bill To</h3>
+        <p><strong>${order.userId?.name || 'N/A'}</strong></p>
+        <p>${order.deliveryAddress?.phone || order.userId?.phone || 'N/A'}</p>
+        <p>${order.deliveryAddress?.address || order.userId?.location || 'N/A'}</p>
+        <p>${order.deliveryAddress?.city || ''} ${order.deliveryAddress?.state || ''} - ${order.deliveryAddress?.pincode || ''}</p>
+      </div>
+      <div class="detail-section">
+        <h3>Invoice Details</h3>
+        <p><strong>Invoice Date:</strong> ${formatDate(order.createdAt)}</p>
+        <p><strong>Order Date:</strong> ${formatDate(order.createdAt)}</p>
+        <p><strong>Order Number:</strong> ${order.orderNumber}</p>
+        <p><strong>Payment Status:</strong> <span style="text-transform: capitalize;">${order.paymentStatus?.replace('_', ' ') || 'Pending'}</span></p>
+        ${order.userId ? `<p><strong>User:</strong> ${order.userId.name || 'N/A'}</p>` : ''}
+      </div>
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Quantity</th>
+          <th class="text-right">Unit Price</th>
+          <th class="text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${order.items.map((item) => `
+          <tr>
+            <td>
+              <strong>${item.productName || item.productId?.name || 'Product'}</strong>
+              ${item.productId?.sku ? `<br><small style="color: #6b7280;">SKU: ${item.productId.sku}</small>` : ''}
+            </td>
+            <td>${item.quantity}</td>
+            <td class="text-right">${formatCurrency(item.unitPrice)}</td>
+            <td class="text-right"><strong>${formatCurrency(item.totalPrice)}</strong></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <div class="total-row">
+        <span class="total-label">Subtotal</span>
+        <span class="total-amount">${formatCurrency(order.subtotal)}</span>
+      </div>
+      ${order.deliveryCharge > 0 ? `
+      <div class="total-row">
+        <span class="total-label">Delivery Charge</span>
+        <span class="total-amount">${formatCurrency(order.deliveryCharge)}</span>
+      </div>
+      ` : ''}
+      <div class="total-row grand-total">
+        <span class="total-label">Grand Total</span>
+        <span class="total-amount">${formatCurrency(order.totalAmount)}</span>
+      </div>
+    </div>
+
+    <div class="payment-info">
+      <h4>Payment Information</h4>
+      <p><strong>Payment Preference:</strong> ${order.paymentPreference === 'partial' ? 'Partial Payment (30% Advance + 70% Remaining)' : 'Full Payment'}</p>
+      <p><strong>Upfront Amount:</strong> ${formatCurrency(order.upfrontAmount)}</p>
+      ${order.remainingAmount > 0 ? `<p><strong>Remaining Amount:</strong> ${formatCurrency(order.remainingAmount)}</p>` : ''}
+      <p><strong>Total Paid:</strong> ${formatCurrency(totalPaid)}</p>
+      <p><strong>Balance Due:</strong> ${formatCurrency(order.totalAmount - totalPaid)}</p>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for your business!</p>
+      <p>For any queries, please contact our support team.</p>
+      <p style="margin-top: 10px;">Invoice generated on ${formatDate(new Date())}</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    // Set headers for HTML response
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `inline; filename="invoice-${order.orderNumber}.html"`);
+    res.send(invoiceHTML);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get escalated orders (assigned to admin)
+ * @route   GET /api/admin/orders/escalated
+ * @access  Private (Admin)
+ */
+exports.getEscalatedOrders = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      dateFrom,
+      dateTo,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
+
+    // Build query for escalated orders (assigned to admin)
+    const query = {
+      assignedTo: 'admin',
+    };
+
+    // Filter by status if provided
+    if (status) {
+      query.status = status;
+    } else {
+      // By default, exclude delivered and cancelled escalated orders
+      query.status = { $nin: ['delivered', 'cancelled'] };
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) {
+        query.createdAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = toDate;
+      }
+    }
+
+    // Search by order number
+    if (search) {
+      query.orderNumber = { $regex: search, $options: 'i' };
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query
+    const orders = await Order.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .populate('userId', 'name phone email location')
+      .populate('UserId', 'name phone location')
+      .populate('seller', 'sellerId name')
+      .populate('items.productId', 'name sku category')
+      .select('-__v')
+      .lean();
+
+    const total = await Order.countDocuments(query);
+
+    // Transform orders for frontend
+    const transformedOrders = orders.map(order => {
+      const User = order.userId || order.escalation?.originalUserId;
+      const user = order.userId;
+
+      // Get escalation details
+      const escalation = order.escalation || {};
+      const escalationEntry = order.statusTimeline?.find(
+        entry => entry.status === 'rejected' && entry.updatedBy === 'User'
+      );
+
+      return {
+        id: order._id.toString(),
+        orderNumber: order.orderNumber,
+        User: User?.name || 'N/A',
+        userId: User?._id?.toString() || null,
+        UserPhone: User?.phone || null,
+        UserLocation: User?.location ? `${User.location.city || ''}, ${User.location.state || ''}`.trim() : null,
+        value: order.totalAmount || 0,
+        orderValue: order.totalAmount || 0,
+        escalatedAt: escalation.escalatedAt || escalationEntry?.timestamp || order.createdAt,
+        escalatedBy: escalation.escalatedBy || 'User',
+        escalationReason: escalation.escalationReason || 'Not provided',
+        escalationType: escalation.escalationType || 'full',
+        escalatedItems: escalation.escalatedItems || [],
+        isReverted: !!escalation.revertedAt,
+        revertedAt: escalation.revertedAt || null,
+        revertReason: escalation.revertReason || null,
+        status: order.status || 'rejected',
+        items: order.items?.map(item => ({
+          id: item.productId?._id?.toString() || item._id?.toString(),
+          name: item.productId?.name || item.productName,
+          quantity: item.quantity,
+          price: item.unitPrice,
+          totalPrice: item.totalPrice,
+        })) || [],
+        userId: user?._id?.toString(),
+        userName: user?.name,
+        userPhone: user?.phone || null,
+        userLocation: user?.location ? `${user.location.city || ''}, ${user.location.state || ''}`.trim() : null,
+        deliveryAddress: order.deliveryAddress,
+        notes: order.notes,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        orders: transformedOrders,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Fulfill escalated order from warehouse
+ * @route   POST /api/admin/orders/:orderId/fulfill
+ * @access  Private (Admin)
+ */
+exports.fulfillOrderFromWarehouse = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { note, deliveryDate, trackingNumber } = req.body;
+
+    const order = await Order.findById(orderId)
+      .populate('userId', 'name phone email')
+      .populate('items.productId', 'name sku');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    // Check if order is assigned to admin (escalated)
+    if (order.assignedTo !== 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is not escalated to admin. Only escalated orders can be fulfilled from warehouse.',
+      });
+    }
+
+    // Check if order can be fulfilled
+    if (order.status === 'delivered' || order.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot fulfill order with status: ${order.status}`,
+      });
+    }
+
+    // Update order status to accepted (admin is handling fulfillment)
+    // Status flow: awaiting -> accepted -> dispatched -> delivered -> fully_paid (if partial payment)
+    const previousStatus = order.status;
+    order.status = 'accepted'; // Changed from 'processing' to 'accepted' to match status flow
+    order.assignedTo = 'admin'; // Keep assigned to admin
+
+    // Add admin fulfillment notes
+    if (note) {
+      order.notes = `${order.notes || ''}\n[Admin Warehouse Fulfillment] ${note}`.trim();
+    }
+
+    // Set delivery date if provided
+    if (deliveryDate) {
+      order.expectedDeliveryDate = new Date(deliveryDate);
+    } else {
+      // Default: set delivery date to 4 hours from now
+      order.expectedDeliveryDate = new Date(Date.now() + 4 * 60 * 60 * 1000);
+    }
+
+    // Add tracking number if provided
+    if (trackingNumber) {
+      order.trackingNumber = trackingNumber;
+    }
+
+    // Update status timeline
+    order.statusTimeline.push({
+      status: 'accepted',
+      timestamp: new Date(),
+      updatedBy: 'admin',
+      note: `Order fulfilled from warehouse by admin. Status set to Accepted.${note ? ` Note: ${note}` : ''}`,
+    });
+
+    // DEDUCT STOCK FROM ADMIN INVENTORY
+    for (const item of order.items) {
+      const product = await Product.findById(item.productId);
+      if (product) {
+        // Deduct Global Stock
+        product.stock = Math.max(0, (product.stock || 0) - item.quantity);
+        if (product.displayStock) {
+          product.displayStock = Math.max(0, (product.displayStock || 0) - item.quantity);
+        }
+
+        // Deduct Attribute Stock
+        let itemAttrs = null;
+        if (item.variantAttributes) {
+          itemAttrs = item.variantAttributes instanceof Map
+            ? Object.fromEntries(item.variantAttributes)
+            : item.variantAttributes;
+        }
+
+        if (itemAttrs && Object.keys(itemAttrs).length > 0 && product.attributeStocks) {
+          const matchingVariant = product.attributeStocks.find(variant => {
+            if (!variant.attributes) return false;
+            const variantAttrs = variant.attributes instanceof Map
+              ? Object.fromEntries(variant.attributes)
+              : variant.attributes;
+            const keys = Object.keys(itemAttrs);
+            return keys.every(key => String(variantAttrs[key]) === String(itemAttrs[key]));
+          });
+
+          if (matchingVariant) {
+            matchingVariant.stock = Math.max(0, (matchingVariant.stock || 0) - item.quantity);
+            if (matchingVariant.displayStock) {
+              matchingVariant.displayStock = Math.max(0, (matchingVariant.displayStock || 0) - item.quantity);
+            }
+            console.log(`📦 ADMIN Variant Stock reduced for ${product.name}: ${item.quantity}`);
+          }
+        }
+        await product.save();
+        console.log(`📦 ADMIN Global Stock reduced for ${product.name}: ${item.quantity}`);
+      }
+    }
+
+    await order.save();
+
+    // SEND User NOTIFICATION: Escalation Accepted
+    if (order.escalation && order.escalation.originalUserId) {
+      try {
+        await UserNotification.createNotification({
+          userId: order.escalation.originalUserId,
+          type: 'order_status_changed',
+          title: 'Escalation Accepted',
+          message: `Your escalated order #${order.orderNumber} has been accepted by Admin and will be fulfilled from the warehouse.`,
+          relatedEntityType: 'order',
+          relatedEntityId: order._id,
+          priority: 'normal',
+          metadata: { orderNumber: order.orderNumber, status: 'accepted' }
+        });
+      } catch (notifError) {
+        console.error('Failed to send escalation accepted notification:', notifError);
+      }
+    }
+
+    console.log(`✅ Escalated order ${order.orderNumber} fulfilled from warehouse by admin. Previous status: ${previousStatus}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        order: {
+          id: order._id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          assignedTo: order.assignedTo,
+          expectedDeliveryDate: order.expectedDeliveryDate,
+          trackingNumber: order.trackingNumber,
+        },
+        message: 'Order fulfilled from warehouse successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Revert escalation back to User
+ * @route   POST /api/admin/orders/:orderId/revert-escalation
+ * @access  Private (Admin)
+ */
+exports.revertEscalation = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Revert reason is required',
+      });
+    }
+
+    const order = await Order.findById(orderId)
+      .populate('userId', 'name phone email location')
+      .populate('escalation.originalUserId', 'name phone location');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    // Check if order is escalated
+    if (!order.escalation?.isEscalated || order.assignedTo !== 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is not escalated to admin',
+      });
+    }
+
+    // Check if order can be reverted (not delivered or cancelled)
+    if (order.status === 'delivered' || order.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot revert order with status: ${order.status}`,
+      });
+    }
+
+    // Get original User
+    const originalUser = order.escalation.originalUserId;
+    if (!originalUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Original User not found. Cannot revert escalation.',
+      });
+    }
+
+    // Revert escalation - assign back to User
+    // Handle case where UserId might already be set (no error if same)
+    if (order.userId && order.userId.toString() !== originaluser._id.toString()) {
+      // If UserId exists but is different, update it
+      order.userId = originaluser._id;
+    } else if (!order.userId) {
+      // If UserId doesn't exist, set it
+      order.userId = originaluser._id;
+    }
+    // If UserId is already the same, no need to change it
+
+    order.assignedTo = 'User';
+    order.status = 'pending'; // Reset to pending for User to handle
+
+    // Update escalation tracking
+    order.escalation.revertedAt = new Date();
+    order.escalation.revertedBy = req.admin._id;
+    order.escalation.revertReason = reason;
+
+    // Add notes
+    order.notes = `${order.notes || ''}\n[Admin Revert] Order reverted back to User ${originaluser.name}. Reason: ${reason}`.trim();
+
+    // Update status timeline
+    order.statusTimeline.push({
+      status: 'pending',
+      timestamp: new Date(),
+      updatedBy: 'admin',
+      note: `Escalation reverted back to User ${originaluser.name}. Reason: ${reason}`,
+    });
+
+    await order.save();
+
+    // TODO: Send notification to User
+
+    console.log(`✅ Escalation reverted for order ${order.orderNumber} back to User ${originaluser.name}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        order: {
+          id: order._id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          assignedTo: order.assignedTo,
+          userId: order.userId,
+          User: {
+            id: originaluser._id,
+            name: originaluser.name,
+            phone: originalUser.phone,
+            location: originalUser.location,
+          },
+        },
+        message: 'Escalation reverted successfully. Order assigned back to User.',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reassign order to different User
+ * @route   PUT /api/admin/orders/:orderId/reassign
+ * @access  Private (Admin)
+ */
+exports.reassignOrder = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { UserId, reason } = req.body;
+
+    if (!UserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required',
+      });
+    }
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    // Check if order can be reassigned
+    if (order.status === 'delivered' || order.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot reassign order with status: ${order.status}`,
+      });
+    }
+
+    // Check if new User exists and is approved
+    const newUser = await User.findById(UserId);
+    if (!newUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (newUser.status !== 'approved' || !newUser.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must be approved and active',
+      });
+    }
+
+    // Check if User is same
+    if (order.userId && order.userId.toString() === UserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is already assigned to this User',
+      });
+    }
+
+    const oldUserId = order.userId;
+
+    // Reassign order
+    order.userId = UserId;
+    order.assignedTo = 'User';
+
+    // Add note to order if reason provided
+    if (reason) {
+      order.notes = `${order.notes || ''}\n[Reassigned by Admin] ${reason}`.trim();
+    }
+
+    // Update status timeline
+    order.statusTimeline.push({
+      status: order.status,
+      timestamp: new Date(),
+      updatedBy: 'admin',
+      note: `Order reassigned to User: ${newuser.name}${reason ? ` - Reason: ${reason}` : ''}`,
+    });
+
+    await order.save();
+
+    // TODO: Send notifications
+    // - Notify old User (if exists)
+    // - Notify new User
+    // - Notify user
+
+    console.log(`✅ Order ${order.orderNumber} reassigned from User ${oldUserId} to ${UserId}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        order,
+        oldUserId,
+        newUser: {
+          id: newuser._id,
+          name: newuser.name,
+          phone: newUser.phone,
+        },
+        message: 'Order reassigned successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update order status (for admin-fulfilled orders)
+ * @route   PUT /api/admin/orders/:orderId/status
+ * @access  Private (Admin)
+ */
+exports.updateOrderStatus = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { status, notes, isRevert, finalizeGracePeriod } = req.body;
+
+    // If finalizing grace period, status is not required
+    if (!finalizeGracePeriod && !status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required',
+      });
+    }
+
+    // Valid status transitions for admin (only validate if status is provided)
+    if (status) {
+      const validStatuses = ['awaiting', 'accepted', 'processing', 'dispatched', 'delivered', 'fully_paid'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid status. Allowed: ${validStatuses.join(', ')}`,
+        });
+      }
+    }
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    // Admin can update status for any order (User-assigned or admin-assigned)
+    // No restriction needed
+
+    const normalizeStatusValue = (value) => {
+      if (!value) {
+        return ORDER_STATUS.AWAITING;
+      }
+      const normalized = value.toString().toLowerCase();
+      if (normalized === ORDER_STATUS.PENDING) {
+        return ORDER_STATUS.AWAITING;
+      }
+      if (normalized === ORDER_STATUS.PROCESSING) {
+        return ORDER_STATUS.ACCEPTED;
+      }
+      return normalized;
+    };
+
+    const paymentPreference = order.paymentPreference || 'partial';
+    const normalizedCurrentStatus = normalizeStatusValue(order.status);
+    const normalizedNewStatus = status === ORDER_STATUS.FULLY_PAID
+      ? ORDER_STATUS.FULLY_PAID
+      : normalizeStatusValue(status);
+
+    const statusFlow = paymentPreference === 'partial'
+      ? [ORDER_STATUS.AWAITING, ORDER_STATUS.ACCEPTED, ORDER_STATUS.DISPATCHED, ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID]
+      : [ORDER_STATUS.AWAITING, ORDER_STATUS.ACCEPTED, ORDER_STATUS.DISPATCHED, ORDER_STATUS.DELIVERED];
+
+    const finalStageStatus = paymentPreference === 'partial'
+      ? ORDER_STATUS.FULLY_PAID
+      : ORDER_STATUS.DELIVERED;
+
+    // Check if there's an active status update grace period that hasn't expired
+    const now = new Date();
+    const hasActiveGracePeriod = order.statusUpdateGracePeriod?.isActive &&
+      order.statusUpdateGracePeriod.expiresAt > now;
+
+    // Allow finalizing grace period without status change
+    if (finalizeGracePeriod === true && hasActiveGracePeriod) {
+      order.statusUpdateGracePeriod.isActive = false;
+      order.statusUpdateGracePeriod.finalizedAt = now;
+      await order.save();
+      return res.status(200).json({
+        success: true,
+        data: {
+          order: {
+            id: order._id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
+            statusUpdateGracePeriod: order.statusUpdateGracePeriod,
+          },
+          message: 'Status update grace period finalized successfully.',
+        },
+      });
+    }
+
+    if (hasActiveGracePeriod) {
+      // During grace period, only allow reverting to previous status
+      const isReverting = order.statusUpdateGracePeriod.previousStatus === status;
+
+      if (!isReverting) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot update status. Previous status update is still in grace period. Please wait for it to finalize (expires in ${Math.ceil((order.statusUpdateGracePeriod.expiresAt - now) / 1000 / 60)} minutes) or revert to previous status.`,
+        });
+      }
+    } else if (order.statusUpdateGracePeriod?.isActive && order.statusUpdateGracePeriod.expiresAt <= now) {
+      // Grace period expired, finalize it
+      order.statusUpdateGracePeriod.isActive = false;
+      order.statusUpdateGracePeriod.finalizedAt = now;
+      order.statusUpdateGracePeriod.previousPaymentStatus = undefined;
+      order.statusUpdateGracePeriod.previousRemainingAmount = undefined;
+    }
+
+    if (!hasActiveGracePeriod && normalizedCurrentStatus === finalStageStatus) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order has already completed its workflow. Further updates are not allowed.',
+      });
+    }
+
+    if (normalizedNewStatus === ORDER_STATUS.FULLY_PAID) {
+      if (paymentPreference !== 'partial') {
+        return res.status(400).json({
+          success: false,
+          message: 'Fully paid status is only applicable for partial payment orders.',
+        });
+      }
+      if (normalizedCurrentStatus !== ORDER_STATUS.DELIVERED) {
+        return res.status(400).json({
+          success: false,
+          message: 'Order must be delivered before marking as fully paid.',
+        });
+      }
+    }
+
+    // If reverting to previous status during grace period, allow it
+    // Also check if isRevert flag is explicitly set
+    const isReverting = (hasActiveGracePeriod &&
+      order.statusUpdateGracePeriod.previousStatus === normalizedNewStatus) ||
+      (isRevert === true);
+
+    const currentIndex = statusFlow.indexOf(normalizedCurrentStatus);
+    const newIndex = statusFlow.indexOf(normalizedNewStatus);
+
+    if (newIndex === -1 && normalizedNewStatus !== ORDER_STATUS.FULLY_PAID && !isReverting) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot change status. ${status} is not part of the workflow for this payment preference.`,
+      });
+    }
+
+    if (!isReverting && normalizedNewStatus !== ORDER_STATUS.FULLY_PAID && newIndex !== -1 && newIndex <= currentIndex) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot change status from ${order.status} to ${status}. Invalid transition.`,
+      });
+    }
+
+    // Store previous status for grace period (only if not reverting)
+    const previousStatus = normalizeStatusValue(order.status);
+    const isStatusChange = normalizedNewStatus !== previousStatus;
+
+    const startGracePeriod = (extra = {}) => {
+      const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
+      order.statusUpdateGracePeriod = {
+        isActive: true,
+        previousStatus,
+        updatedAt: now,
+        expiresAt,
+        updatedBy: 'admin',
+        previousPaymentStatus: undefined,
+        previousRemainingAmount: undefined,
+        ...extra,
+      };
+    };
+
+    const finalizeStatusUpdateGracePeriod = () => {
+      order.statusUpdateGracePeriod.isActive = false;
+      order.statusUpdateGracePeriod.finalizedAt = now;
+    };
+
+    if (normalizedNewStatus === ORDER_STATUS.FULLY_PAID) {
+      const previousPaymentStatus = order.paymentStatus;
+      const previousRemainingAmount = order.remainingAmount;
+
+      order.status = ORDER_STATUS.FULLY_PAID;
+      order.paymentStatus = PAYMENT_STATUS.FULLY_PAID;
+      order.remainingAmount = 0;
+
+      // For fully_paid status, no grace period - finalize immediately
+      if (!isReverting && isStatusChange) {
+        // Finalize any existing grace period if present
+        if (order.statusUpdateGracePeriod?.isActive) {
+          finalizeStatusUpdateGracePeriod();
+        }
+        // Don't start a new grace period for fully_paid
+        // Status is immediately finalized
+      } else if (isReverting && order.statusUpdateGracePeriod?.isActive) {
+        order.paymentStatus = order.statusUpdateGracePeriod.previousPaymentStatus || previousPaymentStatus;
+        if (typeof order.statusUpdateGracePeriod.previousRemainingAmount === 'number') {
+          order.remainingAmount = order.statusUpdateGracePeriod.previousRemainingAmount;
+        }
+        finalizeStatusUpdateGracePeriod();
+      } else if (order.statusUpdateGracePeriod?.isActive) {
+        // If there's an active grace period, finalize it
+        finalizeStatusUpdateGracePeriod();
+      }
+    } else {
+      order.status = normalizedNewStatus;
+
+      if (isStatusChange && !isReverting) {
+        startGracePeriod();
+      } else if (isReverting && order.statusUpdateGracePeriod?.isActive) {
+        if (order.statusUpdateGracePeriod.previousPaymentStatus) {
+          order.paymentStatus = order.statusUpdateGracePeriod.previousPaymentStatus;
+        }
+        if (typeof order.statusUpdateGracePeriod.previousRemainingAmount === 'number') {
+          order.remainingAmount = order.statusUpdateGracePeriod.previousRemainingAmount;
+        }
+        finalizeStatusUpdateGracePeriod();
+      }
+    }
+
+    // Update delivery date if delivered
+    if (normalizedNewStatus === ORDER_STATUS.DELIVERED && !order.deliveredAt) {
+      order.deliveredAt = new Date();
+    }
+
+    // Add notes if provided
+    if (notes) {
+      order.notes = `${order.notes || ''}\n[Admin Status Update] ${notes}`.trim();
+    }
+
+    const timelineStatus = order.status;
+    const timelineNote = isReverting
+      ? (notes ? `Status reverted to ${timelineStatus} from ${previousStatus}. Note: ${notes}` : `Status reverted to ${timelineStatus} from ${previousStatus}`)
+      : (notes ? `Status updated from ${previousStatus} to ${timelineStatus}. Note: ${notes}` : `Status updated from ${previousStatus} to ${timelineStatus}`);
+
+    order.statusTimeline.push({
+      status: timelineStatus,
+      timestamp: now,
+      updatedBy: 'admin',
+      note: timelineNote,
+    });
+
+    await order.save();
+
+    // Send notification to user about order status change
+    try {
+      if (order.userId && isStatusChange && !isReverting) {
+        await UserNotification.createOrderStatusNotification(
+          order.userId,
+          order,
+          normalizedNewStatus
+        );
+        console.log(`📱 User notification sent for order ${order.orderNumber} status: ${normalizedNewStatus}`);
+      }
+    } catch (notifError) {
+      // Don't fail the request if notification fails
+      console.error('Failed to send user notification:', notifError);
+    }
+
+    // For fully_paid status, no grace period message
+    const hasGracePeriod = isStatusChange && normalizedNewStatus !== ORDER_STATUS.FULLY_PAID && order.statusUpdateGracePeriod?.isActive;
+
+    const message = isReverting
+      ? `Order status reverted to ${timelineStatus}`
+      : normalizedNewStatus === ORDER_STATUS.FULLY_PAID
+        ? `Order status updated to ${timelineStatus}. Payment completed.`
+        : isStatusChange
+          ? `Order status updated to ${timelineStatus}. You have 1 hour to revert this change.`
+          : `Order status updated to ${timelineStatus} successfully`;
+
+    console.log(`✅ Order ${order.orderNumber} status updated to ${status} by admin${hasGracePeriod ? ' (grace period active)' : normalizedNewStatus === ORDER_STATUS.FULLY_PAID ? ' (no grace period - immediately finalized)' : ''}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        order: {
+          id: order._id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          statusUpdateGracePeriod: order.statusUpdateGracePeriod,
+        },
+        message,
+        gracePeriod: hasGracePeriod ? {
+          isActive: true,
+          expiresAt: order.statusUpdateGracePeriod.expiresAt,
+          previousStatus: order.statusUpdateGracePeriod.previousStatus,
+        } : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all payments with filtering and pagination
+ * @route   GET /api/admin/payments
+ * @access  Private (Admin)
+ */
+exports.getPayments = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      paymentMethod,
+      paymentType,
+      userId,
+      orderId,
+      dateFrom,
+      dateTo,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (paymentMethod) {
+      query.paymentMethod = paymentMethod;
+    }
+
+    if (paymentType) {
+      query.paymentType = paymentType;
+    }
+
+    if (userId) {
+      query.userId = userId;
+    }
+
+    if (orderId) {
+      query.orderId = orderId;
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) {
+        query.createdAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = toDate;
+      }
+    }
+
+    // Search by payment ID or gateway payment ID
+    if (search) {
+      query.$or = [
+        { paymentId: { $regex: search, $options: 'i' } },
+        { gatewayPaymentId: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query
+    const payments = await Payment.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .populate('orderId', 'orderNumber totalAmount status')
+      .populate('userId', 'name phone email')
+      .select('-__v -gatewayResponse')
+      .lean();
+
+    const total = await Payment.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        payments,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// FINANCE & CREDIT MANAGEMENT CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get all User credits summary
+ * @route   GET /api/admin/finance/credits
+ * @access  Private (Admin)
+ */
+exports.getCredits = async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+
+    // Build query for Users - show ALL Users, not just those with credit used
+    const query = {
+      status: 'approved',
+      isActive: true,
+    };
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get Users with credit details
+    const Users = await User.find(query)
+      .sort({ creditUsed: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .select('name phone creditLimit creditUsed creditPolicy location')
+      .lean();
+
+    // Calculate credit information for each User
+    const creditDetails = Users.map(User => {
+      // Use creditLimit from User model, not creditPolicy.limit
+      const creditLimit = User.creditLimit || 0;
+      const creditUsed = User.creditUsed || 0;
+      const remaining = creditLimit - creditUsed;
+      const utilization = creditLimit > 0
+        ? (creditUsed / creditLimit) * 100
+        : 0;
+
+      // Check if overdue
+      const now = new Date();
+      const dueDate = User.creditPolicy?.dueDate;
+      const isOverdue = dueDate && now > dueDate;
+      const daysOverdue = isOverdue && dueDate
+        ? Math.floor((now - dueDate) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      // Calculate penalty if overdue
+      let penalty = 0;
+      if (isOverdue && User.creditPolicy?.penaltyRate > 0) {
+        const dailyPenaltyRate = User.creditPolicy.penaltyRate / 100;
+        penalty = creditUsed * dailyPenaltyRate * daysOverdue;
+      }
+
+      // Determine status
+      let creditStatus = 'active';
+      if (isOverdue) {
+        creditStatus = daysOverdue <= 7 ? 'dueSoon' : 'overdue';
+      } else if (dueDate) {
+        const daysUntilDue = Math.floor((dueDate - now) / (1000 * 60 * 60 * 24));
+        if (daysUntilDue <= 7) {
+          creditStatus = 'dueSoon';
+        }
+      }
+
+      return {
+        userId: user._id,
+        UserName: user.name,
+        UserPhone: user.phone,
+        location: User.location,
+        creditLimit: creditLimit,
+        creditUsed: creditUsed,
+        creditRemaining: remaining,
+        creditUtilization: Math.round(utilization * 100) / 100,
+        dueDate: User.creditPolicy?.dueDate,
+        isOverdue,
+        daysOverdue,
+        penalty,
+        penaltyRate: User.creditPolicy?.penaltyRate || 0,
+        status: creditStatus,
+      };
+    });
+
+    // Aggregate totals
+    const totalOutstanding = Users.reduce((sum, v) => sum + (v.creditUsed || 0), 0);
+    const totalLimit = Users.reduce((sum, v) => sum + (v.creditLimit || 0), 0);
+    const overdueCount = creditDetails.filter(c => c.isOverdue).length;
+    const dueSoonCount = creditDetails.filter(c => c.status === 'dueSoon' && !c.isOverdue).length;
+    const totalPenalty = creditDetails.reduce((sum, c) => sum + c.penalty, 0);
+
+    const total = await User.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        credits: creditDetails,
+        summary: {
+          totalUsers: total,
+          totalOutstanding,
+          totalLimit,
+          totalRemaining: totalLimit - totalOutstanding,
+          totalUtilization: totalLimit > 0
+            ? Math.round((totalOutstanding / totalLimit) * 100 * 100) / 100
+            : 0,
+          overdueCount,
+          dueSoonCount,
+          totalPenalty: Math.round(totalPenalty * 100) / 100,
+        },
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get User credit history
+ * @route   GET /api/admin/finance/Users/:UserId/history
+ * @access  Private (Admin)
+ */
+exports.getUserCreditHistory = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+    const { page = 1, limit = 20, startDate, endDate } = req.query;
+
+    const user = await User.findById(UserId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Build query for credit purchases and payments
+    const query = { UserId };
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const toDate = new Date(endDate);
+        toDate.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = toDate;
+      }
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get credit purchases
+    const creditPurchases = await CreditPurchase.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .populate('items.productId', 'name sku')
+      .select('-__v');
+
+    // Get payments related to this User (through orders)
+    const UserOrders = await Order.find({ UserId }).select('_id orderNumber');
+    const orderIds = UserOrders.map(o => o._id);
+
+    const payments = await Payment.find({ orderId: { $in: orderIds } })
+      .sort({ createdAt: -1 })
+      .populate('orderId', 'orderNumber totalAmount')
+      .select('-__v')
+      .limit(limitNum);
+
+    // Get modern repayments (CreditRepayment system)
+    const creditRepayments = await CreditRepayment.find({
+      userId: user._id,
+      status: 'completed'
+    })
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .select('-gatewayResponse -__v');
+
+    const totalPurchases = await CreditPurchase.countDocuments(query);
+
+    // Transform items to shared history format
+    const history = [
+      ...creditPurchases.map(purchase => ({
+        id: purchase._id,
+        type: 'credit_purchase',
+        amount: purchase.totalAmount,
+        date: purchase.createdAt,
+        description: `Credit purchase - ${purchase.items.length} item(s)`,
+        status: purchase.status,
+        products: purchase.items.map(item => ({
+          name: item.productId?.name || item.productName,
+          quantity: item.quantity,
+          price: item.unitPrice,
+        })),
+      })),
+      ...payments.map(payment => ({
+        id: payment._id,
+        type: 'repayment',
+        amount: payment.amount,
+        date: payment.createdAt,
+        description: `Order Payment (${payment.orderId?.orderNumber || 'N/A'})`,
+        status: payment.status === 'fully_paid' ? 'completed' : payment.status,
+        orderNumber: payment.orderId?.orderNumber,
+      })),
+      ...creditRepayments.map(repayment => ({
+        id: repayment._id,
+        type: 'repayment',
+        amount: repayment.totalAmount,
+        date: repayment.paidAt || repayment.createdAt,
+        description: `Credit Repayment (${repayment.repaymentId})`,
+        status: repayment.status,
+      }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        User: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+          creditLimit: User.creditLimit || 0,
+          creditUsed: User.creditUsed || 0,
+          creditRemaining: (User.creditLimit || 0) - (User.creditUsed || 0),
+        },
+        history: history.slice(0, limitNum),
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalPurchases / limitNum),
+          totalItems: history.length,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get financial parameters
+ * @route   GET /api/admin/finance/parameters
+ * @access  Private (Admin)
+ */
+exports.getFinancialParameters = async (req, res, next) => {
+  try {
+    const { ADVANCE_PAYMENT_PERCENTAGE, MIN_ORDER_VALUE, MIN_USER_PURCHASE } = require('../utils/constants');
+
+    // Try to get from database, fallback to constants
+    const financialParams = await Settings.getSetting('FINANCIAL_PARAMETERS', {
+      userAdvancePaymentPercent: ADVANCE_PAYMENT_PERCENTAGE,
+      minimumUserOrder: MIN_ORDER_VALUE,
+      minimumUserPurchase: MIN_USER_PURCHASE,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        userAdvancePaymentPercent: financialParams.userAdvancePaymentPercent || ADVANCE_PAYMENT_PERCENTAGE,
+        minimumUserOrder: financialParams.minimumUserOrder || MIN_ORDER_VALUE,
+        minimumUserPurchase: financialParams.minimumUserPurchase || MIN_USER_PURCHASE,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update financial parameters
+ * @route   PUT /api/admin/finance/parameters
+ * @access  Private (Admin)
+ */
+exports.updateFinancialParameters = async (req, res, next) => {
+  try {
+    const { userAdvancePaymentPercent, minimumUserOrder, minimumUserPurchase } = req.body;
+    const adminId = req.admin?.id || req.user?.id; // Get admin ID from auth middleware
+
+    // Validation
+    if (userAdvancePaymentPercent !== undefined) {
+      if (typeof userAdvancePaymentPercent !== 'number' || userAdvancePaymentPercent < 0 || userAdvancePaymentPercent > 100) {
+        return res.status(400).json({
+          success: false,
+          message: 'Advance payment percentage must be a number between 0 and 100.',
+        });
+      }
+    }
+
+    if (minimumUserOrder !== undefined) {
+      if (typeof minimumUserOrder !== 'number' || minimumUserOrder < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Minimum order value must be a positive number.',
+        });
+      }
+    }
+
+    if (minimumUserPurchase !== undefined) {
+      if (typeof minimumUserPurchase !== 'number' || minimumUserPurchase < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Minimum User purchase must be a positive number.',
+        });
+      }
+    }
+
+    // Get current values from database or constants
+    const currentParams = await Settings.getSetting('FINANCIAL_PARAMETERS', {
+      userAdvancePaymentPercent: ADVANCE_PAYMENT_PERCENTAGE,
+      minimumUserOrder: MIN_ORDER_VALUE,
+      minimumUserPurchase: MIN_USER_PURCHASE,
+    });
+
+    // Update only provided values
+    const updatedParams = {
+      userAdvancePaymentPercent: userAdvancePaymentPercent !== undefined ? userAdvancePaymentPercent : currentParams.userAdvancePaymentPercent,
+      minimumUserOrder: minimumUserOrder !== undefined ? minimumUserOrder : currentParams.minimumUserOrder,
+      minimumUserPurchase: minimumUserPurchase !== undefined ? minimumUserPurchase : currentParams.minimumUserPurchase,
+    };
+
+    // Save to database
+    await Settings.setSetting(
+      'FINANCIAL_PARAMETERS',
+      updatedParams,
+      'Financial parameters: Advance payment %, Minimum order value, Minimum User purchase',
+      adminId
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Financial parameters updated successfully.',
+      data: updatedParams,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get credit recovery status
+ * @route   GET /api/admin/finance/recovery
+ * @access  Private (Admin)
+ */
+exports.getRecoveryStatus = async (req, res, next) => {
+  try {
+    const { period = '30' } = req.query; // days
+
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - parseInt(period));
+
+    // Get all Users with credit
+    const UsersWithCredit = await User.find({
+      status: 'approved',
+      isActive: true,
+      creditUsed: { $gt: 0 },
+    }).select('creditUsed creditPolicy approvedAt');
+
+    // Calculate recovery statistics
+    const totalOutstanding = UsersWithCredit.reduce((sum, v) => sum + v.creditUsed, 0);
+
+    // Get completed credit purchases (for recovery tracking)
+    const completedPurchases = await CreditPurchase.find({
+      status: 'approved',
+      createdAt: { $gte: daysAgo },
+    }).select('totalAmount createdAt');
+
+    // Calculate recovered amount (simplified - assumes payments reduce credit)
+    // In production, this would track actual repayments
+    const recoveredAmount = completedPurchases.length > 0
+      ? completedPurchases.reduce((sum, p) => sum + p.totalAmount, 0)
+      : 0;
+
+    // Calculate overdue Users
+    const now = new Date();
+    const overdueUsers = UsersWithCredit.filter(User => {
+      if (!User.creditPolicy.dueDate) return false;
+      return now > User.creditPolicy.dueDate;
+    });
+
+    const overdueAmount = overdueUsers.reduce((sum, v) => sum + v.creditUsed, 0);
+
+    // Calculate recovery rate (percentage)
+    const totalCreditEver = totalOutstanding + recoveredAmount;
+    const recoveryRate = totalCreditEver > 0
+      ? (recoveredAmount / totalCreditEver) * 100
+      : 0;
+
+    // Calculate average recovery time (simplified)
+    const averageRecoveryDays = completedPurchases.length > 0
+      ? completedPurchases.reduce((sum, p) => {
+        const daysSince = Math.floor((now - p.createdAt) / (1000 * 60 * 60 * 24));
+        return sum + daysSince;
+      }, 0) / completedPurchases.length
+      : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        period: parseInt(period),
+        recovery: {
+          totalOutstanding,
+          overdueAmount,
+          recoveredAmount,
+          pendingAmount: totalOutstanding - recoveredAmount,
+          recoveryRate: Math.round(recoveryRate * 100) / 100,
+        },
+        statistics: {
+          totalUsersWithCredit: UsersWithCredit.length,
+          overdueUsers: overdueUsers.length,
+          completedPurchases: completedPurchases.length,
+          averageRecoveryDays: Math.round(averageRecoveryDays * 100) / 100,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// ANALYTICS & REPORTING CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get analytics data
+ * @route   GET /api/admin/analytics
+ * @access  Private (Admin)
+ */
+exports.getAnalytics = async (req, res, next) => {
+  try {
+    const { period = '30' } = req.query; // days
+
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - parseInt(period));
+
+    // Revenue trends
+    const revenueTrends = await Order.aggregate([
+      {
+        $match: {
+          status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
+          paymentStatus: PAYMENT_STATUS.FULLY_PAID,
+          createdAt: { $gte: daysAgo },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+          },
+          revenue: { $sum: '$totalAmount' },
+          orderCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    // Order trends
+    const orderTrends = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: daysAgo },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+          },
+          count: { $sum: 1 },
+          delivered: {
+            $sum: {
+              $cond: [
+                // BROKEN_KEY_REMOVED: { $in: ['$status', [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID]] },
+                0,
+              ],
+            },
+          },
+          cancelled: {
+            $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] },
+          },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    // Top Users by revenue
+    const topUsers = await Order.aggregate([
+      {
+        $match: {
+          status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
+          paymentStatus: PAYMENT_STATUS.FULLY_PAID,
+          createdAt: { $gte: daysAgo },
+          userId: { $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: '$UserId',
+          revenue: { $sum: '$totalAmount' },
+          orderCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { revenue: -1 },
+      },
+      {
+        $limit: 10,
+      },
+      {
+        $lookup: {
+          from: 'Users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'User',
+        },
+      },
+      {
+        $unwind: '$User',
+      },
+      {
+        $project: {
+          userId: '$user._id',
+          UserName: '$user.name',
+          UserPhone: '$user.phone',
+          revenue: 1,
+          orderCount: 1,
+        },
+      },
+    ]);
+
+    // Top sellers by referrals/revenue
+    const topSellers = await Order.aggregate([
+      {
+        $match: {
+          status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
+          paymentStatus: PAYMENT_STATUS.FULLY_PAID,
+          createdAt: { $gte: daysAgo },
+          // BROKEN_KEY_REMOVED: userId: { $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: '$sellerId',
+          revenue: { $sum: '$totalAmount' },
+          orderCount: { $sum: 1 },
+          uniqueUsers: { $addToSet: '$userId' },
+        },
+      },
+      {
+        $project: {
+          revenue: 1,
+          orderCount: 1,
+          referralCount: { $size: '$uniqueUsers' },
+        },
+      },
+      {
+        $sort: { revenue: -1 },
+      },
+      {
+        $limit: 10,
+      },
+    ]);
+
+    // Product performance
+    const topProducts = await Order.aggregate([
+      {
+        $match: {
+          status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
+          paymentStatus: PAYMENT_STATUS.FULLY_PAID,
+          createdAt: { $gte: daysAgo },
+        },
+      },
+      {
+        $unwind: '$items',
+      },
+      {
+        $group: {
+          _id: '$items.productId',
+          totalQuantity: { $sum: '$items.quantity' },
+          totalRevenue: { $sum: '$items.totalPrice' },
+          orderCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { totalRevenue: -1 },
+      },
+      {
+        $limit: 10,
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product',
+        },
+      },
+      {
+        $unwind: '$product',
+      },
+      {
+        $project: {
+          productId: '$product._id',
+          productName: '$product.name',
+          productSku: '$product.sku',
+          category: '$product.category',
+          totalQuantity: 1,
+          totalRevenue: 1,
+          orderCount: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        period: parseInt(period),
+        analytics: {
+          revenueTrends,
+          orderTrends,
+          topUsers,
+          topSellers,
+          topProducts,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Generate reports
+ * @route   GET /api/admin/reports
+ * @access  Private (Admin)
+ */
+exports.generateReports = async (req, res, next) => {
+  try {
+    const { type = 'summary', period = 'monthly', format = 'json' } = req.query;
+
+    // Calculate date range based on period
+    const now = new Date();
+    let startDate = new Date();
+    let periodLabel = '';
+
+    switch (period) {
+      case 'daily':
+        startDate.setDate(now.getDate() - 1);
+        periodLabel = 'Last 24 Hours';
+        break;
+      case 'weekly':
+        startDate.setDate(now.getDate() - 7);
+        periodLabel = 'Last 7 Days';
+        break;
+      case 'monthly':
+        startDate.setMonth(now.getMonth() - 1);
+        periodLabel = 'Last 30 Days';
+        break;
+      case 'yearly':
+        startDate.setFullYear(now.getFullYear() - 1);
+        periodLabel = 'Last Year';
+        break;
+      default:
+        startDate.setMonth(now.getMonth() - 1);
+        periodLabel = 'Last 30 Days';
+    }
+
+    // Generate report data based on type
+    let reportData = {};
+
+    if (type === 'summary' || type === 'full') {
+      // Order summary
+      const orderSummary = await Order.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate },
+          },
+        },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+            totalAmount: { $sum: '$totalAmount' },
+          },
+        },
+      ]);
+
+      // Revenue summary
+      const revenueSummary = await Order.aggregate([
+        {
+          $match: {
+            status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
+            paymentStatus: PAYMENT_STATUS.FULLY_PAID,
+            createdAt: { $gte: startDate },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: '$totalAmount' },
+            orderCount: { $sum: 1 },
+            averageOrderValue: { $avg: '$totalAmount' },
+          },
+        },
+      ]);
+
+      // User registration summary
+      const userSummary = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+      ]);
+
+      reportData = {
+        period: periodLabel,
+        startDate,
+        endDate: now,
+        orderSummary,
+        revenueSummary: revenueSummary[0] || {},
+        userSummary,
+      };
+    }
+
+    // For now, return JSON format
+    // TODO: Add CSV/PDF export functionality when needed
+    if (format === 'csv' || format === 'pdf') {
+      return res.status(501).json({
+        success: false,
+        message: 'CSV/PDF export functionality will be implemented later',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        report: reportData,
+        generatedAt: new Date(),
+        format,
+        type,
+        period,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// OPERATIONS & LOGISTICS CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get logistics settings
+ * @route   GET /api/admin/operations/logistics-settings
+ * @access  Private (Admin)
+ */
+exports.getLogisticsSettings = async (req, res, next) => {
+  try {
+    const { DELIVERY_TIMELINE_HOURS } = require('../utils/constants');
+
+    // Try to get from database, fallback to constants
+    const logisticsSettings = await Settings.getSetting('LOGISTICS_SETTINGS', {
+      defaultDeliveryTime: DELIVERY_TIMELINE_HOURS === 3 ? '3h' : DELIVERY_TIMELINE_HOURS === 4 ? '4h' : '1d',
+      availableDeliveryOptions: ['3h', '4h', '1d'],
+      enableExpressDelivery: true,
+      enableStandardDelivery: true,
+      enableNextDayDelivery: true,
+      deliveryTimelineHours: DELIVERY_TIMELINE_HOURS,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: logisticsSettings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update logistics settings
+ * @route   PUT /api/admin/operations/logistics-settings
+ * @access  Private (Admin)
+ */
+exports.updateLogisticsSettings = async (req, res, next) => {
+  try {
+    const { defaultDeliveryTime, availableDeliveryOptions, enableExpressDelivery, enableStandardDelivery, enableNextDayDelivery } = req.body;
+    const adminId = req.admin?.id || req.user?.id;
+
+    // Validation
+    if (defaultDeliveryTime && !['3h', '4h', '1d'].includes(defaultDeliveryTime)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Default delivery time must be one of: 3h, 4h, 1d',
+      });
+    }
+
+    // Get current settings
+    const currentSettings = await Settings.getSetting('LOGISTICS_SETTINGS', {
+      defaultDeliveryTime: DELIVERY_TIMELINE_HOURS === 3 ? '3h' : DELIVERY_TIMELINE_HOURS === 4 ? '4h' : '1d',
+      availableDeliveryOptions: ['3h', '4h', '1d'],
+      enableExpressDelivery: true,
+      enableStandardDelivery: true,
+      enableNextDayDelivery: true,
+    });
+
+    // Update only provided values
+    const updatedSettings = {
+      defaultDeliveryTime: defaultDeliveryTime !== undefined ? defaultDeliveryTime : currentSettings.defaultDeliveryTime,
+      availableDeliveryOptions: availableDeliveryOptions !== undefined ? availableDeliveryOptions : currentSettings.availableDeliveryOptions,
+      enableExpressDelivery: enableExpressDelivery !== undefined ? enableExpressDelivery : currentSettings.enableExpressDelivery,
+      enableStandardDelivery: enableStandardDelivery !== undefined ? enableStandardDelivery : currentSettings.enableStandardDelivery,
+      enableNextDayDelivery: enableNextDayDelivery !== undefined ? enableNextDayDelivery : currentSettings.enableNextDayDelivery,
+    };
+
+    // Save to database
+    await Settings.setSetting(
+      'LOGISTICS_SETTINGS',
+      updatedSettings,
+      'Logistics settings: Delivery times and options',
+      adminId
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Logistics settings updated successfully',
+      data: updatedSettings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all platform notifications
+ * @route   GET /api/admin/operations/notifications
+ * @access  Private (Admin)
+ */
+exports.getNotifications = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 50, targetAudience, isActive, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+
+    // Build query
+    const query = {};
+    if (targetAudience) query.targetAudience = targetAudience;
+    if (isActive !== undefined) query.isActive = isActive === 'true';
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Get notifications
+    const notifications = await Notification.find(query)
+      .populate('createdBy', 'name email')
+      .populate('updatedBy', 'name email')
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .select('-__v');
+
+    const total = await Notification.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        notifications,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Create platform notification
+ * @route   POST /api/admin/operations/notifications
+ * @access  Private (Admin)
+ * 
+ * Supports:
+ * - targetMode: 'all' (broadcast to all in targetAudience) or 'specific' (specific recipients)
+ * - targetRecipients: Array of User/seller/user IDs when targetMode is 'specific'
+ */
+exports.createNotification = async (req, res, next) => {
+  try {
+    const {
+      title,
+      message,
+      targetAudience,
+      targetMode = 'all',
+      targetRecipients = [],
+      priority,
+      isActive,
+      actionUrl,
+      actionText,
+      startDate,
+      endDate
+    } = req.body;
+    const adminId = req.admin?.id || req.user?.id;
+
+    // Validation
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Notification title is required',
+      });
+    }
+    if (!message || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Notification message is required',
+      });
+    }
+
+    // For specific targeting, validate recipients
+    if (targetMode === 'specific' && (!targetRecipients || targetRecipients.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one recipient is required when targeting specific users',
+      });
+    }
+
+    // Create platform notification record
+    const notification = await createNotification({
+      title: title.trim(),
+      message: message.trim(),
+      targetAudience: targetAudience || 'all',
+      targetMode: targetMode || 'all',
+      targetRecipients: targetMode === 'specific' ? targetRecipients : [],
+      priority: priority || 'normal',
+      isActive: isActive !== undefined ? isActive : true,
+      actionUrl,
+      actionText,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      createdBy: adminId,
+    });
+
+    await notification.save();
+
+    // Create individual notifications for recipients
+    let recipientCount = 0;
+
+    if (isActive !== false) {
+      const notificationData = {
+        title: title.trim(),
+        message: message.trim(),
+        type: 'admin_announcement',
+        priority: priority || 'normal',
+        relatedEntityType: 'none',
+      };
+
+      if (targetMode === 'specific' && targetRecipients.length > 0) {
+        // Target specific recipients
+        if (targetAudience === 'Users') {
+          for (const UserId of targetRecipients) {
+            try {
+              await UserNotification.createNotification({
+                UserId,
+                ...notificationData,
+              });
+              recipientCount++;
+            } catch (err) {
+              console.error(`Failed to create User notification for ${UserId}:`, err);
+            }
+          }
+        } else if (targetAudience === 'sellers') {
+          for (const sellerId of targetRecipients) {
+            try {
+              await SellerNotification.createNotification({
+                sellerId,
+                ...notificationData,
+              });
+              recipientCount++;
+            } catch (err) {
+              console.error(`Failed to create seller notification for ${sellerId}:`, err);
+            }
+          }
+        } else if (targetAudience === 'users') {
+          for (const userId of targetRecipients) {
+            try {
+              await UserNotification.createNotification({
+                userId,
+                ...notificationData,
+              });
+              recipientCount++;
+            } catch (err) {
+              console.error(`Failed to create user notification for ${userId}:`, err);
+            }
+          }
+        }
+      } else if (targetMode === 'all') {
+        // Broadcast to all recipients in the target audience
+        if (targetAudience === 'Users' || targetAudience === 'all') {
+          const Users = await User.find({ isActive: true, verification: { $ne: 'rejected' } }).select('_id');
+          for (const User of Users) {
+            try {
+              await UserNotification.createNotification({
+                userId: user._id,
+                ...notificationData,
+              });
+              recipientCount++;
+            } catch (err) {
+              console.error(`Failed to create User notification:`, err);
+            }
+          }
+        }
+
+        if (targetAudience === 'users' || targetAudience === 'all') {
+          const users = await User.find({ isBlocked: { $ne: true } }).select('_id');
+          for (const user of users) {
+            try {
+              await UserNotification.createNotification({
+                userId: user._id,
+                ...notificationData,
+              });
+              recipientCount++;
+            } catch (err) {
+              console.error(`Failed to create user notification:`, err);
+            }
+          }
+        }
+      }
+
+      // Update recipient count
+      notification.recipientCount = recipientCount;
+      await notification.save();
+    }
+
+    // Populate createdBy
+    await notification.populate('createdBy', 'name email');
+
+    res.status(201).json({
+      success: true,
+      message: `Notification created successfully. Sent to ${recipientCount} recipient(s).`,
+      data: {
+        notification,
+        recipientCount,
+      },
+    });
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: Object.values(error.errors).map(e => e.message).join(', '),
+      });
+    }
+    next(error);
+  }
+};
+
+
+/**
+ * @desc    Update platform notification
+ * @route   PUT /api/admin/operations/notifications/:notificationId
+ * @access  Private (Admin)
+ */
+exports.updateNotification = async (req, res, next) => {
+  try {
+    const { notificationId } = req.params;
+    const { title, message, targetAudience, priority, isActive, actionUrl, actionText, startDate, endDate } = req.body;
+    const adminId = req.admin?.id || req.user?.id;
+
+    const notification = await Notification.findById(notificationId);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found',
+      });
+    }
+
+    // Update fields
+    if (title !== undefined) notification.title = title.trim();
+    if (message !== undefined) notification.message = message.trim();
+    if (targetAudience !== undefined) notification.targetAudience = targetAudience;
+    if (priority !== undefined) notification.priority = priority;
+    if (isActive !== undefined) notification.isActive = isActive;
+    if (actionUrl !== undefined) notification.actionUrl = actionUrl;
+    if (actionText !== undefined) notification.actionText = actionText;
+    if (startDate !== undefined) notification.startDate = startDate ? new Date(startDate) : null;
+    if (endDate !== undefined) notification.endDate = endDate ? new Date(endDate) : null;
+    notification.updatedBy = adminId;
+
+    await notification.save();
+
+    // Populate fields
+    await notification.populate('createdBy', 'name email');
+    await notification.populate('updatedBy', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Notification updated successfully',
+      data: {
+        notification,
+      },
+    });
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: Object.values(error.errors).map(e => e.message).join(', '),
+      });
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete platform notification
+ * @route   DELETE /api/admin/operations/notifications/:notificationId
+ * @access  Private (Admin)
+ */
+exports.deleteNotification = async (req, res, next) => {
+  try {
+    const { notificationId } = req.params;
+
+    const notification = await Notification.findById(notificationId);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found',
+      });
+    }
+
+    await Notification.findByIdAndDelete(notificationId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Notification deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// OFFERS MANAGEMENT
+// ============================================================================
+
+/**
+ * @desc    Get all offers (for admin)
+ * @route   GET /api/admin/offers
+ * @access  Private (Admin)
+ */
+exports.getOffers = async (req, res, next) => {
+  try {
+    const { type, isActive } = req.query;
+
+    const query = {};
+    if (type) {
+      query.type = type;
+    }
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    }
+
+    const offers = await Offer.find(query)
+      .populate('productIds', 'name wholesalePrice publicPrice images primaryImage')
+      .populate('linkedProductIds', 'name wholesalePrice publicPrice images primaryImage')
+      .sort({ order: 1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        offers,
+        carouselCount: await Offer.countDocuments({ type: 'carousel', isActive: true }),
+        maxCarousels: 6,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get single offer
+ * @route   GET /api/admin/offers/:id
+ * @access  Private (Admin)
+ */
+exports.getOffer = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const offer = await Offer.findById(id)
+      .populate('productIds', 'name wholesalePrice publicPrice images primaryImage')
+      .populate('linkedProductIds', 'name wholesalePrice publicPrice images primaryImage');
+
+    if (!offer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Offer not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { offer },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Create offer
+ * @route   POST /api/admin/offers
+ * @access  Private (Admin)
+ */
+exports.createOffer = async (req, res, next) => {
+  try {
+    const adminId = req.admin.id;
+    const { type, title, description, image, productIds, specialTag, specialValue, linkedProductIds, order } = req.body;
+
+    // Validate required fields based on type
+    if (!type || !['carousel', 'special_offer'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid offer type. Must be "carousel" or "special_offer"',
+      });
+    }
+
+    if (type === 'carousel') {
+      if (!image) {
+        return res.status(400).json({
+          success: false,
+          message: 'Image is required for carousel offers',
+        });
+      }
+
+      // Check carousel limit (max 6)
+      const carouselCount = await Offer.countDocuments({ type: 'carousel', isActive: true });
+      if (carouselCount >= 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum 6 active carousels allowed. Please delete or deactivate an existing carousel first.',
+        });
+      }
+
+
+      // Products are optional for carousels
+    }
+
+    if (type === 'special_offer') {
+      if (!specialTag || !specialValue) {
+        return res.status(400).json({
+          success: false,
+          message: 'Special tag and special value are required for special offers',
+        });
+      }
+    }
+
+    // Validate product IDs if provided
+    if (productIds && productIds.length > 0) {
+      const validProducts = await Product.countDocuments({ _id: { $in: productIds } });
+      if (validProducts !== productIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more product IDs are invalid',
+        });
+      }
+    }
+
+    if (linkedProductIds && linkedProductIds.length > 0) {
+      const validLinkedProducts = await Product.countDocuments({ _id: { $in: linkedProductIds } });
+      if (validLinkedProducts !== linkedProductIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more linked product IDs are invalid',
+        });
+      }
+    }
+
+    // Determine order for carousel
+    let offerOrder = order;
+    if (type === 'carousel' && offerOrder === undefined) {
+      const maxOrder = await Offer.findOne({ type: 'carousel' })
+        .sort({ order: -1 })
+        .select('order');
+      offerOrder = maxOrder ? maxOrder.order + 1 : 0;
+    }
+
+    const offer = await createOffer({
+      type,
+      title,
+      description,
+      image: type === 'carousel' ? image : undefined,
+      productIds: type === 'carousel' ? productIds : undefined,
+      specialTag: type === 'special_offer' ? specialTag : undefined,
+      specialValue: type === 'special_offer' ? specialValue : undefined,
+      linkedProductIds: type === 'special_offer' ? (linkedProductIds || []) : undefined,
+      order: type === 'carousel' ? offerOrder : undefined,
+      createdBy: adminId,
+      updatedBy: adminId,
+    });
+
+    const populatedOffer = await Offer.findById(offer._id)
+      .populate('productIds', 'name wholesalePrice publicPrice images primaryImage')
+      .populate('linkedProductIds', 'name wholesalePrice publicPrice images primaryImage');
+
+    res.status(201).json({
+      success: true,
+      data: { offer: populatedOffer },
+      message: 'Offer created successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update offer
+ * @route   PUT /api/admin/offers/:id
+ * @access  Private (Admin)
+ */
+exports.updateOffer = async (req, res, next) => {
+  try {
+    const adminId = req.admin.id;
+    const { id } = req.params;
+    const { title, description, image, productIds, specialTag, specialValue, linkedProductIds, isActive, order } = req.body;
+
+    const offer = await Offer.findById(id);
+    if (!offer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Offer not found',
+      });
+    }
+
+    // Validate product IDs if provided
+    if (productIds && Array.isArray(productIds) && productIds.length > 0) {
+      const validProducts = await Product.countDocuments({ _id: { $in: productIds } });
+      if (validProducts !== productIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more product IDs are invalid',
+        });
+      }
+    }
+
+    if (linkedProductIds && Array.isArray(linkedProductIds) && linkedProductIds.length > 0) {
+      const validLinkedProducts = await Product.countDocuments({ _id: { $in: linkedProductIds } });
+      if (validLinkedProducts !== linkedProductIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more linked product IDs are invalid',
+        });
+      }
+    }
+
+    // Check carousel limit if activating a carousel
+    if (offer.type === 'carousel' && isActive === true && !offer.isActive) {
+      const carouselCount = await Offer.countDocuments({ type: 'carousel', isActive: true });
+      if (carouselCount >= 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum 6 active carousels allowed. Please delete or deactivate an existing carousel first.',
+        });
+      }
+    }
+
+    // Update fields
+    if (title !== undefined) offer.title = title;
+    if (description !== undefined) offer.description = description;
+    if (offer.type === 'carousel' && image !== undefined) offer.image = image;
+    if (offer.type === 'carousel' && productIds !== undefined) offer.productIds = productIds;
+    if (offer.type === 'carousel' && order !== undefined) offer.order = order;
+    if (offer.type === 'special_offer' && specialTag !== undefined) offer.specialTag = specialTag;
+    if (offer.type === 'special_offer' && specialValue !== undefined) offer.specialValue = specialValue;
+    if (offer.type === 'special_offer' && linkedProductIds !== undefined) offer.linkedProductIds = linkedProductIds;
+    if (isActive !== undefined) offer.isActive = isActive;
+    offer.updatedBy = adminId;
+
+    await offer.save();
+
+    const populatedOffer = await Offer.findById(offer._id)
+      .populate('productIds', 'name wholesalePrice publicPrice images primaryImage')
+      .populate('linkedProductIds', 'name wholesalePrice publicPrice images primaryImage');
+
+    res.status(200).json({
+      success: true,
+      data: { offer: populatedOffer },
+      message: 'Offer updated successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete offer
+ * @route   DELETE /api/admin/offers/:id
+ * @access  Private (Admin)
+ */
+exports.deleteOffer = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const offer = await Offer.findById(id);
+    if (!offer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Offer not found',
+      });
+    }
+
+    await Offer.findByIdAndDelete(id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Offer deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all User credit repayments
+ * @route   GET /api/admin/finance/repayments
+ * @access  Private (Admin)
+ */
+exports.getRepayments = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status, UserId, startDate, endDate } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (UserId) {
+      query.userId = UserId;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const toDate = new Date(endDate);
+        toDate.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = toDate;
+      }
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get repayments with User and bank account details
+    const repayments = await CreditRepayment.find(query)
+      .populate('UserId', 'name phone location')
+      .populate('bankAccountId', 'accountHolderName bankName accountNumber ifscCode')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .select('-gatewayResponse -__v')
+      .lean();
+
+    const total = await CreditRepayment.countDocuments(query);
+
+    // Calculate summary statistics
+    const summary = await CreditRepayment.aggregate([
+      {
+        $match: query,
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalPrincipalSettled: { $sum: '$amount' },
+          totalPenalty: {
+            $sum: { $add: [{ $ifNull: ['$financialBreakdown.interestAddition', 0] }, { $ifNull: ['$penaltyAmount', 0] }] }
+          },
+          totalCashPaid: { $sum: '$totalAmount' },
+        },
+      },
+    ]);
+
+    const allStatusSummary = await CreditRepayment.aggregate([
+      {
+        $match: query,
+      },
+      {
+        $group: {
+          _id: null,
+          totalCompleted: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          totalPending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          totalFailed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+          // Use totalAmount for actual cash received (the true 'Repaid Amount')
+          totalRepaid: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$totalAmount', 0] } },
+          // Sum interest from new financial breakdown plus legacy penaltyAmount
+          totalPenaltyPaid: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'completed'] },
+                { $add: [{ $ifNull: ['$financialBreakdown.interestAddition', 0] }, { $ifNull: ['$penaltyAmount', 0] }] },
+                0
+              ]
+            }
+          },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        repayments,
+        summary: allStatusSummary[0] || {
+          totalCompleted: 0,
+          totalPending: 0,
+          totalFailed: 0,
+          totalRepaid: 0,
+          totalPenaltyPaid: 0,
+        },
+        statusBreakdown: summary,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get repayment details
+ * @route   GET /api/admin/finance/repayments/:repaymentId
+ * @access  Private (Admin)
+ */
+exports.getRepaymentDetails = async (req, res, next) => {
+  try {
+    const { repaymentId } = req.params;
+
+    const repayment = await CreditRepayment.findById(repaymentId)
+      .populate('UserId', 'name phone email location creditLimit creditUsed creditPolicy')
+      .populate('bankAccountId', 'accountHolderName bankName accountNumber ifscCode branchName')
+      .populate('reviewedBy', 'name email')
+      .select('-gatewayResponse -__v')
+      .lean();
+
+    if (!repayment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Repayment not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        repayment,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get User repayments
+ * @route   GET /api/admin/finance/Users/:UserId/repayments
+ * @access  Private (Admin)
+ */
+exports.getUserRepayments = async (req, res, next) => {
+  try {
+    const { UserId } = req.params;
+    const { page = 1, limit = 20, status } = req.query;
+
+    const user = await User.findById(UserId);
+
+    if (!User) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const query = {
+      userId: user._id,
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const repayments = await CreditRepayment.find(query)
+      .populate('bankAccountId', 'accountHolderName bankName accountNumber ifscCode')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .select('-gatewayResponse -__v')
+      .lean();
+
+    const total = await CreditRepayment.countDocuments(query);
+
+    // Calculate User repayment summary
+    const summary = await CreditRepayment.aggregate([
+      {
+        $match: {
+          userId: user._id,
+          status: 'completed',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRepaid: { $sum: '$amount' },
+          totalPenaltyPaid: { $sum: '$penaltyAmount' },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        User: {
+          id: user._id,
+          name: user.name,
+          phone: user.phone,
+          creditUsed: User.creditUsed,
+          creditLimit: User.creditLimit || 0,
+        },
+        repayments,
+        summary: summary[0] || {
+          totalRepaid: 0,
+          totalPenaltyPaid: 0,
+          count: 0,
+        },
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// REVIEW MANAGEMENT ROUTES
+// ============================================================================
+
+/**
+ * @desc    Get all product reviews with filtering
+ * @route   GET /api/admin/reviews
+ * @access  Private (Admin)
+ */
+exports.getReviews = async (req, res, next) => {
+  try {
+    const {
+      productId,
+      userId,
+      rating,
+      hasResponse,
+      isApproved,
+      isVisible,
+      page = 1,
+      limit = 20,
+      sort = '-createdAt',
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query
+    const query = {};
+    if (productId) {
+      // Mongoose will automatically convert string IDs to ObjectId
+      query.productId = productId;
+    }
+    if (userId) {
+      // Mongoose will automatically convert string IDs to ObjectId
+      query.userId = userId;
+    }
+    if (rating) query.rating = parseInt(rating);
+    if (hasResponse === 'true') query['adminResponse.response'] = { $exists: true, $ne: '' };
+    if (hasResponse === 'false') query.$or = [{ 'adminResponse.response': { $exists: false } }, { 'adminResponse.response': '' }];
+    // Only add isApproved filter if explicitly set (don't filter by default)
+    if (isApproved !== undefined && isApproved !== '') {
+      query.isApproved = isApproved === 'true';
+    }
+    // Only add isVisible filter if explicitly set (don't filter by default)
+    if (isVisible !== undefined && isVisible !== '') {
+      query.isVisible = isVisible === 'true';
+    }
+
+    // Build sort object
+    let sortObj = {};
+    if (sort === 'rating-desc') sortObj = { rating: -1, createdAt: -1 };
+    else if (sort === 'rating-asc') sortObj = { rating: 1, createdAt: -1 };
+    else if (sort === 'date-asc') sortObj = { createdAt: 1 };
+    else sortObj = { createdAt: -1 }; // Default: newest first
+
+    // Get reviews
+    const [reviews, total] = await Promise.all([
+      Review.find(query)
+        .populate('productId', 'name')
+        .populate('userId', 'name phone')
+        .populate('adminResponse.respondedBy', 'name')
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Review.countDocuments(query),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        reviews,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum),
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get review details
+ * @route   GET /api/admin/reviews/:reviewId
+ * @access  Private (Admin)
+ */
+exports.getReviewDetails = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+
+    const review = await Review.findById(reviewId)
+      .populate('productId', 'name')
+      .populate('userId', 'name phone')
+      .populate('adminResponse.respondedBy', 'name');
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        review,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Respond to a review
+ * @route   POST /api/admin/reviews/:reviewId/respond
+ * @access  Private (Admin)
+ */
+exports.respondToReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const { response } = req.body;
+    const adminId = req.admin._id;
+
+    if (!response || response.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Response text is required',
+      });
+    }
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found',
+      });
+    }
+
+    // Update admin response
+    review.adminResponse = {
+      response: response.trim(),
+      respondedBy: adminId,
+      respondedAt: new Date(),
+    };
+
+    await review.save();
+
+    await review.populate('productId', 'name');
+    await review.populate('userId', 'name phone');
+    await review.populate('adminResponse.respondedBy', 'name');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        review,
+        message: 'Response added successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update admin response to a review
+ * @route   PUT /api/admin/reviews/:reviewId/respond
+ * @access  Private (Admin)
+ */
+exports.updateReviewResponse = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const { response } = req.body;
+    const adminId = req.admin._id;
+
+    if (!response || response.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Response text is required',
+      });
+    }
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found',
+      });
+    }
+
+    // Update admin response
+    review.adminResponse = {
+      response: response.trim(),
+      respondedBy: adminId,
+      respondedAt: new Date(),
+    };
+
+    await review.save();
+
+    await review.populate('productId', 'name');
+    await review.populate('userId', 'name phone');
+    await review.populate('adminResponse.respondedBy', 'name');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        review,
+        message: 'Response updated successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete admin response
+ * @route   DELETE /api/admin/reviews/:reviewId/respond
+ * @access  Private (Admin)
+ */
+exports.deleteReviewResponse = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found',
+      });
+    }
+
+    // Remove admin response
+    review.adminResponse = undefined;
+    await review.save();
+
+    await review.populate('productId', 'name');
+    await review.populate('userId', 'name phone');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        review,
+        message: 'Response deleted successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Moderate review (approve/reject, hide/show)
+ * @route   PUT /api/admin/reviews/:reviewId/moderate
+ * @access  Private (Admin)
+ */
+exports.moderateReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const { isApproved, isVisible } = req.body;
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found',
+      });
+    }
+
+    if (isApproved !== undefined) {
+      review.isApproved = isApproved;
+    }
+
+    if (isVisible !== undefined) {
+      review.isVisible = isVisible;
+    }
+
+    await review.save();
+
+    await review.populate('productId', 'name');
+    await review.populate('userId', 'name phone');
+    await review.populate('adminResponse.respondedBy', 'name');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        review,
+        message: 'Review moderated successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete review
+ * @route   DELETE /api/admin/reviews/:reviewId
+ * @access  Private (Admin)
+ */
+exports.deleteReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+
+    const review = await Review.findById(reviewId);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found',
+      });
+    }
+
+    await Review.deleteOne({ _id: reviewId });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Review deleted successfully',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

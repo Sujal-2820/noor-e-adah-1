@@ -1,0 +1,1827 @@
+{
+  "User": [
+    {
+      "_id": "69269b6495f556cec31be4ab",
+      "name": "Suryansh Dubey",
+      "phone": "8602567717",
+      "language": "en",
+      "isActive": true,
+      "isBlocked": false,
+      "createdAt": "2025-11-26T06:17:08.449Z",
+      "updatedAt": "2025-11-27T08:18:45.375Z",
+      "__v": 0,
+      "location": {
+        "address": "Vijay Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452607",
+        "coordinates": {
+          "lat": 56.785,
+          "lng": 78.546
+        }
+      },
+      "seller": "6925e67b76c88c43f186765c",
+      "sellerId": "SLR-101",
+      "assignedVendor": "69255e5c155d6abdc17ce3d8"
+    },
+    {
+      "_id": "69296a6fa745b0b72ae669d2",
+      "name": "Pending Registration",
+      "phone": "7602569917",
+      "language": "en",
+      "isActive": false,
+      "isBlocked": false,
+      "otp": {
+        "code": "757547",
+        "expiresAt": "2025-11-28T09:30:03.460Z"
+      },
+      "createdAt": "2025-11-28T09:25:03.466Z",
+      "updatedAt": "2025-11-28T09:25:03.466Z",
+      "__v": 0
+    },
+    {
+      "_id": "692974b6a94b0aa3671e99d5",
+      "name": "Vishal Namdev",
+      "phone": "9981331234",
+      "language": "en",
+      "isActive": true,
+      "isBlocked": false,
+      "createdAt": "2025-11-28T10:08:54.450Z",
+      "updatedAt": "2025-11-28T10:09:09.093Z",
+      "__v": 0,
+      "location": {
+        "address": "6657+5FV, Shakuntalapuri, Darpan Colony, Gwalior, Madhya Pradesh 474011, India",
+        "city": "Gwalior",
+        "state": "Madhya Pradesh",
+        "pincode": "474011",
+        "coordinates": {
+          "lat": 26.2078464,
+          "lng": 78.2139392
+        }
+      },
+      "seller": "6925e67b76c88c43f186765c",
+      "sellerId": "SLR-101"
+    },
+    {
+      "_id": "692aeb5622f7afde98a360cb",
+      "name": "E2E Test User",
+      "phone": "+919999999999",
+      "language": "en",
+      "isActive": true,
+      "isBlocked": false,
+      "createdAt": "2025-11-29T12:47:18.331Z",
+      "updatedAt": "2025-11-29T12:47:18.331Z",
+      "__v": 0
+    }
+  ],
+  "Vendor": [
+    {
+      "_id": "69255dc4155d6abdc17ce3b2",
+      "name": "Shiv Yadav",
+      "phone": "9981331345",
+      "location": {
+        "address": "Vinay Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452001",
+        "coordinates": {
+          "lat": 67.876,
+          "lng": 45.567
+        },
+        "coverageRadius": 20
+      },
+      "status": "rejected",
+      "creditLimit": 0,
+      "creditUsed": 0,
+      "creditPolicy": {
+        "limit": 0,
+        "repaymentDays": 30,
+        "penaltyRate": 0
+      },
+      "escalationCount": 0,
+      "banInfo": {
+        "isBanned": false,
+        "banType": "none"
+      },
+      "isDeleted": false,
+      "isActive": false,
+      "escalationHistory": [],
+      "createdAt": "2025-11-25T07:41:56.414Z",
+      "updatedAt": "2025-11-25T07:43:00.401Z",
+      "__v": 0
+    },
+    {
+      "_id": "69255e5c155d6abdc17ce3d8",
+      "name": "Kunal Singh",
+      "phone": "4581331336",
+      "location": {
+        "address": "Goyal Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452003",
+        "coordinates": {
+          "lat": 19.678,
+          "lng": 45.356
+        },
+        "coverageRadius": 20
+      },
+      "status": "approved",
+      "creditLimit": 100000,
+      "creditUsed": 110910,
+      "creditPolicy": {
+        "limit": 100000,
+        "repaymentDays": 30,
+        "penaltyRate": 1.5,
+        "dueDate": "2025-12-25T11:34:33.008Z"
+      },
+      "escalationCount": 0,
+      "banInfo": {
+        "isBanned": false,
+        "banType": "none"
+      },
+      "isDeleted": false,
+      "isActive": true,
+      "escalationHistory": [],
+      "createdAt": "2025-11-25T07:44:28.470Z",
+      "updatedAt": "2025-11-29T08:05:49.388Z",
+      "__v": 0,
+      "approvedAt": "2025-11-25T07:44:53.147Z",
+      "approvedBy": "69254affa897ead791bd7137",
+      "aadhaarCard": {
+        "uploadedAt": "2025-11-28T17:52:29.506Z"
+      },
+      "panCard": {
+        "uploadedAt": "2025-11-28T17:52:29.506Z"
+      }
+    },
+    {
+      "_id": "692599550962f80f321fd937",
+      "name": "Mayank Agrawal",
+      "phone": "5681331345",
+      "location": {
+        "address": "Chandan Nagar",
+        "city": "Ujjain",
+        "state": "Madhya Pradesh",
+        "pincode": "452008",
+        "coordinates": {
+          "lat": 67.567,
+          "lng": 89.456
+        },
+        "coverageRadius": 20
+      },
+      "status": "approved",
+      "creditLimit": 200000,
+      "creditUsed": 50280,
+      "creditPolicy": {
+        "limit": 200000,
+        "repaymentDays": 20,
+        "penaltyRate": 2.4,
+        "dueDate": "2025-12-15T12:00:30.497Z"
+      },
+      "escalationCount": 0,
+      "banInfo": {
+        "isBanned": false,
+        "banType": "none"
+      },
+      "isDeleted": false,
+      "isActive": true,
+      "escalationHistory": [],
+      "createdAt": "2025-11-25T11:56:05.941Z",
+      "updatedAt": "2025-11-25T12:46:22.300Z",
+      "__v": 0,
+      "approvedAt": "2025-11-25T11:56:33.624Z",
+      "approvedBy": "69254affa897ead791bd7137"
+    },
+    {
+      "_id": "6925a7ad61852b18108c05cb",
+      "name": "Ankit Joshi",
+      "phone": "9755620716",
+      "location": {
+        "address": "mangal Nagar",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "452001",
+        "coordinates": {
+          "lat": 67.578,
+          "lng": 45.567
+        },
+        "coverageRadius": 20
+      },
+      "status": "approved",
+      "creditLimit": 300000,
+      "creditUsed": 75000,
+      "creditPolicy": {
+        "limit": 300000,
+        "repaymentDays": 35,
+        "penaltyRate": 2.4,
+        "dueDate": "2025-12-30T13:04:02.898Z"
+      },
+      "escalationCount": 0,
+      "banInfo": {
+        "isBanned": false,
+        "banType": "none",
+        "banExpiry": "2025-12-27T16:15:30.891Z",
+        "banReason": "Banned due to multiple order escalations",
+        "bannedAt": "2025-11-27T16:15:30.891Z",
+        "bannedBy": "69254affa897ead791bd7137",
+        "revocationReason": "Ban revoked by admin",
+        "revokedAt": "2025-11-27T16:15:39.084Z",
+        "revokedBy": "69254affa897ead791bd7137"
+      },
+      "isDeleted": false,
+      "isActive": true,
+      "escalationHistory": [],
+      "createdAt": "2025-11-25T12:57:17.944Z",
+      "updatedAt": "2025-11-27T16:15:39.085Z",
+      "__v": 0,
+      "approvedAt": "2025-11-25T12:58:17.220Z",
+      "approvedBy": "69254affa897ead791bd7137"
+    },
+    {
+      "_id": "6929e9859c139998b17cf263",
+      "name": "Rnajan Gour",
+      "phone": "9981331456",
+      "email": "ranjangour@gmail.com",
+      "location": {
+        "address": "Pimple Saudagar Rd, Mithila Nagari, Pimple Saudagar, Pimpri-Chinchwad, Maharashtra, India",
+        "city": "Pimpri-Chinchwad",
+        "state": "Maharashtra",
+        "pincode": "",
+        "coordinates": {
+          "lat": 18.6009012,
+          "lng": 73.8028295
+        },
+        "coverageRadius": 20
+      },
+      "status": "pending",
+      "creditLimit": 0,
+      "creditUsed": 0,
+      "creditPolicy": {
+        "repaymentDays": 30,
+        "penaltyRate": 2
+      },
+      "escalationCount": 0,
+      "banInfo": {
+        "isBanned": false,
+        "banType": "none"
+      },
+      "isDeleted": false,
+      "otp": {
+        "code": "812235",
+        "expiresAt": "2025-11-28T18:32:17.913Z"
+      },
+      "isActive": false,
+      "aadhaarCard": {
+        "url": "https://res.cloudinary.com/dzr6joukq/image/upload/v1764354074/ira-sathi/vendor-documents/CN_snd1m2.png",
+        "publicId": "ira-sathi/vendor-documents/CN_snd1m2",
+        "format": "png",
+        "uploadedAt": "2025-11-28T18:27:17.905Z"
+      },
+      "panCard": {
+        "url": "https://res.cloudinary.com/dzr6joukq/image/upload/v1764354099/ira-sathi/vendor-documents/GitHub-Mark_q13a0m.png",
+        "publicId": "ira-sathi/vendor-documents/GitHub-Mark_q13a0m",
+        "format": "png",
+        "uploadedAt": "2025-11-28T18:27:17.905Z"
+      },
+      "escalationHistory": [],
+      "createdAt": "2025-11-28T18:27:17.920Z",
+      "updatedAt": "2025-11-28T18:27:17.920Z",
+      "__v": 0
+    }
+  ],
+  "Seller": [
+    {
+      "_id": "6925e67b76c88c43f186765c",
+      "sellerId": "SLR-101",
+      "name": "Vipul Jat",
+      "phone": "7781331490",
+      "area": "Janki nagar",
+      "location": {
+        "address": "Janki nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "304001"
+      },
+      "monthlyTarget": 0,
+      "wallet": {
+        "balance": 798.9197999999999,
+        "pending": 0
+      },
+      "commissionRates": {
+        "low": 2,
+        "high": 3,
+        "threshold": 50000
+      },
+      "status": "approved",
+      "isActive": true,
+      "createdAt": "2025-11-25T17:25:15.941Z",
+      "updatedAt": "2025-11-27T18:07:46.416Z",
+      "__v": 0,
+      "approvedAt": "2025-11-25T17:34:42.817Z",
+      "approvedBy": "69254affa897ead791bd7137"
+    }
+  ],
+  "Product": [
+    {
+      "_id": "69254caf56a5c77d9aaf68aa",
+      "name": "Rhizobium Bio Fertilizer",
+      "description": "A microbial fertilizer that enhances nitrogen fixation for legume crops.",
+      "category": "biofertilizer",
+      "priceToVendor": 210,
+      "priceToUser": 259.98,
+      "stock": 129.99,
+      "expiry": "2025-11-29T00:00:00.000Z",
+      "weight": {
+        "value": 560,
+        "unit": "kg"
+      },
+      "isActive": true,
+      "tags": [],
+      "images": [],
+      "createdAt": "2025-11-25T06:29:03.589Z",
+      "updatedAt": "2025-11-27T09:22:28.325Z",
+      "sku": "BIO-143589-312",
+      "__v": 0,
+      "actualStock": 560,
+      "batchNumber": "BATCH-BIO-991",
+      "displayStock": 139.99
+    },
+    {
+      "_id": "69254cfd56a5c77d9aaf68b3",
+      "name": "Liquid NPK Booster",
+      "description": "A fast-acting liquid fertilizer used in foliar sprays for quick nutrition uptake.",
+      "category": "liquid",
+      "priceToVendor": 270,
+      "priceToUser": 319.83,
+      "stock": 1276.99,
+      "expiry": "2025-11-30T00:00:00.000Z",
+      "weight": {
+        "value": 1500,
+        "unit": "kg"
+      },
+      "isActive": true,
+      "tags": [],
+      "images": [],
+      "createdAt": "2025-11-25T06:30:21.168Z",
+      "updatedAt": "2025-11-27T09:22:28.018Z",
+      "sku": "LIQ-221168-740",
+      "__v": 0,
+      "actualStock": 1500,
+      "batchNumber": "BATCH-LIQ-199",
+      "displayStock": 1299.99
+    },
+    {
+      "_id": "69254d4156a5c77d9aaf68b9",
+      "name": "Organic Farm Compost (Premium)",
+      "description": "Natural compost that enhances soil health and improves nutrient availability.",
+      "category": "organic",
+      "priceToVendor": 320,
+      "priceToUser": 379.99,
+      "stock": 1119,
+      "expiry": "2025-12-10T00:00:00.000Z",
+      "weight": {
+        "value": 1600,
+        "unit": "kg"
+      },
+      "isActive": true,
+      "tags": [],
+      "images": [],
+      "createdAt": "2025-11-25T06:31:29.571Z",
+      "updatedAt": "2025-11-29T07:36:14.332Z",
+      "sku": "ORG-289571-630",
+      "__v": 1,
+      "actualStock": 1521,
+      "batchNumber": "BATCH-ORG-045",
+      "displayStock": 1121,
+      "attributeStocks": []
+    },
+    {
+      "_id": "69254d8856a5c77d9aaf68bf",
+      "name": "MOP (Muriate of Potash)",
+      "description": "Potassium-based fertilizer used to improve disease resistance and crop quality.",
+      "category": "potassium",
+      "priceToVendor": 1080,
+      "priceToUser": 1150,
+      "stock": 1453,
+      "expiry": "2026-11-11T00:00:00.000Z",
+      "weight": {
+        "value": 2000,
+        "unit": "kg"
+      },
+      "isActive": true,
+      "tags": [],
+      "images": [],
+      "createdAt": "2025-11-25T06:32:40.539Z",
+      "updatedAt": "2025-11-27T09:22:27.918Z",
+      "sku": "POT-360539-756",
+      "__v": 0,
+      "actualStock": 1970,
+      "displayStock": 1470,
+      "batchNumber": "BATCH-MOP-221"
+    },
+    {
+      "_id": "69254dd356a5c77d9aaf68c5",
+      "name": "DAP 18:46",
+      "description": "A phosphorus-rich fertilizer that enhances root development and increases crop yield.",
+      "category": "phosphorus",
+      "priceToVendor": 1250,
+      "priceToUser": 1319.99,
+      "stock": 387,
+      "expiry": "2026-07-05T00:00:00.000Z",
+      "weight": {
+        "value": 620,
+        "unit": "kg"
+      },
+      "isActive": true,
+      "tags": [],
+      "images": [],
+      "createdAt": "2025-11-25T06:33:55.496Z",
+      "updatedAt": "2025-11-27T09:22:28.123Z",
+      "sku": "PHO-435496-640",
+      "__v": 0,
+      "actualStock": 600,
+      "displayStock": 400,
+      "batchNumber": "BATCH-DAP-882"
+    },
+    {
+      "_id": "6925691daff1b29d89ed6c63",
+      "name": "Urea 46% Prilled",
+      "description": "A high-nitrogen fertilizer ideal for fast vegetative growth across cereals and vegetables.",
+      "category": "specialty",
+      "priceToVendor": 750,
+      "priceToUser": 950,
+      "actualStock": 1275,
+      "displayStock": 574.99,
+      "stock": 574.99,
+      "expiry": "2026-11-28T00:00:00.000Z",
+      "weight": {
+        "value": 1400,
+        "unit": "kg"
+      },
+      "isActive": true,
+      "tags": [],
+      "batchNumber": "BATCH-UREA-554",
+      "images": [],
+      "createdAt": "2025-11-25T08:30:21.732Z",
+      "updatedAt": "2025-11-26T10:49:44.415Z",
+      "sku": "SPE-421732-708",
+      "__v": 0
+    }
+  ],
+  "Order": [
+    {
+      "_id": "6926b414fcd206a29997ded2",
+      "orderNumber": "ORD-20251126-0001",
+      "userId": "69269b6495f556cec31be4ab",
+      "sellerId": "SLR-101",
+      "seller": "6925e67b76c88c43f186765c",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "assignedTo": "vendor",
+      "items": [
+        {
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "productName": "MOP (Muriate of Potash)",
+          "quantity": 3,
+          "unitPrice": 1150,
+          "totalPrice": 3450,
+          "status": "pending",
+          "_id": "6926b414fcd206a29997ded3"
+        },
+        {
+          "productId": "6925691daff1b29d89ed6c63",
+          "productName": "Urea 46% Prilled",
+          "quantity": 1,
+          "unitPrice": 950,
+          "totalPrice": 950,
+          "status": "pending",
+          "_id": "6926b414fcd206a29997ded4"
+        },
+        {
+          "productId": "69254caf56a5c77d9aaf68aa",
+          "productName": "Rhizobium Bio Fertilizer",
+          "quantity": 1,
+          "unitPrice": 259.98,
+          "totalPrice": 259.98,
+          "status": "pending",
+          "_id": "6926b414fcd206a29997ded5"
+        },
+        {
+          "productId": "69254d4156a5c77d9aaf68b9",
+          "productName": "Organic Farm Compost (Premium)",
+          "quantity": 1,
+          "unitPrice": 379.99,
+          "totalPrice": 379.99,
+          "status": "pending",
+          "_id": "6926b414fcd206a29997ded6"
+        },
+        {
+          "productId": "69254dd356a5c77d9aaf68c5",
+          "productName": "DAP 18:46",
+          "quantity": 1,
+          "unitPrice": 1319.99,
+          "totalPrice": 1319.99,
+          "status": "pending",
+          "_id": "6926b414fcd206a29997ded7"
+        }
+      ],
+      "subtotal": 6359.959999999999,
+      "deliveryCharge": 50,
+      "deliveryChargeWaived": false,
+      "totalAmount": 6409.959999999999,
+      "paymentPreference": "partial",
+      "upfrontAmount": 1923,
+      "remainingAmount": 0,
+      "paymentStatus": "fully_paid",
+      "deliveryAddress": {
+        "name": "Suryansh Dubey",
+        "address": "Vijay Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452607",
+        "phone": "8602567717",
+        "coordinates": {
+          "lat": 56.785,
+          "lng": 78.546
+        }
+      },
+      "status": "fully_paid",
+      "isPartialFulfillment": false,
+      "childOrderIds": [],
+      "escalation": {
+        "isEscalated": true,
+        "escalatedAt": "2025-11-26T11:18:03.416Z",
+        "escalatedBy": "vendor",
+        "escalationReason": "Insufficient Stock Available",
+        "escalationType": "full",
+        "escalatedItems": [
+          {
+            "itemId": "6926b414fcd206a29997ded3",
+            "productId": "69254d8856a5c77d9aaf68bf",
+            "productName": "MOP (Muriate of Potash)",
+            "requestedQuantity": 3,
+            "availableQuantity": 0,
+            "escalatedQuantity": 3,
+            "reason": "Insufficient Stock Available",
+            "_id": "6926e1eb2971876f5e4e231a"
+          },
+          {
+            "itemId": "6926b414fcd206a29997ded4",
+            "productId": "6925691daff1b29d89ed6c63",
+            "productName": "Urea 46% Prilled",
+            "requestedQuantity": 1,
+            "availableQuantity": 0,
+            "escalatedQuantity": 1,
+            "reason": "Insufficient Stock Available",
+            "_id": "6926e1eb2971876f5e4e231b"
+          },
+          {
+            "itemId": "6926b414fcd206a29997ded5",
+            "productId": "69254caf56a5c77d9aaf68aa",
+            "productName": "Rhizobium Bio Fertilizer",
+            "requestedQuantity": 1,
+            "availableQuantity": 0,
+            "escalatedQuantity": 1,
+            "reason": "Insufficient Stock Available",
+            "_id": "6926e1eb2971876f5e4e231c"
+          },
+          {
+            "itemId": "6926b414fcd206a29997ded6",
+            "productId": "69254d4156a5c77d9aaf68b9",
+            "productName": "Organic Farm Compost (Premium)",
+            "requestedQuantity": 1,
+            "availableQuantity": 0,
+            "escalatedQuantity": 1,
+            "reason": "Insufficient Stock Available",
+            "_id": "6926e1eb2971876f5e4e231d"
+          },
+          {
+            "itemId": "6926b414fcd206a29997ded7",
+            "productId": "69254dd356a5c77d9aaf68c5",
+            "productName": "DAP 18:46",
+            "requestedQuantity": 1,
+            "availableQuantity": 0,
+            "escalatedQuantity": 1,
+            "reason": "Insufficient Stock Available",
+            "_id": "6926e1eb2971876f5e4e231e"
+          }
+        ],
+        "originalVendorId": "69255e5c155d6abdc17ce3d8",
+        "revertReason": "Vendor now has stock.",
+        "revertedAt": "2025-11-26T12:27:21.825Z",
+        "revertedBy": "69254affa897ead791bd7137"
+      },
+      "statusTimeline": [
+        {
+          "status": "pending",
+          "timestamp": "2025-11-26T08:02:28.816Z",
+          "updatedBy": "system",
+          "_id": "6926b414fcd206a29997ded8"
+        },
+        {
+          "status": "rejected",
+          "timestamp": "2025-11-26T11:18:03.419Z",
+          "note": "Order escalated to admin by vendor. Reason: Insufficient Stock Available",
+          "updatedBy": "vendor",
+          "_id": "6926e1eb2971876f5e4e231f"
+        },
+        {
+          "status": "rejected",
+          "timestamp": "2025-11-26T11:18:03.426Z",
+          "updatedBy": "system",
+          "_id": "6926e1eb2971876f5e4e2320"
+        },
+        {
+          "status": "pending",
+          "timestamp": "2025-11-26T12:27:21.826Z",
+          "note": "Escalation reverted back to vendor Kunal Singh. Reason: Vendor now has stock.",
+          "updatedBy": "admin",
+          "_id": "6926f22990ce4d9f96bed819"
+        },
+        {
+          "status": "pending",
+          "timestamp": "2025-11-26T12:27:21.838Z",
+          "updatedBy": "system",
+          "_id": "6926f22990ce4d9f96bed81a"
+        },
+        {
+          "status": "dispatched",
+          "timestamp": "2025-11-26T12:27:45.783Z",
+          "note": "Order status updated to dispatched",
+          "updatedBy": "vendor",
+          "_id": "6926f24190ce4d9f96bed86b"
+        },
+        {
+          "status": "dispatched",
+          "timestamp": "2025-11-26T12:27:45.788Z",
+          "updatedBy": "system",
+          "_id": "6926f24190ce4d9f96bed86c"
+        },
+        {
+          "status": "delivered",
+          "timestamp": "2025-11-26T12:58:38.993Z",
+          "note": "Order status updated to delivered",
+          "updatedBy": "vendor",
+          "_id": "6926f97eb7b8f75aa1671b58"
+        },
+        {
+          "status": "delivered",
+          "timestamp": "2025-11-26T12:58:38.997Z",
+          "updatedBy": "system",
+          "_id": "6926f97eb7b8f75aa1671b59"
+        },
+        {
+          "status": "delivered",
+          "timestamp": "2025-11-27T05:37:13.567Z",
+          "note": "Payment marked as fully paid",
+          "updatedBy": "vendor",
+          "_id": "6927e389a3dc4520f02c8edf"
+        }
+      ],
+      "createdAt": "2025-11-26T08:02:28.815Z",
+      "updatedAt": "2025-11-27T11:15:14.795Z",
+      "expectedDeliveryDate": "2025-11-27T08:02:28.816Z",
+      "__v": 5,
+      "notes": "[Vendor Escalation] Reason: Insufficient Stock Available\n[Admin Revert] Order reverted back to vendor Kunal Singh. Reason: Vendor now has stock.",
+      "acceptanceGracePeriod": {
+        "isActive": false
+      },
+      "deliveredAt": "2025-11-26T12:58:38.993Z"
+    },
+    {
+      "_id": "6926e9947b281c19c95321c2",
+      "orderNumber": "ORD-20251126-0002",
+      "userId": "69269b6495f556cec31be4ab",
+      "sellerId": "SLR-101",
+      "seller": "6925e67b76c88c43f186765c",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "assignedTo": "admin",
+      "items": [
+        {
+          "productId": "69254dd356a5c77d9aaf68c5",
+          "productName": "DAP 18:46",
+          "quantity": 1,
+          "unitPrice": 1319.99,
+          "totalPrice": 1319.99,
+          "status": "pending",
+          "_id": "6926e9947b281c19c95321c3"
+        },
+        {
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "productName": "MOP (Muriate of Potash)",
+          "quantity": 1,
+          "unitPrice": 1150,
+          "totalPrice": 1150,
+          "status": "pending",
+          "_id": "6926e9947b281c19c95321c4"
+        }
+      ],
+      "subtotal": 2469.99,
+      "deliveryCharge": 50,
+      "deliveryChargeWaived": false,
+      "totalAmount": 2519.99,
+      "paymentPreference": "partial",
+      "upfrontAmount": 756,
+      "remainingAmount": 0,
+      "paymentStatus": "fully_paid",
+      "deliveryAddress": {
+        "name": "Suryansh Dubey",
+        "address": "Vijay Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452607",
+        "phone": "8602567717",
+        "coordinates": {
+          "lat": 56.785,
+          "lng": 78.546
+        }
+      },
+      "status": "fully_paid",
+      "isPartialFulfillment": false,
+      "childOrderIds": [],
+      "escalation": {
+        "isEscalated": true,
+        "escalatedAt": "2025-11-26T11:51:31.231Z",
+        "escalatedBy": "vendor",
+        "escalationReason": "Out of Stock",
+        "escalationType": "full",
+        "escalatedItems": [
+          {
+            "itemId": "6926e9947b281c19c95321c3",
+            "productId": "69254dd356a5c77d9aaf68c5",
+            "productName": "DAP 18:46",
+            "requestedQuantity": 1,
+            "availableQuantity": 0,
+            "escalatedQuantity": 1,
+            "reason": "Out of Stock",
+            "_id": "6926e9c37b281c19c9532219"
+          },
+          {
+            "itemId": "6926e9947b281c19c95321c4",
+            "productId": "69254d8856a5c77d9aaf68bf",
+            "productName": "MOP (Muriate of Potash)",
+            "requestedQuantity": 1,
+            "availableQuantity": 0,
+            "escalatedQuantity": 1,
+            "reason": "Out of Stock",
+            "_id": "6926e9c37b281c19c953221a"
+          }
+        ],
+        "originalVendorId": "69255e5c155d6abdc17ce3d8"
+      },
+      "statusTimeline": [
+        {
+          "status": "pending",
+          "timestamp": "2025-11-26T11:50:44.687Z",
+          "updatedBy": "system",
+          "_id": "6926e9947b281c19c95321c5"
+        },
+        {
+          "status": "rejected",
+          "timestamp": "2025-11-26T11:51:31.233Z",
+          "note": "Order escalated to admin by vendor. Reason: Out of Stock",
+          "updatedBy": "vendor",
+          "_id": "6926e9c37b281c19c953221b"
+        },
+        {
+          "status": "rejected",
+          "timestamp": "2025-11-26T11:51:31.236Z",
+          "updatedBy": "system",
+          "_id": "6926e9c37b281c19c953221c"
+        },
+        {
+          "status": "processing",
+          "timestamp": "2025-11-26T12:29:24.601Z",
+          "note": "Order fulfilled from warehouse by admin. Note: Order fulfilled from master warehouse",
+          "updatedBy": "admin",
+          "_id": "6926f2a490ce4d9f96bed929"
+        },
+        {
+          "status": "processing",
+          "timestamp": "2025-11-26T12:29:24.604Z",
+          "updatedBy": "system",
+          "_id": "6926f2a490ce4d9f96bed92a"
+        },
+        {
+          "status": "processing",
+          "timestamp": "2025-11-26T12:50:02.156Z",
+          "note": "Order fulfilled from warehouse by admin. Note: Order fulfilled from master warehouse",
+          "updatedBy": "admin",
+          "_id": "6926f77ab7b8f75aa1671a19"
+        },
+        {
+          "status": "dispatched",
+          "timestamp": "2025-11-26T12:57:48.474Z",
+          "note": "Status updated from processing to dispatched",
+          "updatedBy": "admin",
+          "_id": "6926f94cb7b8f75aa1671b0c"
+        },
+        {
+          "status": "dispatched",
+          "timestamp": "2025-11-26T12:57:48.479Z",
+          "updatedBy": "system",
+          "_id": "6926f94cb7b8f75aa1671b0d"
+        },
+        {
+          "status": "delivered",
+          "timestamp": "2025-11-26T12:57:59.462Z",
+          "note": "Status updated from dispatched to delivered",
+          "updatedBy": "admin",
+          "_id": "6926f957b7b8f75aa1671b23"
+        },
+        {
+          "status": "delivered",
+          "timestamp": "2025-11-26T12:57:59.464Z",
+          "updatedBy": "system",
+          "_id": "6926f957b7b8f75aa1671b24"
+        },
+        {
+          "status": "delivered",
+          "timestamp": "2025-11-27T08:44:10.278Z",
+          "note": "Payment marked as fully paid",
+          "updatedBy": "admin",
+          "_id": "69280f5a528c9508fb6d2d4b"
+        }
+      ],
+      "createdAt": "2025-11-26T11:50:44.686Z",
+      "updatedAt": "2025-11-27T11:15:14.834Z",
+      "expectedDeliveryDate": "2025-11-26T16:50:02.156Z",
+      "__v": 6,
+      "notes": "[Vendor Escalation] Reason: Out of Stock\n[Admin Warehouse Fulfillment] Order fulfilled from master warehouse\n[Admin Warehouse Fulfillment] Order fulfilled from master warehouse",
+      "acceptanceGracePeriod": {
+        "isActive": false
+      },
+      "deliveredAt": "2025-11-26T12:57:59.462Z",
+      "statusUpdateGracePeriod": {
+        "isActive": false
+      }
+    },
+    {
+      "_id": "6926fc8c7da4ca5275e8a1fd",
+      "orderNumber": "ORD-20251126-0003",
+      "userId": "69269b6495f556cec31be4ab",
+      "sellerId": "SLR-101",
+      "seller": "6925e67b76c88c43f186765c",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "assignedTo": "vendor",
+      "items": [
+        {
+          "productId": "69254caf56a5c77d9aaf68aa",
+          "productName": "Rhizobium Bio Fertilizer",
+          "quantity": 1,
+          "unitPrice": 259.98,
+          "totalPrice": 259.98,
+          "status": "pending",
+          "_id": "6926fc8c7da4ca5275e8a1fe"
+        },
+        {
+          "productId": "69254cfd56a5c77d9aaf68b3",
+          "productName": "Liquid NPK Booster",
+          "quantity": 1,
+          "unitPrice": 319.83,
+          "totalPrice": 319.83,
+          "status": "pending",
+          "_id": "6926fc8c7da4ca5275e8a1ff"
+        },
+        {
+          "productId": "69254dd356a5c77d9aaf68c5",
+          "productName": "DAP 18:46",
+          "quantity": 1,
+          "unitPrice": 1319.99,
+          "totalPrice": 1319.99,
+          "status": "pending",
+          "_id": "6926fc8c7da4ca5275e8a200"
+        },
+        {
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "productName": "MOP (Muriate of Potash)",
+          "quantity": 1,
+          "unitPrice": 1150,
+          "totalPrice": 1150,
+          "status": "pending",
+          "_id": "6926fc8c7da4ca5275e8a201"
+        }
+      ],
+      "subtotal": 3049.8,
+      "deliveryCharge": 0,
+      "deliveryChargeWaived": true,
+      "totalAmount": 3049.8,
+      "paymentPreference": "full",
+      "upfrontAmount": 3049.8,
+      "remainingAmount": 0,
+      "paymentStatus": "fully_paid",
+      "deliveryAddress": {
+        "name": "Suryansh Dubey",
+        "address": "Vijay Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452607",
+        "phone": "8602567717",
+        "coordinates": {
+          "lat": 56.785,
+          "lng": 78.546
+        }
+      },
+      "status": "delivered",
+      "isPartialFulfillment": false,
+      "acceptanceGracePeriod": {
+        "isActive": false,
+        "acceptedAt": "2025-11-26T13:15:00.120Z",
+        "expiresAt": "2025-11-26T14:15:00.120Z",
+        "confirmedAt": "2025-11-27T05:30:50.057Z"
+      },
+      "childOrderIds": [],
+      "escalation": {
+        "isEscalated": false,
+        "escalatedItems": []
+      },
+      "statusTimeline": [
+        {
+          "status": "pending",
+          "timestamp": "2025-11-26T13:11:40.232Z",
+          "updatedBy": "system",
+          "_id": "6926fc8c7da4ca5275e8a202"
+        },
+        {
+          "status": "pending",
+          "timestamp": "2025-11-26T13:15:00.120Z",
+          "note": "Order acceptance initiated. Vendor has 1 hour to confirm or escalate.",
+          "updatedBy": "vendor",
+          "_id": "6926fd547da4ca5275e8a2ba"
+        },
+        {
+          "status": "awaiting",
+          "timestamp": "2025-11-27T05:30:50.057Z",
+          "note": "Order acceptance auto-confirmed after 1-hour grace period expired.",
+          "updatedBy": "system",
+          "_id": "6927e20af234f18b2620aae9"
+        },
+        {
+          "status": "awaiting",
+          "timestamp": "2025-11-27T05:30:50.167Z",
+          "updatedBy": "system",
+          "_id": "6927e20af234f18b2620aaea"
+        }
+      ],
+      "createdAt": "2025-11-26T13:11:40.232Z",
+      "updatedAt": "2025-11-27T11:15:14.868Z",
+      "expectedDeliveryDate": "2025-11-27T13:11:40.232Z",
+      "__v": 2,
+      "deliveredAt": "2025-11-27T11:15:14.794Z"
+    },
+    {
+      "_id": "692809a27a6f1539f5a7adc6",
+      "orderNumber": "ORD-20251127-0001",
+      "userId": "69269b6495f556cec31be4ab",
+      "sellerId": "SLR-101",
+      "seller": "6925e67b76c88c43f186765c",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "assignedTo": "vendor",
+      "items": [
+        {
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "productName": "MOP (Muriate of Potash)",
+          "quantity": 1,
+          "unitPrice": 1150,
+          "totalPrice": 1150,
+          "status": "pending",
+          "_id": "692809a27a6f1539f5a7adc7"
+        },
+        {
+          "productId": "69254cfd56a5c77d9aaf68b3",
+          "productName": "Liquid NPK Booster",
+          "quantity": 1,
+          "unitPrice": 319.83,
+          "totalPrice": 319.83,
+          "status": "pending",
+          "_id": "692809a27a6f1539f5a7adc8"
+        },
+        {
+          "productId": "69254d4156a5c77d9aaf68b9",
+          "productName": "Organic Farm Compost (Premium)",
+          "quantity": 1,
+          "unitPrice": 379.99,
+          "totalPrice": 379.99,
+          "status": "pending",
+          "_id": "692809a27a6f1539f5a7adc9"
+        },
+        {
+          "productId": "69254caf56a5c77d9aaf68aa",
+          "productName": "Rhizobium Bio Fertilizer",
+          "quantity": 1,
+          "unitPrice": 259.98,
+          "totalPrice": 259.98,
+          "status": "pending",
+          "_id": "692809a27a6f1539f5a7adca"
+        }
+      ],
+      "subtotal": 2109.8,
+      "deliveryCharge": 0,
+      "deliveryChargeWaived": true,
+      "totalAmount": 2109.8,
+      "paymentPreference": "full",
+      "upfrontAmount": 2109.8,
+      "remainingAmount": 0,
+      "paymentStatus": "fully_paid",
+      "deliveryAddress": {
+        "name": "Suryansh Dubey",
+        "address": "Vijay Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452607",
+        "phone": "8602567717",
+        "coordinates": {
+          "lat": 56.785,
+          "lng": 78.546
+        }
+      },
+      "status": "delivered",
+      "isPartialFulfillment": false,
+      "acceptanceGracePeriod": {
+        "isActive": false,
+        "acceptedAt": "2025-11-27T08:47:30.501Z",
+        "expiresAt": "2025-11-27T09:47:30.501Z",
+        "confirmedAt": "2025-11-27T08:49:20.870Z"
+      },
+      "statusUpdateGracePeriod": {
+        "isActive": false,
+        "previousStatus": "awaiting",
+        "updatedAt": "2025-11-27T11:05:12.741Z",
+        "expiresAt": "2025-11-27T12:05:12.741Z",
+        "updatedBy": "admin",
+        "finalizedAt": "2025-11-27T11:07:59.413Z"
+      },
+      "childOrderIds": [],
+      "escalation": {
+        "isEscalated": false,
+        "escalatedItems": []
+      },
+      "statusTimeline": [
+        {
+          "status": "pending",
+          "timestamp": "2025-11-27T08:19:46.727Z",
+          "updatedBy": "system",
+          "_id": "692809a27a6f1539f5a7adcb"
+        },
+        {
+          "status": "pending",
+          "timestamp": "2025-11-27T08:46:28.686Z",
+          "note": "Order acceptance initiated. Vendor has 1 hour to confirm or escalate.",
+          "updatedBy": "vendor",
+          "_id": "69280fe4528c9508fb6d2d81"
+        },
+        {
+          "status": "pending",
+          "timestamp": "2025-11-27T08:47:03.235Z",
+          "note": "Order acceptance cancelled by vendor. Reason: Not having stock",
+          "updatedBy": "vendor",
+          "_id": "69281007528c9508fb6d2de7"
+        },
+        {
+          "status": "pending",
+          "timestamp": "2025-11-27T08:47:30.501Z",
+          "note": "Order acceptance initiated. Vendor has 1 hour to confirm or escalate.",
+          "updatedBy": "vendor",
+          "_id": "69281022528c9508fb6d2e73"
+        },
+        {
+          "status": "awaiting",
+          "timestamp": "2025-11-27T08:49:20.870Z",
+          "note": "Order acceptance confirmed by vendor. Ready for processing.",
+          "updatedBy": "vendor",
+          "_id": "69281090528c9508fb6d2ef5"
+        },
+        {
+          "status": "awaiting",
+          "timestamp": "2025-11-27T08:49:20.874Z",
+          "updatedBy": "system",
+          "_id": "69281090528c9508fb6d2ef6"
+        },
+        {
+          "status": "dispatched",
+          "timestamp": "2025-11-27T11:05:12.741Z",
+          "note": "Status updated from awaiting to dispatched",
+          "updatedBy": "admin",
+          "_id": "6928306802e3b461324d7696"
+        },
+        {
+          "status": "dispatched",
+          "timestamp": "2025-11-27T11:05:12.753Z",
+          "updatedBy": "system",
+          "_id": "6928306802e3b461324d7697"
+        },
+        {
+          "status": "awaiting",
+          "timestamp": "2025-11-27T11:07:59.413Z",
+          "note": "Status reverted to awaiting from dispatched",
+          "updatedBy": "vendor",
+          "_id": "6928310f02e3b461324d78e0"
+        },
+        {
+          "status": "awaiting",
+          "timestamp": "2025-11-27T11:07:59.415Z",
+          "updatedBy": "system",
+          "_id": "6928310f02e3b461324d78e1"
+        }
+      ],
+      "createdAt": "2025-11-27T08:19:46.726Z",
+      "updatedAt": "2025-11-27T11:15:14.905Z",
+      "expectedDeliveryDate": "2025-11-28T08:19:46.727Z",
+      "__v": 6,
+      "notes": "[Vendor Cancelled Acceptance] Not having stock",
+      "deliveredAt": "2025-11-27T11:15:14.794Z"
+    },
+    {
+      "_id": "692812ee528c9508fb6d3352",
+      "orderNumber": "ORD-20251127-0002",
+      "userId": "69269b6495f556cec31be4ab",
+      "sellerId": "SLR-101",
+      "seller": "6925e67b76c88c43f186765c",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "assignedTo": "vendor",
+      "items": [
+        {
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "productName": "MOP (Muriate of Potash)",
+          "quantity": 1,
+          "unitPrice": 1150,
+          "totalPrice": 1150,
+          "status": "pending",
+          "_id": "692812ee528c9508fb6d3353"
+        },
+        {
+          "productId": "69254cfd56a5c77d9aaf68b3",
+          "productName": "Liquid NPK Booster",
+          "quantity": 1,
+          "unitPrice": 319.83,
+          "totalPrice": 319.83,
+          "status": "pending",
+          "_id": "692812ee528c9508fb6d3354"
+        },
+        {
+          "productId": "69254caf56a5c77d9aaf68aa",
+          "productName": "Rhizobium Bio Fertilizer",
+          "quantity": 1,
+          "unitPrice": 259.98,
+          "totalPrice": 259.98,
+          "status": "pending",
+          "_id": "692812ee528c9508fb6d3355"
+        },
+        {
+          "productId": "69254dd356a5c77d9aaf68c5",
+          "productName": "DAP 18:46",
+          "quantity": 1,
+          "unitPrice": 1319.99,
+          "totalPrice": 1319.99,
+          "status": "pending",
+          "_id": "692812ee528c9508fb6d3356"
+        }
+      ],
+      "subtotal": 3049.8,
+      "deliveryCharge": 50,
+      "deliveryChargeWaived": false,
+      "totalAmount": 3099.8,
+      "paymentPreference": "partial",
+      "upfrontAmount": 930,
+      "remainingAmount": 0,
+      "paymentStatus": "fully_paid",
+      "deliveryAddress": {
+        "name": "Suryansh Dubey",
+        "address": "Vijay Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452607",
+        "phone": "8602567717",
+        "coordinates": {
+          "lat": 56.785,
+          "lng": 78.546
+        }
+      },
+      "status": "fully_paid",
+      "isPartialFulfillment": false,
+      "acceptanceGracePeriod": {
+        "isActive": false,
+        "acceptedAt": "2025-11-27T09:41:19.484Z",
+        "expiresAt": "2025-11-27T10:41:19.484Z",
+        "confirmedAt": "2025-11-27T10:41:25.839Z"
+      },
+      "statusUpdateGracePeriod": {
+        "isActive": false,
+        "previousStatus": "accepted",
+        "updatedAt": "2025-11-27T11:05:30.817Z",
+        "expiresAt": "2025-11-27T12:05:30.817Z",
+        "updatedBy": "admin",
+        "finalizedAt": "2025-11-27T11:15:14.794Z"
+      },
+      "childOrderIds": [],
+      "escalation": {
+        "isEscalated": false,
+        "escalatedItems": []
+      },
+      "statusTimeline": [
+        {
+          "status": "pending",
+          "timestamp": "2025-11-27T08:59:26.162Z",
+          "updatedBy": "system",
+          "_id": "692812ee528c9508fb6d3357"
+        },
+        {
+          "status": "pending",
+          "timestamp": "2025-11-27T09:41:19.484Z",
+          "note": "Order acceptance initiated. Vendor has 1 hour to confirm or escalate.",
+          "updatedBy": "vendor",
+          "_id": "69281cbf528c9508fb6d3c56"
+        },
+        {
+          "status": "accepted",
+          "timestamp": "2025-11-27T10:41:25.839Z",
+          "note": "Order acceptance auto-confirmed after 1-hour grace period expired (previous status: awaiting).",
+          "updatedBy": "system",
+          "_id": "69282ad58d07e78b00075179"
+        },
+        {
+          "status": "accepted",
+          "timestamp": "2025-11-27T10:41:25.895Z",
+          "updatedBy": "system",
+          "_id": "69282ad58d07e78b0007517a"
+        },
+        {
+          "status": "dispatched",
+          "timestamp": "2025-11-27T11:05:30.817Z",
+          "note": "Status updated from accepted to dispatched",
+          "updatedBy": "admin",
+          "_id": "6928307a02e3b461324d76aa"
+        },
+        {
+          "status": "dispatched",
+          "timestamp": "2025-11-27T11:05:30.819Z",
+          "updatedBy": "system",
+          "_id": "6928307a02e3b461324d76ab"
+        }
+      ],
+      "createdAt": "2025-11-27T08:59:26.161Z",
+      "updatedAt": "2025-11-27T11:15:14.946Z",
+      "expectedDeliveryDate": "2025-11-28T08:59:26.162Z",
+      "__v": 3,
+      "deliveredAt": "2025-11-27T11:15:14.794Z"
+    },
+    {
+      "_id": "6928184f528c9508fb6d38f0",
+      "orderNumber": "ORD-20251127-0003",
+      "userId": "69269b6495f556cec31be4ab",
+      "sellerId": "SLR-101",
+      "seller": "6925e67b76c88c43f186765c",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "assignedTo": "vendor",
+      "items": [
+        {
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "productName": "MOP (Muriate of Potash)",
+          "quantity": 13,
+          "unitPrice": 1150,
+          "totalPrice": 14950,
+          "status": "pending",
+          "_id": "6928184f528c9508fb6d38f1"
+        },
+        {
+          "productId": "69254cfd56a5c77d9aaf68b3",
+          "productName": "Liquid NPK Booster",
+          "quantity": 20,
+          "unitPrice": 319.83,
+          "totalPrice": 6396.599999999999,
+          "status": "pending",
+          "_id": "6928184f528c9508fb6d38f2"
+        },
+        {
+          "productId": "69254dd356a5c77d9aaf68c5",
+          "productName": "DAP 18:46",
+          "quantity": 9,
+          "unitPrice": 1319.99,
+          "totalPrice": 11879.91,
+          "status": "pending",
+          "_id": "6928184f528c9508fb6d38f3"
+        },
+        {
+          "productId": "69254caf56a5c77d9aaf68aa",
+          "productName": "Rhizobium Bio Fertilizer",
+          "quantity": 6,
+          "unitPrice": 259.98,
+          "totalPrice": 1559.88,
+          "status": "pending",
+          "_id": "6928184f528c9508fb6d38f4"
+        }
+      ],
+      "subtotal": 34786.38999999999,
+      "deliveryCharge": 0,
+      "deliveryChargeWaived": true,
+      "totalAmount": 34786.38999999999,
+      "paymentPreference": "full",
+      "upfrontAmount": 34786.38999999999,
+      "remainingAmount": 0,
+      "paymentStatus": "fully_paid",
+      "deliveryAddress": {
+        "name": "Suryansh Dubey",
+        "address": "Vijay Nagar",
+        "city": "Indore",
+        "state": "Madhya Pradesh",
+        "pincode": "452607",
+        "phone": "8602567717",
+        "coordinates": {
+          "lat": 56.785,
+          "lng": 78.546
+        }
+      },
+      "status": "delivered",
+      "isPartialFulfillment": false,
+      "acceptanceGracePeriod": {
+        "isActive": false,
+        "previousStatus": "awaiting",
+        "acceptedAt": "2025-11-27T11:06:39.638Z",
+        "expiresAt": "2025-11-27T12:06:39.638Z",
+        "confirmedAt": "2025-11-27T11:06:46.848Z"
+      },
+      "statusUpdateGracePeriod": {
+        "isActive": false,
+        "previousStatus": "accepted",
+        "updatedAt": "2025-11-27T11:07:19.839Z",
+        "expiresAt": "2025-11-27T12:07:19.839Z",
+        "updatedBy": "vendor",
+        "finalizedAt": "2025-11-27T11:15:14.794Z"
+      },
+      "childOrderIds": [],
+      "escalation": {
+        "isEscalated": false,
+        "escalatedItems": []
+      },
+      "statusTimeline": [
+        {
+          "status": "pending",
+          "timestamp": "2025-11-27T09:22:23.620Z",
+          "updatedBy": "system",
+          "_id": "6928184f528c9508fb6d38f5"
+        },
+        {
+          "status": "pending",
+          "timestamp": "2025-11-27T09:23:24.589Z",
+          "note": "Order acceptance initiated. Vendor has 1 hour to confirm or escalate.",
+          "updatedBy": "vendor",
+          "_id": "6928188c528c9508fb6d39eb"
+        },
+        {
+          "status": "awaiting",
+          "timestamp": "2025-11-27T09:23:32.841Z",
+          "note": "Order acceptance confirmed by vendor. Ready for processing.",
+          "updatedBy": "vendor",
+          "_id": "69281894528c9508fb6d3a51"
+        },
+        {
+          "status": "awaiting",
+          "timestamp": "2025-11-27T09:23:32.843Z",
+          "updatedBy": "system",
+          "_id": "69281894528c9508fb6d3a52"
+        },
+        {
+          "status": "accepted",
+          "timestamp": "2025-11-27T11:06:39.638Z",
+          "note": "Order acceptance initiated. Vendor has 1 hour to confirm or revert to awaiting.",
+          "updatedBy": "vendor",
+          "_id": "692830bf02e3b461324d7742"
+        },
+        {
+          "status": "accepted",
+          "timestamp": "2025-11-27T11:06:39.640Z",
+          "updatedBy": "system",
+          "_id": "692830bf02e3b461324d7743"
+        },
+        {
+          "status": "accepted",
+          "timestamp": "2025-11-27T11:06:46.848Z",
+          "note": "Order acceptance confirmed by vendor. Ready for dispatch workflow.",
+          "updatedBy": "vendor",
+          "_id": "692830c602e3b461324d77bd"
+        },
+        {
+          "status": "delivered",
+          "timestamp": "2025-11-27T11:07:19.839Z",
+          "note": "Order status updated to delivered",
+          "updatedBy": "vendor",
+          "_id": "692830e702e3b461324d7874"
+        },
+        {
+          "status": "delivered",
+          "timestamp": "2025-11-27T11:07:19.842Z",
+          "updatedBy": "system",
+          "_id": "692830e702e3b461324d7875"
+        }
+      ],
+      "createdAt": "2025-11-27T09:22:23.619Z",
+      "updatedAt": "2025-11-27T11:15:14.981Z",
+      "expectedDeliveryDate": "2025-11-28T09:22:23.620Z",
+      "__v": 5,
+      "deliveredAt": "2025-11-27T11:07:19.840Z"
+    }
+  ],
+  "Cart": [
+    {
+      "_id": "69269b7895f556cec31be4c7",
+      "userId": "69269b6495f556cec31be4ab",
+      "items": [],
+      "subtotal": 0,
+      "meetsMinimumOrder": false,
+      "createdAt": "2025-11-26T06:17:28.966Z",
+      "updatedAt": "2025-11-27T09:22:23.720Z",
+      "__v": 29
+    },
+    {
+      "_id": "692974c5a94b0aa3671e99f2",
+      "userId": "692974b6a94b0aa3671e99d5",
+      "items": [],
+      "subtotal": 0,
+      "meetsMinimumOrder": false,
+      "createdAt": "2025-11-28T10:09:09.595Z",
+      "updatedAt": "2025-11-28T10:09:09.595Z",
+      "__v": 0
+    }
+  ],
+  "Payment": [
+    {
+      "_id": "6926b418fcd206a29997deec",
+      "paymentId": "PAY-20251126-0001",
+      "orderId": "6926b414fcd206a29997ded2",
+      "userId": "69269b6495f556cec31be4ab",
+      "paymentType": "advance",
+      "amount": 1923,
+      "paymentMethod": "razorpay",
+      "status": "partial_paid",
+      "gatewayPaymentId": "dummy_payment_1764144152030_tdlxnjfpf",
+      "gatewayOrderId": "dummy_order_1764144152030_4ufyesdzo",
+      "gatewaySignature": null,
+      "isRefunded": false,
+      "refundAmount": 0,
+      "paidAt": "2025-11-26T08:02:32.226Z",
+      "createdAt": "2025-11-26T08:02:32.226Z",
+      "updatedAt": "2025-11-26T08:02:32.226Z",
+      "__v": 0
+    },
+    {
+      "_id": "6926e99d7b281c19c95321d3",
+      "paymentId": "PAY-20251126-0002",
+      "orderId": "6926e9947b281c19c95321c2",
+      "userId": "69269b6495f556cec31be4ab",
+      "paymentType": "advance",
+      "amount": 756,
+      "paymentMethod": "razorpay",
+      "status": "partial_paid",
+      "gatewayPaymentId": "dummy_payment_1764157853450_g3s1x1c1g",
+      "gatewayOrderId": "dummy_order_1764157853450_pzpkgr5qi",
+      "gatewaySignature": null,
+      "isRefunded": false,
+      "refundAmount": 0,
+      "paidAt": "2025-11-26T11:50:53.750Z",
+      "createdAt": "2025-11-26T11:50:53.750Z",
+      "updatedAt": "2025-11-26T11:50:53.750Z",
+      "__v": 0
+    },
+    {
+      "_id": "6926fc8d7da4ca5275e8a214",
+      "paymentId": "PAY-20251126-0003",
+      "orderId": "6926fc8c7da4ca5275e8a1fd",
+      "userId": "69269b6495f556cec31be4ab",
+      "paymentType": "full",
+      "amount": 3049.8,
+      "paymentMethod": "razorpay",
+      "status": "fully_paid",
+      "gatewayPaymentId": "dummy_payment_1764162701863_7rjng7nix",
+      "gatewayOrderId": "dummy_order_1764162701863_ep7wzj7mu",
+      "gatewaySignature": null,
+      "isRefunded": false,
+      "refundAmount": 0,
+      "paidAt": "2025-11-26T13:11:41.964Z",
+      "createdAt": "2025-11-26T13:11:41.964Z",
+      "updatedAt": "2025-11-26T13:11:41.964Z",
+      "__v": 0
+    },
+    {
+      "_id": "692809a67a6f1539f5a7addd",
+      "paymentId": "PAY-20251127-0001",
+      "orderId": "692809a27a6f1539f5a7adc6",
+      "userId": "69269b6495f556cec31be4ab",
+      "paymentType": "full",
+      "amount": 2109.8,
+      "paymentMethod": "razorpay",
+      "status": "fully_paid",
+      "gatewayPaymentId": "dummy_payment_1764231590509_9s7lq535x",
+      "gatewayOrderId": "dummy_order_1764231590509_rnw5d5q8b",
+      "gatewaySignature": null,
+      "isRefunded": false,
+      "refundAmount": 0,
+      "paidAt": "2025-11-27T08:19:50.813Z",
+      "createdAt": "2025-11-27T08:19:50.813Z",
+      "updatedAt": "2025-11-27T08:19:50.813Z",
+      "__v": 0
+    },
+    {
+      "_id": "692812f9528c9508fb6d3369",
+      "paymentId": "PAY-20251127-0002",
+      "orderId": "692812ee528c9508fb6d3352",
+      "userId": "69269b6495f556cec31be4ab",
+      "paymentType": "advance",
+      "amount": 930,
+      "paymentMethod": "razorpay",
+      "status": "partial_paid",
+      "gatewayPaymentId": "dummy_payment_1764233977448_4fg15lq9v",
+      "gatewayOrderId": "dummy_order_1764233977448_42un0ob7u",
+      "gatewaySignature": null,
+      "isRefunded": false,
+      "refundAmount": 0,
+      "paidAt": "2025-11-27T08:59:37.752Z",
+      "createdAt": "2025-11-27T08:59:37.752Z",
+      "updatedAt": "2025-11-27T08:59:37.752Z",
+      "__v": 0
+    },
+    {
+      "_id": "69281853528c9508fb6d3907",
+      "paymentId": "PAY-20251127-0003",
+      "orderId": "6928184f528c9508fb6d38f0",
+      "userId": "69269b6495f556cec31be4ab",
+      "paymentType": "full",
+      "amount": 34786.38999999999,
+      "paymentMethod": "razorpay",
+      "status": "fully_paid",
+      "gatewayPaymentId": "dummy_payment_1764235347511_xr2xafo5j",
+      "gatewayOrderId": "dummy_order_1764235347511_hw2unmb4h",
+      "gatewaySignature": null,
+      "isRefunded": false,
+      "refundAmount": 0,
+      "paidAt": "2025-11-27T09:22:27.712Z",
+      "createdAt": "2025-11-27T09:22:27.711Z",
+      "updatedAt": "2025-11-27T09:22:27.711Z",
+      "__v": 0
+    }
+  ],
+  "Address": [],
+  "Commission": [
+    {
+      "_id": "6926fc8e7da4ca5275e8a221",
+      "sellerId": "6925e67b76c88c43f186765c",
+      "sellerIdCode": "SLR-101",
+      "userId": "69269b6495f556cec31be4ab",
+      "orderId": "6926fc8c7da4ca5275e8a1fd",
+      "month": 11,
+      "year": 2025,
+      "orderAmount": 3049.8,
+      "cumulativePurchaseAmount": 0,
+      "newCumulativePurchaseAmount": 3049.8,
+      "commissionRate": 2,
+      "commissionAmount": 61,
+      "status": "credited",
+      "creditedAt": "2025-11-26T13:11:42.353Z",
+      "notes": "Commission for order ORD-20251126-0003",
+      "createdAt": "2025-11-26T13:11:42.355Z",
+      "updatedAt": "2025-11-26T13:11:42.355Z",
+      "__v": 0
+    },
+    {
+      "_id": "692809a87a6f1539f5a7ae06",
+      "sellerId": "6925e67b76c88c43f186765c",
+      "sellerIdCode": "SLR-101",
+      "userId": "69269b6495f556cec31be4ab",
+      "orderId": "692809a27a6f1539f5a7adc6",
+      "month": 11,
+      "year": 2025,
+      "orderAmount": 2109.8,
+      "cumulativePurchaseAmount": 9459.759999999998,
+      "newCumulativePurchaseAmount": 11569.559999999998,
+      "commissionRate": 2,
+      "commissionAmount": 42.2,
+      "status": "credited",
+      "creditedAt": "2025-11-27T08:19:52.045Z",
+      "notes": "Commission for order ORD-20251127-0001",
+      "createdAt": "2025-11-27T08:19:52.046Z",
+      "updatedAt": "2025-11-27T08:19:52.046Z",
+      "__v": 0
+    },
+    {
+      "_id": "69281854528c9508fb6d3949",
+      "sellerId": "6925e67b76c88c43f186765c",
+      "sellerIdCode": "SLR-101",
+      "userId": "69269b6495f556cec31be4ab",
+      "orderId": "6928184f528c9508fb6d38f0",
+      "month": 11,
+      "year": 2025,
+      "orderAmount": 34786.38999999999,
+      "cumulativePurchaseAmount": 14089.55,
+      "newCumulativePurchaseAmount": 48875.93999999999,
+      "commissionRate": 2,
+      "commissionAmount": 695.73,
+      "status": "credited",
+      "creditedAt": "2025-11-27T09:22:28.741Z",
+      "notes": "Commission for order ORD-20251127-0003",
+      "createdAt": "2025-11-27T09:22:28.743Z",
+      "updatedAt": "2025-11-27T09:22:28.743Z",
+      "__v": 0
+    }
+  ],
+  "WithdrawalRequest": [],
+  "CreditPurchase": [
+    {
+      "_id": "692593d5b77d7954d5bc5240",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "items": [
+        {
+          "productId": "6925691daff1b29d89ed6c63",
+          "quantity": 30,
+          "unitPrice": 750,
+          "totalPrice": 22500,
+          "_id": "692593d5b77d7954d5bc5241"
+        },
+        {
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "quantity": 34,
+          "unitPrice": 1080,
+          "totalPrice": 36720,
+          "_id": "692593d5b77d7954d5bc5242"
+        },
+        {
+          "productId": "69254cfd56a5c77d9aaf68b3",
+          "quantity": 2,
+          "unitPrice": 270,
+          "totalPrice": 540,
+          "_id": "692593d5b77d7954d5bc5243"
+        }
+      ],
+      "totalAmount": 59760,
+      "status": "approved",
+      "notes": "Low Stock\n\nUrgent delivery needed.",
+      "createdAt": "2025-11-25T11:32:37.736Z",
+      "updatedAt": "2025-11-25T11:34:32.925Z",
+      "__v": 0,
+      "reviewedAt": "2025-11-25T11:34:32.923Z",
+      "reviewedBy": "69254affa897ead791bd7137"
+    },
+    {
+      "_id": "69259a410962f80f321fd99e",
+      "vendorId": "692599550962f80f321fd937",
+      "items": [
+        {
+          "productId": "69254dd356a5c77d9aaf68c5",
+          "quantity": 20,
+          "unitPrice": 1250,
+          "totalPrice": 25000,
+          "_id": "69259a410962f80f321fd99f"
+        },
+        {
+          "productId": "69254d4156a5c77d9aaf68b9",
+          "quantity": 79,
+          "unitPrice": 320,
+          "totalPrice": 25280,
+          "_id": "69259a410962f80f321fd9a0"
+        }
+      ],
+      "totalAmount": 50280,
+      "status": "approved",
+      "notes": "Stock over.\n\nDeliver within 48 hours.",
+      "createdAt": "2025-11-25T12:00:01.583Z",
+      "updatedAt": "2025-11-25T12:00:30.414Z",
+      "__v": 0,
+      "reviewedAt": "2025-11-25T12:00:30.414Z",
+      "reviewedBy": "69254affa897ead791bd7137"
+    },
+    {
+      "_id": "6925a92761852b18108c0659",
+      "vendorId": "6925a7ad61852b18108c05cb",
+      "items": [
+        {
+          "productId": "6925691daff1b29d89ed6c63",
+          "quantity": 100,
+          "unitPrice": 750,
+          "totalPrice": 75000,
+          "_id": "6925a92761852b18108c065a"
+        }
+      ],
+      "totalAmount": 75000,
+      "status": "approved",
+      "notes": "Stock getting low\n\nUrgent delivery",
+      "createdAt": "2025-11-25T13:03:35.622Z",
+      "updatedAt": "2025-11-25T13:04:02.825Z",
+      "__v": 0,
+      "reviewedAt": "2025-11-25T13:04:02.824Z",
+      "reviewedBy": "69254affa897ead791bd7137"
+    },
+    {
+      "_id": "6926db34e3fe7f8decc2d61d",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "items": [
+        {
+          "productId": "6925691daff1b29d89ed6c63",
+          "productName": "Urea 46% Prilled",
+          "quantity": 25,
+          "unitPrice": 750,
+          "totalPrice": 18750,
+          "unit": "kg",
+          "_id": "6926db34e3fe7f8decc2d61e"
+        },
+        {
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "productName": "MOP (Muriate of Potash)",
+          "quantity": 30,
+          "unitPrice": 1080,
+          "totalPrice": 32400,
+          "unit": "kg",
+          "_id": "6926db34e3fe7f8decc2d61f"
+        }
+      ],
+      "totalAmount": 51150,
+      "status": "approved",
+      "notes": "Urgent Delivery required",
+      "reason": "SO and So Reason.",
+      "bankDetails": {
+        "accountName": "Kunal Singh",
+        "accountNumber": "284510003456",
+        "bankName": "State Bank of India (SBI)",
+        "ifsc": "SBIN0007621",
+        "branch": "Bicholi"
+      },
+      "confirmationText": "confirm",
+      "deliveryStatus": "delivered",
+      "createdAt": "2025-11-26T10:49:24.902Z",
+      "updatedAt": "2025-11-28T17:53:01.962Z",
+      "__v": 0,
+      "deliveryNotes": "Stock delivered and added to your inventory.",
+      "expectedDeliveryAt": "2025-11-27T10:49:44.573Z",
+      "reviewedAt": "2025-11-26T10:49:44.573Z",
+      "reviewedBy": "69254affa897ead791bd7137",
+      "deliveredAt": "2025-11-28T17:53:01.383Z"
+    }
+  ],
+  "ProductAssignment": [
+    {
+      "_id": "69259a680962f80f321fd9df",
+      "productId": "69254dd356a5c77d9aaf68c5",
+      "vendorId": "692599550962f80f321fd937",
+      "isActive": true,
+      "assignedBy": "69254affa897ead791bd7137",
+      "assignedAt": "2025-11-25T12:00:40.640Z",
+      "stock": 20,
+      "createdAt": "2025-11-25T12:00:40.641Z",
+      "updatedAt": "2025-11-25T12:49:14.338Z",
+      "__v": 0,
+      "notes": "[2025-11-25T12:49:14.336Z] Stock updated manually. Previous: 20, New: 20"
+    },
+    {
+      "_id": "69259a680962f80f321fd9e4",
+      "productId": "69254d4156a5c77d9aaf68b9",
+      "vendorId": "692599550962f80f321fd937",
+      "isActive": true,
+      "assignedBy": "69254affa897ead791bd7137",
+      "assignedAt": "2025-11-25T12:00:40.776Z",
+      "stock": 79,
+      "createdAt": "2025-11-25T12:00:40.777Z",
+      "updatedAt": "2025-11-25T12:00:40.777Z",
+      "__v": 0
+    },
+    {
+      "_id": "6925a94361852b18108c06c6",
+      "productId": "6925691daff1b29d89ed6c63",
+      "vendorId": "6925a7ad61852b18108c05cb",
+      "isActive": true,
+      "assignedBy": "69254affa897ead791bd7137",
+      "assignedAt": "2025-11-25T13:04:03.202Z",
+      "stock": 100,
+      "createdAt": "2025-11-25T13:04:03.203Z",
+      "updatedAt": "2025-11-25T13:23:41.472Z",
+      "__v": 0,
+      "lastManualStockUpdate": "2025-11-25T13:23:41.468Z",
+      "notes": "[2025-11-25T13:23:41.467Z] Stock updated manually. Previous: 100, New: 100 (includes 100 from approved purchase)"
+    },
+    {
+      "_id": "6926db4bb1d64eb912a00e9b",
+      "productId": "6925691daff1b29d89ed6c63",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "__v": 0,
+      "assignedAt": "2025-11-26T10:49:44.449Z",
+      "assignedBy": "69254affa897ead791bd7137",
+      "createdAt": "2025-11-26T10:49:44.449Z",
+      "isActive": true,
+      "lastManualStockUpdate": null,
+      "notes": "Auto-assigned during purchase approval",
+      "stock": 25,
+      "updatedAt": "2025-11-28T17:53:01.653Z"
+    },
+    {
+      "_id": "6926db4bb1d64eb912a00e9d",
+      "vendorId": "69255e5c155d6abdc17ce3d8",
+      "productId": "69254d8856a5c77d9aaf68bf",
+      "__v": 0,
+      "assignedAt": "2025-11-26T10:49:44.542Z",
+      "assignedBy": "69254affa897ead791bd7137",
+      "createdAt": "2025-11-26T10:49:44.542Z",
+      "isActive": true,
+      "lastManualStockUpdate": null,
+      "notes": "Auto-assigned during purchase approval",
+      "stock": 30,
+      "updatedAt": "2025-11-28T17:53:01.836Z"
+    }
+  ],
+  "Notification": [],
+  "VendorEarning": []
+}

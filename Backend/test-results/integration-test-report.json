@@ -1,0 +1,104 @@
+{
+  "tests": [
+    {
+      "id": "INT-001",
+      "name": "Test Vendor Created",
+      "passed": true,
+      "details": {
+        "vendorId": "6975e97024b41aa126dc9c8d"
+      }
+    },
+    {
+      "id": "INT-002",
+      "name": "Test Seller (IRA Partner) Created",
+      "passed": true,
+      "details": {
+        "sellerId": "INTSELLER001"
+      }
+    },
+    {
+      "id": "INT-003",
+      "name": "Test User Created with Seller Link",
+      "passed": true,
+      "details": {
+        "userId": "6975e97124b41aa126dc9c94",
+        "linkedSellerId": "6975e97124b41aa126dc9c90"
+      }
+    },
+    {
+      "id": "INT-004",
+      "name": "Test Product Created",
+      "passed": true,
+      "details": {
+        "productId": "6975e97124b41aa126dc9c96",
+        "priceToUser": 1000
+      }
+    },
+    {
+      "id": "INT-005",
+      "name": "Order Below Minimum Validation",
+      "passed": false,
+      "details": {
+        "error": "Order below ₹2,000 should fail but was created"
+      }
+    },
+    {
+      "id": "INT-006",
+      "name": "Valid Order Created (₹3,000, Full Payment)",
+      "passed": true,
+      "details": {
+        "orderId": "6975e97124b41aa126dc9c9c",
+        "orderNumber": "TEST-1769335153362",
+        "totalAmount": 3000,
+        "deliveryCharge": 0
+      }
+    },
+    {
+      "id": "INT-007",
+      "name": "Commission Tier 1 Calculation (2%)",
+      "passed": true,
+      "details": {
+        "orderAmount": 3000,
+        "expectedCommission": 60,
+        "calculatedCommission": 60,
+        "sellerWalletBalance": 60
+      }
+    },
+    {
+      "id": "INT-008",
+      "name": "Credit Purchase Created",
+      "passed": true,
+      "details": {
+        "cycleId": "6975e97124b41aa126dc9ca1",
+        "principalAmount": 50000,
+        "vendorCreditUsed": 50000,
+        "vendorAvailableCredit": 50000
+      }
+    },
+    {
+      "id": "INT-009",
+      "name": "Partial Repayment",
+      "passed": false,
+      "details": {
+        "error": "CreditRepayment validation failed: repaymentId: Path `repaymentId` is required."
+      }
+    },
+    {
+      "id": "INT-010",
+      "name": "Overpayment Prevention",
+      "passed": true,
+      "details": {
+        "outstanding": 50000,
+        "attempted": 55000,
+        "prevented": true
+      }
+    }
+  ],
+  "summary": {
+    "total": 10,
+    "passed": 8,
+    "failed": 2,
+    "passRate": "80.00%",
+    "timestamp": "2026-01-25T09:59:14.273Z"
+  }
+}

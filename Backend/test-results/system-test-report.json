@@ -1,0 +1,146 @@
+{
+  "tests": [
+    {
+      "id": "MODEL-001",
+      "name": "All required models load successfully",
+      "passed": true,
+      "details": {
+        "models": [
+          "Admin",
+          "Vendor",
+          "Product",
+          "User",
+          "Seller",
+          "Order",
+          "CreditPurchase"
+        ]
+      }
+    },
+    {
+      "id": "CONST-001",
+      "name": "Vendor Radius = 500m (0.5km)",
+      "passed": true,
+      "details": {
+        "expected": 0.5,
+        "actual": 0.5,
+        "note": "Changed from 20km to 500m"
+      }
+    },
+    {
+      "id": "CONST-002",
+      "name": "Buffer = 300m (0.3km)",
+      "passed": true,
+      "details": {
+        "expected": 0.3,
+        "actual": 0.3
+      }
+    },
+    {
+      "id": "CONST-003",
+      "name": "Total Assignment Radius = 800m (0.8km)",
+      "passed": true,
+      "details": {
+        "expected": 0.8,
+        "actual": 0.8
+      }
+    },
+    {
+      "id": "VEND-001",
+      "name": "First Vendor Created",
+      "passed": true,
+      "details": {
+        "vendorId": "6975e649fc741b080f7bfc72",
+        "coordinates": {
+          "lat": 28.6139,
+          "lng": 77.209
+        }
+      }
+    },
+    {
+      "id": "VEND-002",
+      "name": "500m Radius Check Working",
+      "passed": false,
+      "details": {
+        "testCoordinates": {
+          "lat": 28.6184,
+          "lng": 77.209
+        },
+        "conflictingVendors": 0,
+        "note": "ERROR: Should detect vendor within 500m"
+      }
+    },
+    {
+      "id": "PROD-001",
+      "name": "Product Min Price Calculation",
+      "passed": true,
+      "details": {
+        "basePriceToUser": 900,
+        "calculatedMinPrice": 400,
+        "expectedMinPrice": 400,
+        "allPrices": [
+          400,
+          700,
+          1200
+        ],
+        "note": "Min price from attributes working correctly"
+      }
+    },
+    {
+      "id": "ORD-001",
+      "name": "Minimum Order Value = ₹2,000",
+      "passed": true,
+      "details": {
+        "expected": 2000,
+        "actual": 2000
+      }
+    },
+    {
+      "id": "CRED-001",
+      "name": "Credit Cycle Service Loads",
+      "passed": true,
+      "details": {
+        "methods": [
+          "processPartialRepayment",
+          "getActiveCyclesForVendor",
+          "getCycleDetails",
+          "validateNewPurchase",
+          "getVendorCreditSummary"
+        ]
+      }
+    },
+    {
+      "id": "COMM-001",
+      "name": "Tier 1 Commission = 2%",
+      "passed": true,
+      "details": {
+        "expected": 2,
+        "actual": 2
+      }
+    },
+    {
+      "id": "COMM-002",
+      "name": "Tier 2 Commission = 3%",
+      "passed": true,
+      "details": {
+        "expected": 3,
+        "actual": 3
+      }
+    },
+    {
+      "id": "COMM-003",
+      "name": "Threshold = ₹50,000",
+      "passed": true,
+      "details": {
+        "expected": 50000,
+        "actual": 50000
+      }
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "passed": 11,
+    "failed": 1,
+    "passRate": "91.67%",
+    "timestamp": "2026-01-25T09:45:46.009Z"
+  }
+}

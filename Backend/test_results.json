@@ -1,0 +1,1255 @@
+{
+  "startTime": "2025-11-29T12:48:30.700Z",
+  "endTime": "2025-11-29T12:49:29.297Z",
+  "categories": {
+    "User Workflow": [
+      {
+        "name": "Setting up test user",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:32.759Z"
+      }
+    ],
+    "User Auth": [
+      {
+        "name": "Request OTP",
+        "passed": true,
+        "details": {
+          "status": 200
+        },
+        "timestamp": "2025-11-29T12:48:33.159Z"
+      },
+      {
+        "name": "Login with OTP",
+        "passed": true,
+        "details": {
+          "status": 200
+        },
+        "timestamp": "2025-11-29T12:48:34.900Z"
+      },
+      {
+        "name": "Token Received",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:34.900Z"
+      }
+    ],
+    "Product Browsing": [
+      {
+        "name": "Get Categories",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:35.452Z"
+      },
+      {
+        "name": "Get Products",
+        "passed": true,
+        "details": {
+          "count": 6
+        },
+        "timestamp": "2025-11-29T12:48:35.518Z"
+      },
+      {
+        "name": "Get Popular Products",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:35.637Z"
+      },
+      {
+        "name": "Search Products",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:35.695Z"
+      },
+      {
+        "name": "Get Product Details",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:35.754Z"
+      },
+      {
+        "name": "Get Offers",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:35.757Z"
+      }
+    ],
+    "Cart Management": [
+      {
+        "name": "Add Product 1 to Cart",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:37.180Z"
+      },
+      {
+        "name": "Add Product 2 to Cart",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:37.786Z"
+      },
+      {
+        "name": "Add Product 3 to Cart",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:38.386Z"
+      },
+      {
+        "name": "Get Cart",
+        "passed": true,
+        "details": {
+          "itemCount": 3
+        },
+        "timestamp": "2025-11-29T12:48:38.863Z"
+      },
+      {
+        "name": "Update Cart Item Quantity",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:39.150Z"
+      },
+      {
+        "name": "Validate Cart (Min ₹2000)",
+        "passed": true,
+        "details": {
+          "total": 10839.98
+        },
+        "timestamp": "2025-11-29T12:48:39.266Z"
+      },
+      {
+        "name": "Remove Cart Item",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:39.445Z"
+      }
+    ],
+    "Address Management": [
+      {
+        "name": "Get Addresses",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:40.381Z"
+      },
+      {
+        "name": "Add Address",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:40.504Z"
+      },
+      {
+        "name": "Update Address",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:40.685Z"
+      },
+      {
+        "name": "Set Default Address",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:40.922Z"
+      }
+    ],
+    "Vendor Assignment": [
+      {
+        "name": "Assign Vendor (20km radius)",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:41.505Z"
+      }
+    ],
+    "Order Creation": [
+      {
+        "name": "Create Order (Partial Payment)",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:42.410Z"
+      }
+    ],
+    "Payment Processing": [
+      {
+        "name": "Payment Tests",
+        "passed": false,
+        "details": {
+          "error": "No orders available"
+        },
+        "timestamp": "2025-11-29T12:48:43.412Z"
+      }
+    ],
+    "Order Tracking": [
+      {
+        "name": "Get All Orders",
+        "passed": true,
+        "details": {
+          "count": 0
+        },
+        "timestamp": "2025-11-29T12:48:44.040Z"
+      }
+    ],
+    "Favourites": [
+      {
+        "name": "Add to Favourites",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:44.670Z"
+      },
+      {
+        "name": "Get Favourites",
+        "passed": true,
+        "details": {
+          "count": 0
+        },
+        "timestamp": "2025-11-29T12:48:44.727Z"
+      },
+      {
+        "name": "Remove from Favourites",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:45.092Z"
+      }
+    ],
+    "Notifications": [
+      {
+        "name": "Get Notifications",
+        "passed": true,
+        "details": {
+          "count": 0
+        },
+        "timestamp": "2025-11-29T12:48:45.660Z"
+      },
+      {
+        "name": "Mark All Notifications as Read",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:45.721Z"
+      }
+    ],
+    "Vendor Auth": [
+      {
+        "name": "Request OTP",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:46.067Z"
+      },
+      {
+        "name": "Verify OTP / Login",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:47.846Z"
+      }
+    ],
+    "Vendor Dashboard": [
+      {
+        "name": "Get Dashboard Overview",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:48.817Z"
+      },
+      {
+        "name": "Get Order Statistics",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:49.047Z"
+      }
+    ],
+    "Vendor Orders": [
+      {
+        "name": "Get All Orders",
+        "passed": true,
+        "details": {
+          "count": 5
+        },
+        "timestamp": "2025-11-29T12:48:49.907Z"
+      }
+    ],
+    "Vendor Inventory": [
+      {
+        "name": "Get Inventory",
+        "passed": true,
+        "details": {
+          "count": 2
+        },
+        "timestamp": "2025-11-29T12:48:51.213Z"
+      },
+      {
+        "name": "Get Inventory Statistics",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:51.533Z"
+      },
+      {
+        "name": "Update Stock Quantity",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:51.593Z"
+      },
+      {
+        "name": "Get Inventory Item Details",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:51.825Z"
+      }
+    ],
+    "Vendor Credit": [
+      {
+        "name": "Get Credit Information",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:52.452Z"
+      },
+      {
+        "name": "Get Credit Purchases",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:52.691Z"
+      },
+      {
+        "name": "Get Credit History",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:52.975Z"
+      },
+      {
+        "name": "Credit Purchase Below Minimum (₹50,000)",
+        "passed": false,
+        "details": {
+          "expected": "Should fail with 400"
+        },
+        "timestamp": "2025-11-29T12:48:53.083Z"
+      }
+    ],
+    "Vendor Earnings": [
+      {
+        "name": "Get Earnings Summary",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:53.872Z"
+      },
+      {
+        "name": "Get Earnings History",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:54.048Z"
+      },
+      {
+        "name": "Get Earnings by Orders",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:54.217Z"
+      },
+      {
+        "name": "Get Available Balance",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:54.394Z"
+      }
+    ],
+    "Vendor Withdrawals": [
+      {
+        "name": "Get Withdrawal Requests",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:55.084Z"
+      }
+    ],
+    "Vendor Reports": [
+      {
+        "name": "Get Reports",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:55.948Z"
+      },
+      {
+        "name": "Get Performance Analytics",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:56.184Z"
+      }
+    ],
+    "Seller Auth": [
+      {
+        "name": "Request OTP",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:56.512Z"
+      },
+      {
+        "name": "Verify OTP / Login",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:58.296Z"
+      }
+    ],
+    "Seller Dashboard": [
+      {
+        "name": "Get Dashboard Overview",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:59.034Z"
+      },
+      {
+        "name": "Get Overview Data",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:59.262Z"
+      },
+      {
+        "name": "Get Dashboard Wallet",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:59.394Z"
+      },
+      {
+        "name": "Get Dashboard Referrals",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:59.622Z"
+      },
+      {
+        "name": "Get Dashboard Performance",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:59.798Z"
+      },
+      {
+        "name": "Get Dashboard Highlights",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:48:59.987Z"
+      },
+      {
+        "name": "Get Recent Activity",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:00.267Z"
+      }
+    ],
+    "Seller Wallet": [
+      {
+        "name": "Get Wallet Details",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:00.943Z"
+      },
+      {
+        "name": "Get Wallet Transactions",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:01.242Z"
+      },
+      {
+        "name": "Get Withdrawal Requests",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:01.411Z"
+      }
+    ],
+    "Seller Referrals": [
+      {
+        "name": "Get All Referrals",
+        "passed": true,
+        "details": {
+          "count": 2
+        },
+        "timestamp": "2025-11-29T12:49:02.154Z"
+      },
+      {
+        "name": "Get Referral Statistics",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:02.388Z"
+      },
+      {
+        "name": "Get Referral Details",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:02.701Z"
+      }
+    ],
+    "Seller Performance": [
+      {
+        "name": "Get Monthly Target",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:03.332Z"
+      },
+      {
+        "name": "Get Target History",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:04.079Z"
+      },
+      {
+        "name": "Get Target Incentives",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:04.884Z"
+      },
+      {
+        "name": "Get Performance Analytics",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:05.220Z"
+      }
+    ],
+    "Seller Notifications": [
+      {
+        "name": "Get Notifications",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:05.783Z"
+      },
+      {
+        "name": "Get Announcements",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:05.843Z"
+      }
+    ],
+    "Admin Auth": [
+      {
+        "name": "Admin Login (Email/Password)",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:06.255Z"
+      },
+      {
+        "name": "Request OTP",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:06.371Z"
+      },
+      {
+        "name": "Verify OTP",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:08.048Z"
+      }
+    ],
+    "Admin Dashboard": [
+      {
+        "name": "Get Dashboard Overview",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:09.044Z"
+      }
+    ],
+    "Admin Products": [
+      {
+        "name": "Get All Products",
+        "passed": true,
+        "details": {
+          "count": 6
+        },
+        "timestamp": "2025-11-29T12:49:09.767Z"
+      },
+      {
+        "name": "Create Product",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:09.836Z"
+      }
+    ],
+    "Admin Vendors": [
+      {
+        "name": "Get All Vendors",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:10.647Z"
+      },
+      {
+        "name": "Approve Vendor",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:10.942Z"
+      },
+      {
+        "name": "Update Vendor Credit Policy",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:11.178Z"
+      }
+    ],
+    "Admin Sellers": [
+      {
+        "name": "Get All Sellers",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:11.930Z"
+      },
+      {
+        "name": "Set Seller Target",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:12.163Z"
+      }
+    ],
+    "Admin Orders": [
+      {
+        "name": "Get All Orders",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:12.982Z"
+      },
+      {
+        "name": "Get Escalated Orders",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:13.236Z"
+      },
+      {
+        "name": "Reassign Order",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:13.470Z"
+      }
+    ],
+    "Admin Finance": [
+      {
+        "name": "Get Vendor Credits",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:14.174Z"
+      },
+      {
+        "name": "Get Credit Recovery Status",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:14.379Z"
+      }
+    ],
+    "Admin Analytics": [
+      {
+        "name": "Get Analytics Data",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:15.358Z"
+      },
+      {
+        "name": "Generate Reports",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:15.425Z"
+      }
+    ],
+    "Edge Cases": [
+      {
+        "name": "Access with Invalid Token",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:15.428Z"
+      },
+      {
+        "name": "Access without Token",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:15.429Z"
+      },
+      {
+        "name": "Login with Invalid OTP",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:15.661Z"
+      },
+      {
+        "name": "Create Order Missing Required Fields",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:15.969Z"
+      },
+      {
+        "name": "Add to Cart Missing Quantity",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:15.971Z"
+      },
+      {
+        "name": "Invalid Product ID Format",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:16.282Z"
+      },
+      {
+        "name": "Invalid Coordinates Format",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:16.284Z"
+      },
+      {
+        "name": "Cart Below Minimum Order (₹2000)",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:19.961Z"
+      },
+      {
+        "name": "Credit Purchase Below Minimum (₹50,000)",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:22.170Z"
+      },
+      {
+        "name": "Get Non-existent Product",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:22.743Z"
+      },
+      {
+        "name": "Get Non-existent Order",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:22.745Z"
+      },
+      {
+        "name": "Invalid Phone Number Format",
+        "passed": false,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:23.256Z"
+      },
+      {
+        "name": "Invalid Email Format",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:23.362Z"
+      },
+      {
+        "name": "Negative Quantity in Cart",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:25.887Z"
+      }
+    ],
+    "Data Integrity": [
+      {
+        "name": "Order-Vendor Relationship (Order 6926fc8c7da4ca5275e8a1fd)",
+        "passed": true,
+        "details": {
+          "orderId": "6926fc8c7da4ca5275e8a1fd",
+          "vendorId": "69255e5c155d6abdc17ce3d8",
+          "vendorExists": true
+        },
+        "timestamp": "2025-11-29T12:49:26.028Z"
+      },
+      {
+        "name": "Vendor Status Valid for Order 6926fc8c7da4ca5275e8a1fd",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:26.029Z"
+      },
+      {
+        "name": "Order-Vendor Relationship (Order 692809a27a6f1539f5a7adc6)",
+        "passed": true,
+        "details": {
+          "orderId": "692809a27a6f1539f5a7adc6",
+          "vendorId": "69255e5c155d6abdc17ce3d8",
+          "vendorExists": true
+        },
+        "timestamp": "2025-11-29T12:49:26.071Z"
+      },
+      {
+        "name": "Vendor Status Valid for Order 692809a27a6f1539f5a7adc6",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:26.072Z"
+      },
+      {
+        "name": "Order-Vendor Relationship (Order 6928184f528c9508fb6d38f0)",
+        "passed": true,
+        "details": {
+          "orderId": "6928184f528c9508fb6d38f0",
+          "vendorId": "69255e5c155d6abdc17ce3d8",
+          "vendorExists": true
+        },
+        "timestamp": "2025-11-29T12:49:26.115Z"
+      },
+      {
+        "name": "Vendor Status Valid for Order 6928184f528c9508fb6d38f0",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:26.115Z"
+      },
+      {
+        "name": "Order-Vendor Relationship (Order 6926b414fcd206a29997ded2)",
+        "passed": true,
+        "details": {
+          "orderId": "6926b414fcd206a29997ded2",
+          "vendorId": "69255e5c155d6abdc17ce3d8",
+          "vendorExists": true
+        },
+        "timestamp": "2025-11-29T12:49:26.157Z"
+      },
+      {
+        "name": "Vendor Status Valid for Order 6926b414fcd206a29997ded2",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:26.157Z"
+      },
+      {
+        "name": "Order-Vendor Relationship (Order 692812ee528c9508fb6d3352)",
+        "passed": true,
+        "details": {
+          "orderId": "692812ee528c9508fb6d3352",
+          "vendorId": "69255e5c155d6abdc17ce3d8",
+          "vendorExists": true
+        },
+        "timestamp": "2025-11-29T12:49:26.200Z"
+      },
+      {
+        "name": "Vendor Status Valid for Order 692812ee528c9508fb6d3352",
+        "passed": true,
+        "details": {},
+        "timestamp": "2025-11-29T12:49:26.200Z"
+      },
+      {
+        "name": "User-Seller Relationship (User 69269b6495f556cec31be4ab)",
+        "passed": true,
+        "details": {
+          "userId": "69269b6495f556cec31be4ab",
+          "sellerId": "SLR-101",
+          "sellerExists": true
+        },
+        "timestamp": "2025-11-29T12:49:26.490Z"
+      },
+      {
+        "name": "Seller ID Immutability (User 69269b6495f556cec31be4ab)",
+        "passed": true,
+        "details": {
+          "note": "Seller ID should be immutable after first assignment"
+        },
+        "timestamp": "2025-11-29T12:49:26.491Z"
+      },
+      {
+        "name": "User-Seller Relationship (User 692974b6a94b0aa3671e99d5)",
+        "passed": true,
+        "details": {
+          "userId": "692974b6a94b0aa3671e99d5",
+          "sellerId": "SLR-101",
+          "sellerExists": true
+        },
+        "timestamp": "2025-11-29T12:49:26.533Z"
+      },
+      {
+        "name": "Seller ID Immutability (User 692974b6a94b0aa3671e99d5)",
+        "passed": true,
+        "details": {
+          "note": "Seller ID should be immutable after first assignment"
+        },
+        "timestamp": "2025-11-29T12:49:26.533Z"
+      },
+      {
+        "name": "Payment Status Consistency (Order 6926b414fcd206a29997ded2)",
+        "passed": false,
+        "details": {
+          "orderId": "6926b414fcd206a29997ded2",
+          "paymentStatus": "fully_paid",
+          "totalPaid": 0,
+          "orderTotal": 6409.959999999999
+        },
+        "timestamp": "2025-11-29T12:49:26.848Z"
+      },
+      {
+        "name": "Payment Status Consistency (Order 6926e9947b281c19c95321c2)",
+        "passed": false,
+        "details": {
+          "orderId": "6926e9947b281c19c95321c2",
+          "paymentStatus": "fully_paid",
+          "totalPaid": 0,
+          "orderTotal": 2519.99
+        },
+        "timestamp": "2025-11-29T12:49:26.889Z"
+      },
+      {
+        "name": "Payment Status Consistency (Order 6926fc8c7da4ca5275e8a1fd)",
+        "passed": false,
+        "details": {
+          "orderId": "6926fc8c7da4ca5275e8a1fd",
+          "paymentStatus": "fully_paid",
+          "totalPaid": 0,
+          "orderTotal": 3049.8
+        },
+        "timestamp": "2025-11-29T12:49:26.934Z"
+      },
+      {
+        "name": "Payment Status Consistency (Order 692809a27a6f1539f5a7adc6)",
+        "passed": false,
+        "details": {
+          "orderId": "692809a27a6f1539f5a7adc6",
+          "paymentStatus": "fully_paid",
+          "totalPaid": 0,
+          "orderTotal": 2109.8
+        },
+        "timestamp": "2025-11-29T12:49:26.977Z"
+      },
+      {
+        "name": "Payment Status Consistency (Order 692812ee528c9508fb6d3352)",
+        "passed": false,
+        "details": {
+          "orderId": "692812ee528c9508fb6d3352",
+          "paymentStatus": "fully_paid",
+          "totalPaid": 0,
+          "orderTotal": 3099.8
+        },
+        "timestamp": "2025-11-29T12:49:27.019Z"
+      },
+      {
+        "name": "Payment Status Consistency (Order 6928184f528c9508fb6d38f0)",
+        "passed": false,
+        "details": {
+          "orderId": "6928184f528c9508fb6d38f0",
+          "paymentStatus": "fully_paid",
+          "totalPaid": 0,
+          "orderTotal": 34786.38999999999
+        },
+        "timestamp": "2025-11-29T12:49:27.064Z"
+      },
+      {
+        "name": "Commission Calculation (Order 6926fc8c7da4ca5275e8a1fd)",
+        "passed": false,
+        "details": {
+          "orderId": "6926fc8c7da4ca5275e8a1fd",
+          "orderTotal": 3049.8,
+          "expectedCommission": 0
+        },
+        "timestamp": "2025-11-29T12:49:27.361Z"
+      },
+      {
+        "name": "Commission Calculation (Order 692809a27a6f1539f5a7adc6)",
+        "passed": false,
+        "details": {
+          "orderId": "692809a27a6f1539f5a7adc6",
+          "orderTotal": 2109.8,
+          "expectedCommission": 0
+        },
+        "timestamp": "2025-11-29T12:49:27.405Z"
+      },
+      {
+        "name": "Commission Calculation (Order 6928184f528c9508fb6d38f0)",
+        "passed": false,
+        "details": {
+          "orderId": "6928184f528c9508fb6d38f0",
+          "orderTotal": 34786.38999999999,
+          "expectedCommission": 0
+        },
+        "timestamp": "2025-11-29T12:49:27.451Z"
+      },
+      {
+        "name": "Vendor Credit Limit (69255e5c155d6abdc17ce3d8)",
+        "passed": false,
+        "details": {
+          "vendorId": "69255e5c155d6abdc17ce3d8",
+          "creditLimit": 100000,
+          "creditUsed": 110910,
+          "creditAvailable": -10910,
+          "withinLimit": false
+        },
+        "timestamp": "2025-11-29T12:49:27.697Z"
+      },
+      {
+        "name": "Vendor Credit Limit (692599550962f80f321fd937)",
+        "passed": true,
+        "details": {
+          "vendorId": "692599550962f80f321fd937",
+          "creditLimit": 200000,
+          "creditUsed": 50280,
+          "creditAvailable": 149720,
+          "withinLimit": true
+        },
+        "timestamp": "2025-11-29T12:49:27.742Z"
+      },
+      {
+        "name": "Vendor Credit Limit (6925a7ad61852b18108c05cb)",
+        "passed": true,
+        "details": {
+          "vendorId": "6925a7ad61852b18108c05cb",
+          "creditLimit": 300000,
+          "creditUsed": 75000,
+          "creditAvailable": 225000,
+          "withinLimit": true
+        },
+        "timestamp": "2025-11-29T12:49:27.784Z"
+      },
+      {
+        "name": "Vendor Credit Limit (6929e9859c139998b17cf263)",
+        "passed": true,
+        "details": {
+          "vendorId": "6929e9859c139998b17cf263",
+          "creditLimit": 0,
+          "creditUsed": 0,
+          "creditAvailable": 0,
+          "withinLimit": true
+        },
+        "timestamp": "2025-11-29T12:49:27.830Z"
+      },
+      {
+        "name": "Cart Minimum Order Value (₹2000) - Cart 69269b7895f556cec31be4c7",
+        "passed": false,
+        "details": {
+          "cartId": "69269b7895f556cec31be4c7",
+          "cartTotal": 1559.88,
+          "meetsMinimum": false
+        },
+        "timestamp": "2025-11-29T12:49:28.171Z"
+      },
+      {
+        "name": "Cart Minimum Order Value (₹2000) - Cart 692aeba55dd9117db189a23d",
+        "passed": true,
+        "details": {
+          "cartId": "692aeba55dd9117db189a23d",
+          "cartTotal": 8200,
+          "meetsMinimum": true
+        },
+        "timestamp": "2025-11-29T12:49:28.257Z"
+      },
+      {
+        "name": "Stock Available After Order (Order 6928184f528c9508fb6d38f0)",
+        "passed": true,
+        "details": {
+          "orderId": "6928184f528c9508fb6d38f0",
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "orderedQuantity": 13,
+          "stockAvailable": 30
+        },
+        "timestamp": "2025-11-29T12:49:28.562Z"
+      },
+      {
+        "name": "Stock Available After Order (Order 692809a27a6f1539f5a7adc6)",
+        "passed": true,
+        "details": {
+          "orderId": "692809a27a6f1539f5a7adc6",
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "orderedQuantity": 1,
+          "stockAvailable": 30
+        },
+        "timestamp": "2025-11-29T12:49:28.735Z"
+      },
+      {
+        "name": "Stock Available After Order (Order 6926fc8c7da4ca5275e8a1fd)",
+        "passed": true,
+        "details": {
+          "orderId": "6926fc8c7da4ca5275e8a1fd",
+          "productId": "69254d8856a5c77d9aaf68bf",
+          "orderedQuantity": 1,
+          "stockAvailable": 30
+        },
+        "timestamp": "2025-11-29T12:49:29.032Z"
+      }
+    ]
+  },
+  "totals": {
+    "passed": 109,
+    "failed": 26,
+    "skipped": 0,
+    "total": 135
+  },
+  "errors": [
+    {
+      "category": "Vendor Assignment",
+      "testName": "Assign Vendor (20km radius)",
+      "details": {},
+      "timestamp": "2025-11-29T12:48:41.505Z"
+    },
+    {
+      "category": "Order Creation",
+      "testName": "Create Order (Partial Payment)",
+      "details": {},
+      "timestamp": "2025-11-29T12:48:42.410Z"
+    },
+    {
+      "category": "Payment Processing",
+      "testName": "Payment Tests",
+      "details": {
+        "error": "No orders available"
+      },
+      "timestamp": "2025-11-29T12:48:43.412Z"
+    },
+    {
+      "category": "Vendor Inventory",
+      "testName": "Update Stock Quantity",
+      "details": {},
+      "timestamp": "2025-11-29T12:48:51.593Z"
+    },
+    {
+      "category": "Vendor Credit",
+      "testName": "Credit Purchase Below Minimum (₹50,000)",
+      "details": {
+        "expected": "Should fail with 400"
+      },
+      "timestamp": "2025-11-29T12:48:53.083Z"
+    },
+    {
+      "category": "Vendor Reports",
+      "testName": "Get Reports",
+      "details": {},
+      "timestamp": "2025-11-29T12:48:55.948Z"
+    },
+    {
+      "category": "Admin Products",
+      "testName": "Create Product",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:09.836Z"
+    },
+    {
+      "category": "Admin Orders",
+      "testName": "Reassign Order",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:13.470Z"
+    },
+    {
+      "category": "Edge Cases",
+      "testName": "Access with Invalid Token",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:15.428Z"
+    },
+    {
+      "category": "Edge Cases",
+      "testName": "Access without Token",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:15.429Z"
+    },
+    {
+      "category": "Edge Cases",
+      "testName": "Login with Invalid OTP",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:15.661Z"
+    },
+    {
+      "category": "Edge Cases",
+      "testName": "Credit Purchase Below Minimum (₹50,000)",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:22.170Z"
+    },
+    {
+      "category": "Edge Cases",
+      "testName": "Get Non-existent Product",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:22.743Z"
+    },
+    {
+      "category": "Edge Cases",
+      "testName": "Get Non-existent Order",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:22.745Z"
+    },
+    {
+      "category": "Edge Cases",
+      "testName": "Invalid Phone Number Format",
+      "details": {},
+      "timestamp": "2025-11-29T12:49:23.256Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Payment Status Consistency (Order 6926b414fcd206a29997ded2)",
+      "details": {
+        "orderId": "6926b414fcd206a29997ded2",
+        "paymentStatus": "fully_paid",
+        "totalPaid": 0,
+        "orderTotal": 6409.959999999999
+      },
+      "timestamp": "2025-11-29T12:49:26.848Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Payment Status Consistency (Order 6926e9947b281c19c95321c2)",
+      "details": {
+        "orderId": "6926e9947b281c19c95321c2",
+        "paymentStatus": "fully_paid",
+        "totalPaid": 0,
+        "orderTotal": 2519.99
+      },
+      "timestamp": "2025-11-29T12:49:26.889Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Payment Status Consistency (Order 6926fc8c7da4ca5275e8a1fd)",
+      "details": {
+        "orderId": "6926fc8c7da4ca5275e8a1fd",
+        "paymentStatus": "fully_paid",
+        "totalPaid": 0,
+        "orderTotal": 3049.8
+      },
+      "timestamp": "2025-11-29T12:49:26.934Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Payment Status Consistency (Order 692809a27a6f1539f5a7adc6)",
+      "details": {
+        "orderId": "692809a27a6f1539f5a7adc6",
+        "paymentStatus": "fully_paid",
+        "totalPaid": 0,
+        "orderTotal": 2109.8
+      },
+      "timestamp": "2025-11-29T12:49:26.977Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Payment Status Consistency (Order 692812ee528c9508fb6d3352)",
+      "details": {
+        "orderId": "692812ee528c9508fb6d3352",
+        "paymentStatus": "fully_paid",
+        "totalPaid": 0,
+        "orderTotal": 3099.8
+      },
+      "timestamp": "2025-11-29T12:49:27.019Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Payment Status Consistency (Order 6928184f528c9508fb6d38f0)",
+      "details": {
+        "orderId": "6928184f528c9508fb6d38f0",
+        "paymentStatus": "fully_paid",
+        "totalPaid": 0,
+        "orderTotal": 34786.38999999999
+      },
+      "timestamp": "2025-11-29T12:49:27.064Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Commission Calculation (Order 6926fc8c7da4ca5275e8a1fd)",
+      "details": {
+        "orderId": "6926fc8c7da4ca5275e8a1fd",
+        "orderTotal": 3049.8,
+        "expectedCommission": 0
+      },
+      "timestamp": "2025-11-29T12:49:27.361Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Commission Calculation (Order 692809a27a6f1539f5a7adc6)",
+      "details": {
+        "orderId": "692809a27a6f1539f5a7adc6",
+        "orderTotal": 2109.8,
+        "expectedCommission": 0
+      },
+      "timestamp": "2025-11-29T12:49:27.405Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Commission Calculation (Order 6928184f528c9508fb6d38f0)",
+      "details": {
+        "orderId": "6928184f528c9508fb6d38f0",
+        "orderTotal": 34786.38999999999,
+        "expectedCommission": 0
+      },
+      "timestamp": "2025-11-29T12:49:27.451Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Vendor Credit Limit (69255e5c155d6abdc17ce3d8)",
+      "details": {
+        "vendorId": "69255e5c155d6abdc17ce3d8",
+        "creditLimit": 100000,
+        "creditUsed": 110910,
+        "creditAvailable": -10910,
+        "withinLimit": false
+      },
+      "timestamp": "2025-11-29T12:49:27.697Z"
+    },
+    {
+      "category": "Data Integrity",
+      "testName": "Cart Minimum Order Value (₹2000) - Cart 69269b7895f556cec31be4c7",
+      "details": {
+        "cartId": "69269b7895f556cec31be4c7",
+        "cartTotal": 1559.88,
+        "meetsMinimum": false
+      },
+      "timestamp": "2025-11-29T12:49:28.171Z"
+    }
+  ]
+}

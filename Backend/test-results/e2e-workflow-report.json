@@ -1,0 +1,76 @@
+{
+  "summary": {
+    "total": 8,
+    "passed": 3,
+    "failed": 5,
+    "passRate": "37.50%"
+  },
+  "tests": [
+    {
+      "name": "ADMIN-01: Login Step 1",
+      "passed": false,
+      "details": {
+        "message": "connect ECONNREFUSED ::1:3000"
+      },
+      "timestamp": "2026-01-25T10:13:39.607Z"
+    },
+    {
+      "name": "ADMIN-02: OTP Verification",
+      "passed": false,
+      "details": {
+        "error": "No token received"
+      },
+      "timestamp": "2026-01-25T10:13:40.268Z"
+    },
+    {
+      "name": "VEND-01: Test Vendor Created in DB",
+      "passed": true,
+      "details": {
+        "vendorId": "6975ecd6615bfb49ce4615bc"
+      },
+      "timestamp": "2026-01-25T10:13:40.394Z"
+    },
+    {
+      "name": "VEND-02: OTP Login",
+      "passed": false,
+      "details": {
+        "error": "No token received"
+      },
+      "timestamp": "2026-01-25T10:13:40.459Z"
+    },
+    {
+      "name": "SELL-01: Test Seller Created in DB",
+      "passed": true,
+      "details": {
+        "sellerId": "E2ESELLER001"
+      },
+      "timestamp": "2026-01-25T10:13:40.984Z"
+    },
+    {
+      "name": "SELL-02: OTP Login",
+      "passed": false,
+      "details": {
+        "error": "No token received"
+      },
+      "timestamp": "2026-01-25T10:13:41.066Z"
+    },
+    {
+      "name": "USER-01: Test User Created with Seller Link",
+      "passed": true,
+      "details": {
+        "userId": "6975ecd6615bfb49ce4615be",
+        "linkedSeller": "6975ecd6615bfb49ce4615bd"
+      },
+      "timestamp": "2026-01-25T10:13:41.135Z"
+    },
+    {
+      "name": "USER-02: OTP Login",
+      "passed": false,
+      "details": {
+        "error": "No token received"
+      },
+      "timestamp": "2026-01-25T10:13:41.227Z"
+    }
+  ],
+  "timestamp": "2026-01-25T10:13:41.231Z"
+}
