@@ -108,19 +108,22 @@ export default function CategoryFormModal({ category, onClose, onSuccess }) {
 
                     {/* Image Upload */}
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 uppercase tracking-tight">Category Image (Squared)</label>
+                        <label className="text-sm font-bold text-gray-700 uppercase tracking-tight">Category Image (Portrait 2:3)</label>
                         <div className="bg-gray-50 p-4 rounded-2xl border border-dashed border-gray-300">
                             <ImageUpload
                                 images={formData.image ? [formData.image] : []}
                                 maxImages={1}
                                 onChange={(images) => setFormData({ ...formData, image: images[0] || null })}
                                 disabled={isSaving}
+                                aspectRatio={2 / 3}
+                                folder="canx/taxonomy"
                             />
                         </div>
                         <p className="text-[10px] text-gray-500 italic">
-                            * Use high-quality squared imagery for best dashboard appearance.
+                            * Use high-quality portrait imagery (e.g. 800x1200) for best appearance.
                         </p>
                     </div>
+
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">

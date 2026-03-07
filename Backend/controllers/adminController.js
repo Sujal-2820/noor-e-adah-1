@@ -4,6 +4,7 @@
  * Handles all admin-related operations
  */
 
+const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
 // const User = require('../models/User');
 const User = require('../models/User');
@@ -14,7 +15,6 @@ const UserEarning = require('../models/UserEarning');
 const BankAccount = require('../models/BankAccount');
 const Order = require('../models/Order');
 const Payment = require('../models/Payment');
-
 const PaymentHistory = require('../models/PaymentHistory');
 const Settings = require('../models/Settings');
 const Notification = require('../models/Notification');
@@ -24,6 +24,7 @@ const Review = require('../models/Review');
 const Category = require('../models/Category');
 
 const razorpayService = require('../services/razorpayService');
+const { deleteFile, getVideoThumbnail } = require('../config/cloudinary');
 const { USER_COVERAGE_RADIUS_KM, MIN_USER_PURCHASE, DELIVERY_TIMELINE_HOURS, ORDER_STATUS, PAYMENT_STATUS } = require('../utils/constants');
 
 const { sendOTP } = require('../utils/otp');
@@ -862,6 +863,8 @@ exports.createProduct = async (req, res, next) => {
       collection: collectionId,
       wholesalePrice: finalWholesalePrice,
       publicPrice: finalPublicPrice,
+      discountPublic: parseFloat(discountPublic) || 0,
+      discountWholesale: parseFloat(discountWholesale) || 0,
       actualStock: actualStockValue,
       displayStock: displayStockValue,
       stock: displayStockValue,
@@ -874,6 +877,7 @@ exports.createProduct = async (req, res, next) => {
       relatedProducts: Array.isArray(relatedProducts) ? relatedProducts : [],
       ...(Array.isArray(sizes) && sizes.length > 0 && { sizes }),
     };
+
 
     if (images && Array.isArray(images)) {
       // Validate and normalize image objects
@@ -1015,21 +1019,84 @@ exports.updateProduct = async (req, res, next) => {
     }
 
     // Normalize and validate category if provided
-    if (updateData.category) {
-      const categoryLower = updateData.category.toLowerCase();
-      // For now, accept any category provided or validated existence in DB
-      const dbCategory = await Category.findOne({
-        $or: [
-          { slug: categoryLower },
-          { name: new RegExp('^' + updateData.category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
-        ]
-      });
-      updateData.category = categoryLower;
+    if (updateData.category !== undefined) {
+      if (mongoose.Types.ObjectId.isValid(updateData.category)) {
+        product.category = updateData.category;
+      } else {
+        const categoryLower = String(updateData.category).toLowerCase();
+        const dbCategory = await Category.findOne({
+          $or: [
+            { slug: categoryLower },
+            { name: new RegExp('^' + categoryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+          ]
+        });
+        if (dbCategory) {
+          product.category = dbCategory._id;
+        } else {
+          // If category not found by name/slug, keep the existing one or set to null if intended
+          // For now, we'll just not update it if the provided string doesn't match a category
+          // Or, if it's a required field, throw an error.
+        }
+      }
+    }
+
+    // Resolve look if provided (all taxonomy types use Category model)
+    if (updateData.look !== undefined) {
+      if (updateData.look === null || updateData.look === '') {
+        product.look = null;
+      } else if (mongoose.Types.ObjectId.isValid(updateData.look)) {
+        product.look = updateData.look;
+      } else {
+        const lookLower = String(updateData.look).toLowerCase();
+        const dbLook = await Category.findOne({
+          $or: [
+            { slug: lookLower },
+            { name: new RegExp('^' + lookLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+          ]
+        });
+        if (dbLook) product.look = dbLook._id;
+      }
+    }
+
+    // Resolve theme if provided (all taxonomy types use Category model)
+    if (updateData.theme !== undefined) {
+      if (updateData.theme === null || updateData.theme === '') {
+        product.theme = null;
+      } else if (mongoose.Types.ObjectId.isValid(updateData.theme)) {
+        product.theme = updateData.theme;
+      } else {
+        const themeLower = String(updateData.theme).toLowerCase();
+        const dbTheme = await Category.findOne({
+          $or: [
+            { slug: themeLower },
+            { name: new RegExp('^' + themeLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+          ]
+        });
+        if (dbTheme) product.theme = dbTheme._id;
+      }
+    }
+
+    // Resolve collection if provided (all taxonomy types use Category model)
+    if (updateData.collection !== undefined) {
+      if (updateData.collection === null || updateData.collection === '') {
+        product.collection = null;
+      } else if (mongoose.Types.ObjectId.isValid(updateData.collection)) {
+        product.collection = updateData.collection;
+      } else {
+        const collectionLower = String(updateData.collection).toLowerCase();
+        const dbCollection = await Category.findOne({
+          $or: [
+            { slug: collectionLower },
+            { name: new RegExp('^' + collectionLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
+          ]
+        });
+        if (dbCollection) product.collection = dbCollection._id;
+      }
     }
 
     // Normalize SKU if provided
     if (updateData.sku) {
-      updateData.sku = updateData.sku.toUpperCase();
+      product.sku = updateData.sku.toUpperCase();
     }
 
     // Handle stock fields
@@ -1121,7 +1188,6 @@ exports.updateProduct = async (req, res, next) => {
     }
 
     // Handle enhanced details
-    // Handle enhanced details
     if (updateData.additionalInformation !== undefined) {
       product.additionalInformation = updateData.additionalInformation;
     }
@@ -1134,8 +1200,50 @@ exports.updateProduct = async (req, res, next) => {
       }
     }
 
-    // Update other fields
-    const excludedFields = ['actualStock', 'displayStock', 'stock', 'stockUnit', 'batchNumber', 'isActive', 'tags', 'specifications', 'images', 'attributeStocks', 'additionalInformation', 'shippingPolicy', 'faqs'];
+    // Handle sizes (fashion variants)
+    if (updateData.sizes !== undefined) {
+      if (Array.isArray(updateData.sizes)) {
+        product.sizes = updateData.sizes;
+      } else {
+        product.sizes = [];
+      }
+    }
+
+    // Handle sizeChart
+    if (updateData.sizeChart !== undefined) {
+      product.sizeChart = updateData.sizeChart;
+    }
+
+    // Handle relatedProducts
+    if (updateData.relatedProducts !== undefined) {
+      product.relatedProducts = Array.isArray(updateData.relatedProducts) ? updateData.relatedProducts : [];
+    }
+
+    // Handle showStock
+    if (updateData.showStock !== undefined) {
+      product.showStock = updateData.showStock;
+    }
+
+    // Handle prices
+    if (updateData.publicPrice !== undefined) {
+      product.publicPrice = parseFloat(updateData.publicPrice) || 0;
+    }
+    if (updateData.wholesalePrice !== undefined) {
+      product.wholesalePrice = parseFloat(updateData.wholesalePrice) || 0;
+    }
+    if (updateData.discountPublic !== undefined) {
+      product.discountPublic = parseFloat(updateData.discountPublic) || 0;
+    }
+
+    // Update other fields via generic loop (excluding all fields handled above)
+    const excludedFields = [
+      'actualStock', 'displayStock', 'stock', 'stockUnit', 'batchNumber', 'isActive',
+      'tags', 'specifications', 'images', 'attributeStocks',
+      'additionalInformation', 'shippingPolicy', 'faqs',
+      'sizes', 'sizeChart', 'relatedProducts', 'showStock',
+      'publicPrice', 'wholesalePrice', 'discountPublic',
+      'category', 'look', 'theme', 'collection', 'sku', 'occasions', 'video',
+    ];
     Object.keys(updateData).forEach(key => {
       if (updateData[key] !== undefined && !excludedFields.includes(key)) {
         product[key] = updateData[key];
@@ -1298,6 +1406,80 @@ exports.assignProductToUser = async (req, res, next) => {
         message: 'Product is already assigned to this User',
       });
     }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Upload product video
+ * @route   POST /api/admin/products/:productId/video
+ * @access  Private (Admin)
+ */
+exports.uploadProductVideo = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Please upload a video' });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      // If product not found but file uploaded, cleanup cloudinary
+      if (req.file.filename) {
+        await deleteFile(req.file.filename, 'video');
+      }
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    // Association with Cloudinary: req.file.path is the URL, req.file.filename is the public_id
+    // Cleanup old video if exists
+    if (product.video && product.video.publicId) {
+      await deleteFile(product.video.publicId, 'video');
+    }
+
+    product.video = {
+      url: req.file.path,
+      publicId: req.file.filename,
+      thumbnail: getVideoThumbnail(req.file.filename)
+    };
+
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      data: product.video,
+      message: 'Video associated with product successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete associated product video
+ * @route   DELETE /api/admin/products/:productId/video
+ * @access  Private (Admin)
+ */
+exports.deleteProductVideo = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    if (product.video && product.video.publicId) {
+      await deleteFile(product.video.publicId, 'video');
+      product.video = undefined;
+      await product.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Product video deleted successfully'
+    });
+  } catch (error) {
     next(error);
   }
 };
@@ -7019,7 +7201,7 @@ exports.getOffer = async (req, res, next) => {
 exports.createOffer = async (req, res, next) => {
   try {
     const adminId = req.admin.id;
-    const { type, title, description, image, productIds, specialTag, specialValue, linkedProductIds, order } = req.body;
+    const { type, title, description, image, productIds, specialTag, specialValue, linkedProductIds, order, buttonText, buttonLink, textPosition } = req.body;
 
     // Validate required fields based on type
     if (!type || !['carousel', 'special_offer'].includes(type)) {
@@ -7099,6 +7281,9 @@ exports.createOffer = async (req, res, next) => {
       specialValue: type === 'special_offer' ? specialValue : undefined,
       linkedProductIds: type === 'special_offer' ? (linkedProductIds || []) : undefined,
       order: type === 'carousel' ? offerOrder : undefined,
+      buttonText: type === 'carousel' ? buttonText : undefined,
+      buttonLink: type === 'carousel' ? buttonLink : undefined,
+      textPosition: type === 'carousel' ? textPosition : undefined,
       createdBy: adminId,
       updatedBy: adminId,
     });
@@ -7126,7 +7311,7 @@ exports.updateOffer = async (req, res, next) => {
   try {
     const adminId = req.admin.id;
     const { id } = req.params;
-    const { title, description, image, productIds, specialTag, specialValue, linkedProductIds, isActive, order } = req.body;
+    const { title, description, image, productIds, specialTag, specialValue, linkedProductIds, isActive, order, buttonText, buttonLink, textPosition } = req.body;
 
     const offer = await Offer.findById(id);
     if (!offer) {
@@ -7177,6 +7362,9 @@ exports.updateOffer = async (req, res, next) => {
     if (offer.type === 'special_offer' && specialTag !== undefined) offer.specialTag = specialTag;
     if (offer.type === 'special_offer' && specialValue !== undefined) offer.specialValue = specialValue;
     if (offer.type === 'special_offer' && linkedProductIds !== undefined) offer.linkedProductIds = linkedProductIds;
+    if (offer.type === 'carousel' && buttonText !== undefined) offer.buttonText = buttonText;
+    if (offer.type === 'carousel' && buttonLink !== undefined) offer.buttonLink = buttonLink;
+    if (offer.type === 'carousel' && textPosition !== undefined) offer.textPosition = textPosition;
     if (isActive !== undefined) offer.isActive = isActive;
     offer.updatedBy = adminId;
 
@@ -7800,4 +7988,122 @@ exports.deleteReview = async (req, res, next) => {
     next(error);
   }
 };
+
+// ============================================================================
+// DELIVERY SETTINGS CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get delivery charge and delivery time configuration
+ * @route   GET /api/admin/settings/delivery
+ * @access  Private (Admin)
+ */
+exports.getDeliverySettings = async (req, res, next) => {
+  try {
+    const { loadDeliveryConfig } = require('../utils/deliveryUtils');
+    const config = await loadDeliveryConfig();
+
+    res.status(200).json({
+      success: true,
+      data: config,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update delivery charge and delivery time configuration
+ * @route   PUT /api/admin/settings/delivery
+ * @access  Private (Admin)
+ *
+ * Body:
+ * {
+ *   mode: 'flat_rate' | 'free',      // optional
+ *   domestic: {                        // optional
+ *     charge: 150,
+ *     minFreeDelivery: null | number,
+ *     timeLabel: '7-8 days',
+ *     isEnabled: true
+ *   },
+ *   international: {                   // optional
+ *     charge: null | number,
+ *     timeLabel: 'Coming Soon',
+ *     isEnabled: false
+ *   }
+ * }
+ */
+exports.updateDeliverySettings = async (req, res, next) => {
+  try {
+    const { loadDeliveryConfig, DEFAULT_DELIVERY_CONFIG } = require('../utils/deliveryUtils');
+    const adminId = req.admin?.id || req.user?.id;
+
+    const { mode, domestic, international } = req.body;
+
+    // Validate mode
+    const VALID_MODES = ['flat_rate', 'free'];
+    if (mode !== undefined && !VALID_MODES.includes(mode)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid mode. Must be one of: ${VALID_MODES.join(', ')}`,
+      });
+    }
+
+    // Validate domestic charge
+    if (domestic?.charge !== undefined && domestic.charge !== null) {
+      if (typeof domestic.charge !== 'number' || domestic.charge < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Domestic charge must be a non-negative number.',
+        });
+      }
+    }
+
+    // Validate international charge
+    if (international?.charge !== undefined && international.charge !== null) {
+      if (typeof international.charge !== 'number' || international.charge < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'International charge must be a non-negative number.',
+        });
+      }
+    }
+
+    // Load current config
+    const currentConfig = await loadDeliveryConfig();
+
+    // Deep merge — only override what is provided
+    const updatedConfig = {
+      ...currentConfig,
+      ...(mode !== undefined && { mode }),
+      domestic: {
+        ...currentConfig.domestic,
+        ...(domestic || {}),
+      },
+      international: {
+        ...currentConfig.international,
+        ...(international || {}),
+      },
+    };
+
+    // Persist to Settings
+    await Settings.setSetting(
+      'DELIVERY_CONFIG',
+      updatedConfig,
+      'Delivery charge and delivery time configuration (Domestic + International)',
+      adminId,
+    );
+
+    console.log(`✅ Delivery settings updated by admin ${adminId || 'unknown'}:`, updatedConfig);
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery settings updated successfully.',
+      data: updatedConfig,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 

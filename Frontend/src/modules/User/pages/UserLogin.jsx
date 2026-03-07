@@ -110,7 +110,10 @@ export function UserLogin({ onSuccess, onSwitchToRegister }) {
 
         // User is approved - proceed to dashboard
         if (responseData?.token || result.data?.token) {
-          localStorage.setItem('user_token', responseData?.token || result.data?.token)
+          const token = responseData?.token || result.data?.token
+          localStorage.setItem('user_token', token)
+          // Store 7-day expiry timestamp
+          localStorage.setItem('user_token_expiry', Date.now() + 7 * 24 * 60 * 60 * 1000)
         }
 
         // Update user context with profile

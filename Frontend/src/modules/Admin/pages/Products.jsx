@@ -8,7 +8,7 @@ import { ProductAttributesModal } from '../components/ProductAttributesModal'
 import { useAdminState } from '../context/AdminContext'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
-// Product inventory import removed
+import { uploadProductVideo } from '../services/adminApi'
 import { cn } from '../../../lib/cn'
 
 const columns = [
@@ -166,9 +166,19 @@ export function ProductsPage({ subRoute = null, navigate }) {
 
   const handleFormSubmit = async (formData) => {
     try {
+      // Detect a pending video file (selected before the product was saved)
+      const pendingVideoFile = formData.video?._pendingFile instanceof File
+        ? formData.video._pendingFile
+        : null
+
+      // Strip _pendingFile from the payload — the backend doesn't accept File objects
+      const cleanFormData = pendingVideoFile
+        ? { ...formData, video: null }
+        : formData
+
       if (selectedProduct) {
         // Update existing product
-        const result = await updateProduct(selectedProduct.id, formData)
+        const result = await updateProduct(selectedProduct.id, cleanFormData)
         if (result.data) {
           setSelectedProduct(null)
           fetchProducts()
@@ -181,21 +191,31 @@ export function ProductsPage({ subRoute = null, navigate }) {
             showError(errorMessage, 5000)
           }
         } else {
-          // Handle case where result has neither data nor error
           showError('Unexpected response from server. Please try again.', 5000)
         }
       } else {
         // Create new product
-        const result = await createProduct(formData)
+        const result = await createProduct(cleanFormData)
         if (result.data) {
+          const newProductId = result.data.product?._id || result.data.product?.id || result.data._id || result.data.id
+
+          // ── Upload pending reel now that we have a product ID ──
+          if (pendingVideoFile && newProductId) {
+            try {
+              const videoResult = await uploadProductVideo(newProductId, pendingVideoFile)
+              if (!videoResult.success) {
+                showWarning('Product saved! However, the reel could not be uploaded. You can add it from the Edit Product screen.', 6000)
+              }
+            } catch (videoErr) {
+              showWarning('Product saved! However, the reel upload failed. You can add it from the Edit Product screen.', 6000)
+            }
+          }
+
           setSelectedProduct(null)
           fetchProducts()
           success('Product created successfully!', 3000)
-          // Navigate back to products list after successful creation
           if (navigate) {
-            setTimeout(() => {
-              navigate('products')
-            }, 500) // Small delay to show success message
+            setTimeout(() => { navigate('products') }, 500)
           }
         } else if (result.error) {
           const errorMessage = result.error.message || 'Failed to create product'
@@ -205,7 +225,6 @@ export function ProductsPage({ subRoute = null, navigate }) {
             showError(errorMessage, 5000)
           }
         } else {
-          // Handle case where result has neither data nor error
           showError('Unexpected response from server. Please try again.', 5000)
         }
       }

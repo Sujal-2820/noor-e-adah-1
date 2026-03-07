@@ -8,6 +8,7 @@ const UserAdminMessageController = require('../controllers/UserAdminMessageContr
 
 // Import middleware
 const { authorizeAdmin } = require('../middleware/auth');
+const { uploadVideo } = require('../config/cloudinary');
 // const { validateRequest } = require('../middleware/validation');
 
 // ============================================================================
@@ -128,6 +129,20 @@ router.post('/products/:productId/assign', authorizeAdmin, adminController.assig
  * @access  Private (Admin)
  */
 router.put('/products/:productId/visibility', authorizeAdmin, adminController.toggleProductVisibility);
+
+/**
+ * @route   POST /api/admin/products/:productId/video
+ * @desc    Upload and associate vertical video with product
+ * @access  Private (Admin)
+ */
+router.post('/products/:productId/video', authorizeAdmin, uploadVideo.single('video'), adminController.uploadProductVideo);
+
+/**
+ * @route   DELETE /api/admin/products/:productId/video
+ * @desc    Delete associated product video
+ * @access  Private (Admin)
+ */
+router.delete('/products/:productId/video', authorizeAdmin, adminController.deleteProductVideo);
 
 /**
  * @route   PUT /api/admin/products/:productId
@@ -538,5 +553,24 @@ router.get('/reviews/:reviewId', authorizeAdmin, adminController.getReviewDetail
  */
 router.delete('/reviews/:reviewId', authorizeAdmin, adminController.deleteReview);
 
+// ============================================================================
+// DELIVERY SETTINGS ROUTES
+// ============================================================================
+
+/**
+ * @route   GET /api/admin/settings/delivery
+ * @desc    Get delivery charge and time configuration
+ * @access  Private (Admin)
+ */
+router.get('/settings/delivery', authorizeAdmin, adminController.getDeliverySettings);
+
+/**
+ * @route   PUT /api/admin/settings/delivery
+ * @desc    Update delivery charge and time configuration
+ * @access  Private (Admin)
+ */
+router.put('/settings/delivery', authorizeAdmin, adminController.updateDeliverySettings);
+
 module.exports = router;
+
 

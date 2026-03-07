@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { useUserDispatch, useUserState } from '../../context/UserContext'
 import { useUserApi } from '../../hooks/useUserApi'
@@ -234,10 +234,25 @@ export function UserDashboard({ onLogout }) {
     return () => window.removeEventListener('navigate-to-tab', handleNavigate)
   }, [navigateToTab])
 
-  // Scroll to top when tab changes
+  // Disable browser automatic scroll restoration to ensure our scroll-to-top works
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [activeTab])
+    if ('scrollRestoration' in window.history) {
+      const original = window.history.scrollRestoration
+      window.history.scrollRestoration = 'manual'
+      return () => { window.history.scrollRestoration = original }
+    }
+  }, [])
+
+  // Scroll to top when tab or location changes
+  useEffect(() => {
+    // Increase timeout slightly and add location.pathname to ensure it works globally
+    const timer = setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+      document.documentElement.scrollTo(0, 0)
+      document.body.scrollTo(0, 0)
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [activeTab, location.pathname])
 
   // Fetch user profile and dashboard data on mount (only if authenticated or has token)
   useEffect(() => {
@@ -408,6 +423,7 @@ export function UserDashboard({ onLogout }) {
 
   const handleLogout = () => {
     localStorage.removeItem('user_token')
+    localStorage.removeItem('user_token_expiry')
     dispatch({ type: 'AUTH_LOGOUT' })
     onLogout?.()
   }

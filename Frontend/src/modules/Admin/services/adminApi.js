@@ -37,22 +37,27 @@ async function handleResponse(response) {
  * API Request Helper
  */
 async function apiRequest(endpoint, options = {}) {
-  const token = localStorage.getItem('admin_token') // Admin authentication token
+  const token = localStorage.getItem('admin_token')
+
+  const headers = {
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
+  }
+
+  // Only set application/json if not FormData body
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
+  }
 
   const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
     ...options,
+    headers,
   }
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config)
     return handleResponse(response)
   } catch (error) {
-    // If handleResponse throws, catch it and return error format
     return {
       success: false,
       error: {
@@ -63,9 +68,63 @@ async function apiRequest(endpoint, options = {}) {
   }
 }
 
+/**
+ * Upload Product Video
+ * @param {string} productId 
+ * @param {File} videoFile 
+ */
+export async function uploadProductVideo(productId, videoFile) {
+  const formData = new FormData()
+  formData.append('video', videoFile)
+
+  return apiRequest(`/admin/products/${productId}/video`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+/**
+ * Delete Product Video
+ * @param {string} productId 
+ */
+export async function deleteProductVideo(productId) {
+  return apiRequest(`/admin/products/${productId}/video`, {
+    method: 'DELETE',
+  })
+}
+
+// ============================================================================
+// DELIVERY SETTINGS APIs
+// ============================================================================
+
+/**
+ * Get Delivery Settings (charge + time config)
+ * GET /admin/settings/delivery
+ *
+ * @returns {Promise<Object>} - { mode, domestic: { charge, timeLabel, ... }, international: { ... } }
+ */
+export async function getDeliverySettings() {
+  return apiRequest('/admin/settings/delivery')
+}
+
+/**
+ * Update Delivery Settings
+ * PUT /admin/settings/delivery
+ *
+ * @param {Object} settings - { mode?, domestic?: { charge?, timeLabel?, minFreeDelivery?, isEnabled? }, international?: { ... } }
+ * @returns {Promise<Object>} - Updated delivery config
+ */
+export async function updateDeliverySettings(settings) {
+  return apiRequest('/admin/settings/delivery', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  })
+}
+
 // ============================================================================
 // AUTHENTICATION APIs
 // ============================================================================
+
 
 /**
  * Admin Login (Step 1: Phone only)
@@ -255,7 +314,16 @@ export async function getDashboardData(params = {}) {
  * Transform backend product to frontend format
  */
 function transformProduct(backendProduct) {
+  // Compute effective price after discount
+  const basePrice = backendProduct.publicPrice || backendProduct.priceToUser || 0
+  const discount = backendProduct.discountPublic || 0
+  const effectivePrice = discount > 0
+    ? Math.round(basePrice * (1 - discount / 100))
+    : basePrice
+
   return {
+    // Spread raw backend data first so explicit mappings below take priority
+    ...backendProduct,
     id: backendProduct._id?.toString() || backendProduct.id,
     name: backendProduct.name,
     description: backendProduct.description,
@@ -264,20 +332,20 @@ function transformProduct(backendProduct) {
     actualStock: backendProduct.actualStock !== undefined ? backendProduct.actualStock : (backendProduct.stock || 0),
     displayStock: backendProduct.displayStock !== undefined ? backendProduct.displayStock : (backendProduct.stock || 0),
     stockUnit: backendProduct.weight?.unit || backendProduct.stockUnit || 'kg',
-    userPrice: backendProduct.priceToUser || 0,
-    userPrice: backendProduct.priceToUser || 0,
+    // Effective price shown to users = publicPrice after discountPublic (%) is applied
+    userPrice: effectivePrice,
     expiry: backendProduct.expiry ? new Date(backendProduct.expiry).toISOString().split('T')[0] : null,
-    visibility: backendProduct.isActive !== false ? 'active' : 'inactive', // Default to active
+    visibility: backendProduct.isActive !== false ? 'active' : 'inactive',
     batchNumber: backendProduct.batchNumber || '',
     images: backendProduct.images || [],
     sku: backendProduct.sku,
     brand: backendProduct.brand,
     tags: backendProduct.tags || [],
     specifications: backendProduct.specifications,
-    // Keep all original fields for reference
-    ...backendProduct,
   }
 }
+
+
 
 /**
  * Get All Products
@@ -358,103 +426,92 @@ export async function getProductDetails(productId) {
 
 /**
  * Transform frontend product data to backend format
+ * Maps all ProductForm fields to the correct backend field names.
  */
 function transformProductForBackend(frontendData) {
-  // Handle both naming conventions: userPrice/userPrice or priceToUser/priceToUser
-  const userPrice = frontendData.priceToUser ?? frontendData.userPrice
-
-  // Parse prices - ensure they are valid numbers
-  const parsedUserPrice = userPrice != null && userPrice !== '' ? parseFloat(userPrice) : null
-
-  const backendData = {
-    name: frontendData.name,
-    description: frontendData.description || frontendData.longDescription || frontendData.name, // Use name as description if not provided
-    shortDescription: frontendData.shortDescription || frontendData.description?.substring(0, 150) || frontendData.name.substring(0, 150),
-    category: frontendData.category || 'fertilizer', // Default category
-    // Only set isActive if visibility is explicitly provided, otherwise default to true (active)
-    isActive: frontendData.visibility !== undefined
-      ? (frontendData.visibility === 'active' || frontendData.visibility === 'Active')
-      : true, // Default to active
+  // ── Pricing ───────────────────────────────────────────────────────────────
+  const parsePrice = (v) => (v !== undefined && v !== '' && v !== null ? parseFloat(v) || 0 : undefined)
+  const parseStockValue = (v) => {
+    if (v === '' || v === null || v === undefined) return 0
+    const n = parseFloat(v)
+    return isNaN(n) ? 0 : n
   }
 
-  // Handle stock fields - prioritize actualStock/displayStock over legacy stock
-  // Always include actualStock and displayStock if they exist (even if 0)
-  if (frontendData.actualStock !== undefined && frontendData.actualStock !== null) {
-    const actualStockValue = frontendData.actualStock === '' ? 0 : parseFloat(frontendData.actualStock)
-    if (!isNaN(actualStockValue)) {
-      backendData.actualStock = actualStockValue
-    }
+  const backendData = {}
+
+  // ── Core text fields ──────────────────────────────────────────────────────
+  if (frontendData.name !== undefined) backendData.name = frontendData.name
+  if (frontendData.description !== undefined) backendData.description = frontendData.description
+  if (frontendData.shortDescription !== undefined) backendData.shortDescription = frontendData.shortDescription
+  if (frontendData.longDescription !== undefined) backendData.longDescription = frontendData.longDescription
+  else if (frontendData.description !== undefined) backendData.longDescription = frontendData.description
+  if (frontendData.additionalInformation !== undefined) backendData.additionalInformation = frontendData.additionalInformation
+  if (frontendData.shippingPolicy !== undefined) backendData.shippingPolicy = frontendData.shippingPolicy
+  if (frontendData.faqs !== undefined) backendData.faqs = frontendData.faqs
+
+  // ── Taxonomy (ObjectId refs — send as-is, backend resolves) ─────────────
+  if (frontendData.category !== undefined) backendData.category = frontendData.category
+  if (frontendData.look !== undefined) backendData.look = frontendData.look || null
+  if (frontendData.theme !== undefined) backendData.theme = frontendData.theme || null
+  if (frontendData.collection !== undefined) backendData.collection = frontendData.collection || null
+
+  // ── Pricing (Noor E Adah schema fields) ──────────────────────────────────
+  if (frontendData.publicPrice !== undefined) backendData.publicPrice = parsePrice(frontendData.publicPrice) ?? 0
+  if (frontendData.wholesalePrice !== undefined) backendData.wholesalePrice = parsePrice(frontendData.wholesalePrice) ?? 0
+  if (frontendData.discountPublic !== undefined) backendData.discountPublic = parsePrice(frontendData.discountPublic) ?? 0
+
+  // ── Visibility / active state ─────────────────────────────────────────────
+  if (frontendData.isActive !== undefined) {
+    backendData.isActive = frontendData.isActive
+  } else if (frontendData.visibility !== undefined) {
+    backendData.isActive = frontendData.visibility === 'active' || frontendData.visibility === 'Active'
   }
-  if (frontendData.displayStock !== undefined && frontendData.displayStock !== null) {
-    const displayStockValue = frontendData.displayStock === '' ? 0 : parseFloat(frontendData.displayStock)
-    if (!isNaN(displayStockValue)) {
-      backendData.displayStock = displayStockValue
-      // Also set legacy stock field for backward compatibility
-      backendData.stock = displayStockValue
-    }
-  } else if (frontendData.stock !== undefined && frontendData.stock !== null) {
-    // Fallback to legacy stock field
-    const stockValue = frontendData.stock === '' ? 0 : parseFloat(frontendData.stock)
-    if (!isNaN(stockValue)) {
-      backendData.stock = stockValue
-      if (backendData.displayStock === undefined) {
-        backendData.displayStock = stockValue
-      }
-      if (backendData.actualStock === undefined) {
-        backendData.actualStock = stockValue
-      }
-    }
+  if (frontendData.showStock !== undefined) backendData.showStock = frontendData.showStock
+
+  // ── Stock ─────────────────────────────────────────────────────────────────
+  if (frontendData.actualStock !== undefined) backendData.actualStock = parseStockValue(frontendData.actualStock)
+  if (frontendData.displayStock !== undefined) {
+    backendData.displayStock = parseStockValue(frontendData.displayStock)
+    backendData.stock = backendData.displayStock
+  } else if (frontendData.stock !== undefined) {
+    backendData.stock = parseStockValue(frontendData.stock)
+    if (backendData.displayStock === undefined) backendData.displayStock = backendData.stock
+    if (backendData.actualStock === undefined) backendData.actualStock = backendData.stock
   }
 
-  // Only add prices if they are valid positive numbers
-  if (parsedUserPrice != null && !isNaN(parsedUserPrice) && parsedUserPrice > 0) {
-    backendData.priceToUser = parsedUserPrice
-  }
-  if (parsedUserPrice != null && !isNaN(parsedUserPrice) && parsedUserPrice > 0) {
-    backendData.priceToUser = parsedUserPrice
+  // ── Size variants (fashion) ───────────────────────────────────────────────
+  if (Array.isArray(frontendData.sizes)) backendData.sizes = frontendData.sizes
+
+  // ── Size chart and related products ──────────────────────────────────────
+  if (frontendData.sizeChart !== undefined) backendData.sizeChart = frontendData.sizeChart
+  if (Array.isArray(frontendData.relatedProducts)) backendData.relatedProducts = frontendData.relatedProducts
+
+  // ── Tags, brand, SKU, misc ────────────────────────────────────────────────
+  if (Array.isArray(frontendData.tags)) backendData.tags = frontendData.tags
+  if (frontendData.brand !== undefined) backendData.brand = frontendData.brand
+  if (frontendData.sku) backendData.sku = frontendData.sku.toUpperCase()
+  if (frontendData.batchNumber) backendData.batchNumber = frontendData.batchNumber.trim()
+  if (frontendData.expiry) backendData.expiry = frontendData.expiry
+  if (frontendData.specifications) backendData.specifications = frontendData.specifications
+  if (Array.isArray(frontendData.occasions)) backendData.occasions = frontendData.occasions
+
+  // ── Images ────────────────────────────────────────────────────────────────
+  if (Array.isArray(frontendData.images)) backendData.images = frontendData.images
+
+  // ── Legacy attribute stocks ───────────────────────────────────────────────
+  if (Array.isArray(frontendData.attributeStocks) && frontendData.attributeStocks.length > 0) {
+    backendData.attributeStocks = frontendData.attributeStocks
   }
 
-  // Add weight if stockUnit provided
+  // ── Stock unit → weight ───────────────────────────────────────────────────
   if (frontendData.stockUnit) {
     backendData.stockUnit = frontendData.stockUnit
-    backendData.weight = {
-      value: backendData.actualStock || backendData.displayStock || 0,
-      unit: frontendData.stockUnit,
-    }
-  }
-
-  // Add expiry date if provided
-  if (frontendData.expiry) {
-    backendData.expiry = frontendData.expiry
-  }
-
-  // Add batchNumber if provided
-  if (frontendData.batchNumber !== undefined && frontendData.batchNumber !== null && frontendData.batchNumber !== '') {
-    backendData.batchNumber = frontendData.batchNumber.trim()
-  }
-
-  // Add expiry if provided
-  if (frontendData.expiry) {
-    backendData.expiry = frontendData.expiry
-  }
-
-  // Add other optional fields
-  if (frontendData.brand) backendData.brand = frontendData.brand
-  if (frontendData.sku) backendData.sku = frontendData.sku.toUpperCase()
-  // Always include tags array (even if empty) - tags are used for product searchability
-  if (frontendData.tags !== undefined) {
-    backendData.tags = Array.isArray(frontendData.tags) ? frontendData.tags : []
-  }
-  if (frontendData.specifications) backendData.specifications = frontendData.specifications
-  if (frontendData.images && Array.isArray(frontendData.images)) backendData.images = frontendData.images
-
-  // Add attributeStocks if provided
-  if (frontendData.attributeStocks && Array.isArray(frontendData.attributeStocks) && frontendData.attributeStocks.length > 0) {
-    backendData.attributeStocks = frontendData.attributeStocks
+    backendData.weight = { value: backendData.actualStock || 0, unit: frontendData.stockUnit }
   }
 
   return backendData
 }
+
 
 /**
  * Create Product

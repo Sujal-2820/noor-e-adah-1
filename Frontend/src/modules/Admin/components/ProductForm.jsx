@@ -5,6 +5,7 @@ import { ImageUpload } from './ImageUpload'
 import { MarkdownEditor } from './MarkdownEditor'
 import { FashionSizeSelector } from './FashionSizeSelector'
 import { SizeChartManager } from './SizeChartManager'
+import { ProductVideoUpload } from './ProductVideoUpload'
 import { getAdminCategories } from '../services/adminApi'
 import { useAdminState } from '../context/AdminContext'
 import { Search } from 'lucide-react'
@@ -42,6 +43,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
     ],
     sizeChart: null,
     relatedProducts: [],
+    video: null,
   })
 
   const { products } = useAdminState()
@@ -128,8 +130,9 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
       faqs: (Array.isArray(product.faqs) && product.faqs.length > 0) ? product.faqs : formData.faqs,
       sizeChart: product.sizeChart || null,
       relatedProducts: Array.isArray(product.relatedProducts) ? product.relatedProducts : [],
+      video: product.video || null,
     })
-  }, [product])
+  }, [product, allProducts])
 
   // ─── Generic field change ────────────────────────────────────────────────────
   const handleChange = (e) => {
@@ -162,16 +165,50 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
   }
 
   // ─── Tags ─────────────────────────────────────────────────────────────────────
-  const handleAddTag = (e) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
+  /**
+   * Parse a raw string into individual tags.
+   * Splits on comma, semicolon, or newline. Trims, lowercases, deduplicates.
+   */
+  const parseTagString = (raw) => {
+    return raw
+      .split(/[,;\n]+/)
+      .map(t => t.trim().toLowerCase())
+      .filter(t => t.length > 0)
+  }
+
+  /** Add one or many tags at once, skipping duplicates. */
+  const commitTags = (newTags) => {
+    if (!newTags.length) return
+    setFormData(prev => ({
+      ...prev,
+      tags: [...prev.tags, ...newTags.filter(t => !prev.tags.includes(t))],
+    }))
+  }
+
+  const handleTagKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault()
-      const newTag = tagInput.trim().toLowerCase()
-      if (!formData.tags.includes(newTag)) {
-        setFormData(prev => ({ ...prev, tags: [...prev.tags, newTag] }))
-      }
+      const parsed = parseTagString(tagInput)
+      commitTags(parsed)
       setTagInput('')
+    } else if (e.key === 'Backspace' && tagInput === '' && formData.tags.length > 0) {
+      // Backspace on empty input removes the last tag
+      handleRemoveTag(formData.tags[formData.tags.length - 1])
     }
   }
+
+  const handleTagPaste = (e) => {
+    const pasted = e.clipboardData?.getData('text') || ''
+    // Only intercept if the pasted text contains a comma/semicolon/newline
+    if (/[,;\n]/.test(pasted)) {
+      e.preventDefault()
+      const parsed = parseTagString(pasted)
+      commitTags(parsed)
+      setTagInput('')
+    }
+    // Otherwise let native paste happen (user pasted a single-word tag)
+  }
+
   const handleRemoveTag = (tag) => {
     setFormData(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))
   }
@@ -254,16 +291,15 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
         ? (parseFloat(formData.sizes.find(s => s.price && parseFloat(s.price) > 0)?.price) || parseFloat(formData.publicPrice) || 0)
         : (parseFloat(formData.publicPrice) || 0),
       wholesalePrice: parseFloat(formData.wholesalePrice) || 0,
-      ...(formData.discountPublic && parseFloat(formData.discountPublic) > 0 && {
-        discountPublic: parseFloat(formData.discountPublic),
-      }),
+      discountPublic: parseFloat(formData.discountPublic) || 0,
+      discountWholesale: parseFloat(formData.discountWholesale) || 0,
       sizes: formData.sizes.map(sz => ({
         label: sz.label,
         actualStock: sz.actualStock || 0,
         displayStock: sz.displayStock || 0,
         isAvailable: sz.isAvailable !== false,
-        ...(sz.price && parseFloat(sz.price) > 0 && { price: parseFloat(sz.price) }),
-        ...(sz.discountPublic && parseFloat(sz.discountPublic) > 0 && { discountPublic: parseFloat(sz.discountPublic) }),
+        price: (sz.price !== '' && sz.price !== null) ? parseFloat(sz.price) : undefined,
+        discountPublic: (sz.discountPublic !== '' && sz.discountPublic !== null) ? parseFloat(sz.discountPublic) : 0,
       })),
       actualStock: totalActualStock,
       displayStock: totalDisplayStock,
@@ -275,6 +311,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
       sizeChart: formData.sizeChart,
       relatedProducts: formData.relatedProducts,
       ...(formData.images.length > 0 && { images: formData.images }),
+      ...(formData.video && { video: formData.video }),
     }
 
     onSubmit(submitData)
@@ -475,14 +512,32 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
         </div>
       </div>
 
-      {/* ── Images ───────────────────────────────────────────────────────────── */}
-      <div>
-        <ImageUpload
-          images={formData.images || []}
-          onChange={images => setFormData(prev => ({ ...prev, images }))}
-          maxImages={10}
-          disabled={loading}
-        />
+      {/* Product Media & Reels */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-900">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+            <Package className="h-5 w-5" />
+          </span>
+          Product Media & Reels
+        </h3>
+
+        <div className="space-y-6">
+          <ImageUpload
+            images={formData.images}
+            onChange={(images) => setFormData(prev => ({ ...prev, images }))}
+            maxImages={10}
+            disabled={loading}
+          />
+
+          <div className="pt-4 border-t border-gray-50">
+            <ProductVideoUpload
+              productId={product?._id || product?.id}
+              video={formData.video}
+              onChange={(video) => setFormData(prev => ({ ...prev, video }))}
+              disabled={loading}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ── Pricing ──────────────────────────────────────────────────────────── */}
@@ -657,14 +712,15 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
         <label htmlFor="tagInput" className="mb-2 block text-sm font-bold text-gray-900">
           <Tag className="mr-1 inline h-4 w-4" />
           Tags
-          <span className="ml-2 text-xs font-normal text-gray-500">Press Enter to add</span>
+          <span className="ml-2 text-xs font-normal text-gray-500">Enter or comma-separate · paste a comma-separated list</span>
         </label>
         <input
           type="text" id="tagInput"
           value={tagInput}
           onChange={e => setTagInput(e.target.value)}
-          onKeyDown={handleAddTag}
-          placeholder="e.g., bridal, festive, velvet..."
+          onKeyDown={handleTagKeyDown}
+          onPaste={handleTagPaste}
+          placeholder="e.g., bridal, festive, velvet — or paste: bridal,festive,velvet"
           className={inputCls('tagInput')}
         />
         {formData.tags.length > 0 && (

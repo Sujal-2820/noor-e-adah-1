@@ -278,7 +278,7 @@ export function CategoriesPage({ subRoute, navigate }) {
                                 )}
 
                                 {/* Image or placeholder */}
-                                <div className="aspect-square relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                                <div className="aspect-[2/3] relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
                                     {item.image?.url ? (
                                         <img
                                             src={item.image.url}
@@ -287,6 +287,7 @@ export function CategoriesPage({ subRoute, navigate }) {
                                             draggable={false}
                                         />
                                     ) : (
+
                                         <div className="w-full h-full flex items-center justify-center">
                                             {(() => { const Icon = tab?.icon || Layers; return <Icon className="w-14 h-14 text-gray-300" /> })()}
                                         </div>

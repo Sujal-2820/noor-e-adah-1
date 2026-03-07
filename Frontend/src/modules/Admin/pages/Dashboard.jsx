@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { FilterBar } from '../components/FilterBar'
 import { ProgressList } from '../components/ProgressList'
 import { Timeline } from '../components/Timeline'
+import { DeliverySettingsPanel } from '../components/DeliverySettingsPanel'
 
 import { useAdminState } from '../context/AdminContext'
 import { useAdminApi } from '../hooks/useAdminApi'
@@ -64,6 +65,12 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Delivery Settings — quick admin control */}
+      <section className="grid gap-6 md:grid-cols-2">
+        <DeliverySettingsPanel />
+      </section>
+
 
       <section className="grid gap-6">
         <div className="space-y-4 rounded-3xl border border-orange-200 bg-white p-6 shadow-[0_2px_6px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(255,255,255,0.4)] transition-all duration-300">

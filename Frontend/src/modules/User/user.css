@@ -6269,3 +6269,23 @@
     transform: translateY(0);
   }
 }
+
+/* Custom Utilities for Product Reels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.snap-x {
+  scroll-snap-type: x mandatory;
+}
+
+.snap-start {
+  scroll-snap-align: start;
+}

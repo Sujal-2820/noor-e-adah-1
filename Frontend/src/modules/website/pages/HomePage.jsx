@@ -161,11 +161,10 @@ export function HomePage() {
       <Section className="bg-white">
         <Container>
           <div className="text-center mb-16 animate-calm-entry">
-            <p className="text-[9px] lg:text-[11px] font-semibold tracking-[0.15em] text-brand/40 uppercase mb-3">
-              Curated Collections
-            </p>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl storefront-heading">Browse Categories</h2>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-widest text-brand uppercase">Categories</h2>
+            <div className="mt-4 w-12 h-1 bg-accent mx-auto"></div>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map((category, idx) => (
               <Link
@@ -204,30 +203,36 @@ export function HomePage() {
         <Section className="bg-surface-secondary">
           <Container>
             <div className="text-center mb-16 animate-calm-entry">
-              <p className="text-[9px] lg:text-[11px] font-semibold tracking-[0.15em] text-brand/40 uppercase mb-3">
-                Watch &amp; Wear
-              </p>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl storefront-heading">Shop By Look</h2>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-widest text-brand uppercase">Shop By Look</h2>
+              <div className="mt-4 w-12 h-1 bg-accent mx-auto"></div>
             </div>
-            <div className="flex flex-wrap justify-center gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {looks.map((look, idx) => (
                 <Link
                   key={look._id || look.id}
                   to={`/products?look=${look._id || look.id}`}
-                  className="group flex flex-col items-center gap-3 animate-calm-entry"
-                  style={{ animationDelay: `${idx * 100}ms` }}
+                  className="relative group overflow-hidden block h-[500px] animate-calm-entry"
+                  style={{ animationDelay: `${idx * 150}ms` }}
                 >
-                  <div className="relative w-36 h-36 sm:w-48 sm:h-48 rounded-full overflow-hidden border-2 border-transparent group-hover:border-accent transition-all duration-500 shadow-lg">
-                    {look.image?.url
-                      ? <img src={look.image.url} alt={look.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                      : <div className="w-full h-full bg-muted/20 flex items-center justify-center"><span className="text-3xl">👗</span></div>
-                    }
-                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-all duration-500 rounded-full" />
+                  {look.image?.url
+                    ? <img src={look.image.url} alt={look.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                    : <div className="w-full h-full bg-surface-secondary flex items-center justify-center text-4xl">👗</div>
+                  }
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-all duration-500" />
+                  <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center">
+                    <span className="text-white text-xs lg:text-[16px] font-bold tracking-[0.2em] uppercase mb-4 drop-shadow-md">
+                      {look.name}
+                    </span>
+                    <div className="h-[50px] overflow-hidden">
+                      <span className="inline-block px-8 py-3.5 bg-white text-brand text-[10px] lg:text-[13px] font-bold tracking-widest uppercase transform translate-y-20 group-hover:translate-y-0 transition-transform duration-500">
+                        Shop Now
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand group-hover:text-accent transition-colors">{look.name}</span>
                 </Link>
               ))}
             </div>
+
           </Container>
         </Section>
       )}
@@ -237,30 +242,36 @@ export function HomePage() {
         <Section className="bg-white">
           <Container>
             <div className="text-center mb-16 animate-calm-entry">
-              <p className="text-[9px] lg:text-[11px] font-semibold tracking-[0.15em] text-brand/40 uppercase mb-3">
-                Occasions &amp; Moods
-              </p>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl storefront-heading">Shop By Theme</h2>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-widest text-brand uppercase">Shop By Theme</h2>
+              <div className="mt-4 w-12 h-1 bg-accent mx-auto"></div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {themes.map((theme, idx) => (
                 <Link
                   key={theme._id || theme.id}
                   to={`/products?theme=${theme._id || theme.id}`}
-                  className="relative group overflow-hidden block aspect-square animate-calm-entry"
+                  className="relative group overflow-hidden block h-[400px] animate-calm-entry"
                   style={{ animationDelay: `${idx * 80}ms` }}
                 >
                   {theme.image?.url
-                    ? <img src={theme.image.url} alt={theme.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    : <div className="w-full h-full bg-gradient-to-br from-accent/20 to-brand/10 flex items-center justify-center"><span className="text-5xl">✨</span></div>
+                    ? <img src={theme.image.url} alt={theme.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                    : <div className="w-full h-full bg-gradient-to-br from-accent/20 to-brand/10 flex items-center justify-center text-4xl">✨</div>
                   }
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-all duration-500" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                    <span className="text-xs sm:text-sm font-bold tracking-[0.2em] uppercase drop-shadow-md">{theme.name}</span>
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-all duration-500" />
+                  <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center">
+                    <span className="text-white text-xs lg:text-[14px] font-bold tracking-[0.2em] uppercase mb-4 drop-shadow-md">
+                      {theme.name}
+                    </span>
+                    <div className="h-[40px] overflow-hidden">
+                      <span className="inline-block px-6 py-2 bg-white text-brand text-[8px] lg:text-[11px] font-bold tracking-widest uppercase transform translate-y-20 group-hover:translate-y-0 transition-transform duration-500">
+                        Shop Now
+                      </span>
+                    </div>
                   </div>
                 </Link>
               ))}
             </div>
+
           </Container>
         </Section>
       )}
@@ -271,11 +282,10 @@ export function HomePage() {
           <Container>
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
               <div className="animate-calm-entry">
-                <p className="text-[9px] lg:text-[11px] font-semibold tracking-[0.15em] text-brand/40 uppercase mb-3">
-                  Curated Edits
-                </p>
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl storefront-heading text-white">Our Collections</h2>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-widest text-white uppercase">Our Collections</h2>
+                <div className="mt-4 w-12 h-1 bg-accent"></div>
               </div>
+
               <Link to="/products" className="text-xs lg:text-[13px] font-bold tracking-[0.2em] uppercase text-accent border-b border-accent pb-1 hover:text-white hover:border-white transition-all">View All Collections</Link>
             </div>
 
@@ -361,9 +371,28 @@ export function HomePage() {
                     <p className="text-[8px] lg:text-[10px] text-muted-foreground/50 tracking-[0.05em] font-medium mb-2 text-center">
                       {product.category?.name || "Ready to wear"}
                     </p>
-                    <p className="text-xs lg:text-base font-bold tracking-[0.02em] text-brand text-center">
-                      ₹{(product.priceToUser || product.price || 0).toLocaleString('en-IN')}
-                    </p>
+                    <div className="flex flex-col items-center">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs lg:text-base font-bold tracking-[0.02em] text-brand">
+                          ₹{(() => {
+                            const basePrice = product.publicPrice || product.priceToUser || product.price || 0
+                            const discount = product.discountPublic || 0
+                            const effectivePrice = discount > 0 ? Math.round(basePrice * (1 - discount / 100)) : basePrice
+                            return effectivePrice.toLocaleString('en-IN')
+                          })()}
+                        </p>
+                        {(product.discountPublic > 0) && (
+                          <p className="text-[9px] lg:text-[11px] text-muted-foreground/40 line-through">
+                            ₹{(product.publicPrice || product.priceToUser || product.price || 0).toLocaleString('en-IN')}
+                          </p>
+                        )}
+                      </div>
+                      {(product.discountPublic > 0) && (
+                        <p className="text-[9px] lg:text-[10px] font-bold text-green-600 mt-0.5">
+                          {Math.round(product.discountPublic)}% OFF
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )

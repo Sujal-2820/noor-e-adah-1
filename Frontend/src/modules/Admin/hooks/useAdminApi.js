@@ -595,6 +595,8 @@ export function useAdminApi() {
     getUserAnalytics,
     getOrderAnalytics,
     exportReports,
+    // Users (extra)
+    updateUser,
     // Reviews
     getReviews,
     getReviewDetails,
@@ -603,11 +605,7 @@ export function useAdminApi() {
     deleteReviewResponse,
     moderateReview,
     deleteReview,
-    // Reports
-    getReports,
-    getPerformanceAnalytics,
-    getRegionAnalytics,
-    // Notifications
+    // Tasks
     markTaskViewed,
     markTaskCompleted,
     fetchTasks,

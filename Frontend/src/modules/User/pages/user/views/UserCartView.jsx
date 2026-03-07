@@ -8,7 +8,7 @@ import { Trans } from '../../../../../components/Trans'
 import { TransText } from '../../../../../components/TransText'
 
 export function UserCartView({ onUpdateQuantity, onRemove, onCheckout, onAddToCart, onNavigateToProduct }) {
-    const { cart, settings } = useUserState()
+    const { cart, settings, deliveryConfig } = useUserState()
     const MIN_VENDOR_PURCHASE = settings?.minimumUserPurchase || 50000
     const [suggestedProducts, setSuggestedProducts] = useState([])
     const [cartProducts, setCartProducts] = useState({})
@@ -228,14 +228,25 @@ export function UserCartView({ onUpdateQuantity, onRemove, onCheckout, onAddToCa
             }, 0)
         }, 0)
 
-        // User specific delivery or handling logic
-        const delivery = 0
+        // Compute delivery from live config (domestic by default)
+        const domConfig = deliveryConfig?.domestic || {}
+        const isFreeThreshold = domConfig.minFreeDelivery !== null && domConfig.minFreeDelivery !== undefined
+            ? subtotal >= domConfig.minFreeDelivery
+            : false
+        const delivery = (deliveryConfig?.mode === 'free' || isFreeThreshold || !domConfig.isEnabled)
+            ? 0
+            : (Number(domConfig.charge) || 0)
+        const deliveryTimeLabel = domConfig.timeLabel || '7-8 days'
+        const deliveryEnabled = domConfig.isEnabled !== false
+
         const total = subtotal + delivery
         const meetsMinimum = (Number(total) || 0) >= MIN_VENDOR_PURCHASE
 
         return {
             subtotal: Number(subtotal) || 0,
             delivery: Number(delivery) || 0,
+            deliveryTimeLabel,
+            deliveryEnabled,
             total: Number(total) || 0,
             meetsMinimum,
             shortfall: meetsMinimum ? 0 : MIN_VENDOR_PURCHASE - (Number(total) || 0),

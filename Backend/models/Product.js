@@ -74,6 +74,11 @@ const productSchema = new mongoose.Schema({
     min: [0, 'Stock cannot be negative'],
     default: 0,
   },
+  video: {
+    url: { type: String },
+    publicId: { type: String },
+    thumbnail: { type: String },
+  },
   images: [{
     url: { type: String, required: true },
     publicId: { type: String },
@@ -167,6 +172,18 @@ productSchema.index({ name: 'text', description: 'text', category: 'text', tags:
 productSchema.index({ category: 1, isActive: 1 });
 productSchema.index({ isActive: 1 });
 productSchema.index({ createdAt: -1 });
+
+productSchema.virtual('priceToUser').get(function () {
+  const base = this.publicPrice || 0;
+  const disc = this.discountPublic || 0;
+  return disc > 0 ? Math.round(base * (1 - disc / 100)) : base;
+});
+
+productSchema.virtual('userPrice').get(function () {
+  const base = this.publicPrice || 0;
+  const disc = this.discountPublic || 0;
+  return disc > 0 ? Math.round(base * (1 - disc / 100)) : base;
+});
 
 productSchema.virtual('primaryImage').get(function () {
   if (this.images && this.images.length > 0) {

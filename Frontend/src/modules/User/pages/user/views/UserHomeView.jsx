@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { ProductCard, CategoryCard, ChevronRightIcon, MapPinIcon, TruckIcon, SearchIcon, FilterIcon, CartIcon } from '../../../../../components/shared/catalog'
+import { ProductReelStrip } from '../../../components/ProductReelStrip'
 import { cn } from '../../../../../lib/cn'
 import { useUserApi } from '../../../hooks/useUserApi'
 import * as catalogApi from '../../../../../services/catalogApi'
@@ -252,6 +253,15 @@ export function UserHomeView({ onProductClick, onCategoryClick, onAddToCart, onS
                     </div>
                 </section>
             )}
+
+            {/* Optimized Vertical Reels Strip */}
+            <div className="mx-auto max-w-7xl">
+                <ProductReelStrip
+                    products={products}
+                    onNavigate={onProductClick}
+                    onAddToCart={onAddToCart}
+                />
+            </div>
 
             {/* Premium Highlights Section */}
             <section id="home-try-new" className="home-try-new-section">

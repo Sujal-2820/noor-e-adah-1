@@ -106,7 +106,7 @@ export function ProductDetailPage() {
         return sizeData.publicPrice || sizeData.price
       }
     }
-    return product?.priceToUser || product?.publicPrice || product?.price || 0
+    return product?.publicPrice || product?.price || 0
   }, [selectedSize, product])
 
   // Effective discount: per-size discountPublic → global discountPublic → 0

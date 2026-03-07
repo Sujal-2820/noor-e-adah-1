@@ -113,6 +113,7 @@ export function RegisterPage() {
         // Store token if provided (same user_token as User module)
         if (result.data?.token) {
           localStorage.setItem('user_token', result.data.token)
+          localStorage.setItem('user_token_expiry', Date.now() + 7 * 24 * 60 * 60 * 1000)
         }
 
         // Update WebsiteContext with user data

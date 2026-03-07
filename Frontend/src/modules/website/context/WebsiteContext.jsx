@@ -289,6 +289,15 @@ export function WebsiteProvider({ children }) {
   // Fetch user profile from API on mount
   useEffect(() => {
     const token = localStorage.getItem('user_token')
+    const expiry = localStorage.getItem('user_token_expiry')
+
+    // Clear token if the 7-day client-side expiry has passed
+    if (token && expiry && Date.now() > parseInt(expiry, 10)) {
+      localStorage.removeItem('user_token')
+      localStorage.removeItem('user_token_expiry')
+      return // session expired, don't fetch profile
+    }
+
     if (token) {
       const fetchProfile = async () => {
         try {
@@ -327,6 +336,7 @@ export function WebsiteProvider({ children }) {
           // If token is invalid, remove it but don't redirect (website allows guest access)
           if (error.error?.message?.includes('unauthorized') || error.error?.message?.includes('token')) {
             localStorage.removeItem('user_token')
+            localStorage.removeItem('user_token_expiry')
           }
         }
       }

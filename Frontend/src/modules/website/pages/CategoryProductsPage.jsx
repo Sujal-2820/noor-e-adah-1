@@ -261,8 +261,27 @@ export function CategoryProductsPage() {
                   <h3 className="text-[10px] sm:text-[11px] lg:text-[13px] font-semibold tracking-[0.1em] text-center uppercase mb-1.5 text-brand/90 group-hover:text-accent transition-colors leading-relaxed">
                     {product.name}
                   </h3>
-                  <div className="text-xs lg:text-base font-bold tracking-[0.02em] text-center text-brand">
-                    ₹{(product.priceToUser || product.price || 0).toLocaleString('en-IN')}
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs lg:text-base font-bold tracking-[0.02em] text-brand">
+                        ₹{(() => {
+                          const basePrice = product.publicPrice || product.price || 0
+                          const discount = product.discountPublic || 0
+                          const effectivePrice = discount > 0 ? Math.round(basePrice * (1 - discount / 100)) : basePrice
+                          return effectivePrice.toLocaleString('en-IN')
+                        })()}
+                      </p>
+                      {(product.discountPublic > 0) && (
+                        <p className="text-[9px] lg:text-[11px] text-muted-foreground/40 line-through">
+                          ₹{(product.publicPrice || product.priceToUser || product.price || 0).toLocaleString('en-IN')}
+                        </p>
+                      )}
+                    </div>
+                    {(product.discountPublic > 0) && (
+                      <p className="text-[9px] lg:text-[10px] font-bold text-green-600 mt-0.5">
+                        {Math.round(product.discountPublic)}% OFF
+                      </p>
+                    )}
                   </div>
                   <button
                     className="category-products-page__card-button"

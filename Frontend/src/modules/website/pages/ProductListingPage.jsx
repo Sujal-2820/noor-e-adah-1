@@ -29,6 +29,7 @@ export function ProductListingPage() {
   const [viewLimit, setViewLimit] = useState(12)
   const [gridCols, setGridCols] = useState(3) // 2, 3, 4
   const [sortBy, setSortBy] = useState('latest')
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Data State
   const [products, setProducts] = useState([])
@@ -71,8 +72,11 @@ export function ProductListingPage() {
       try {
         const params = {
           limit: viewLimit,
+          offset: (currentPage - 1) * viewLimit,
           search: searchQuery,
-          sort: sortBy === 'latest' ? 'createdAt_desc' : sortBy === 'price-low' ? 'price_asc' : sortBy === 'price-high' ? 'price_desc' : 'popular'
+          minPrice: priceRange.min,
+          maxPrice: priceRange.max,
+          sort: sortBy === 'latest' ? 'latest' : sortBy === 'price-low' ? 'price_asc' : sortBy === 'price-high' ? 'price_desc' : 'popular'
         }
 
         if (selectedTaxonomy.category !== 'all') params.category = selectedTaxonomy.category
@@ -81,7 +85,7 @@ export function ProductListingPage() {
         if (selectedTaxonomy.collection !== 'all') params.collection = selectedTaxonomy.collection
 
         const result = await fetchProducts(params)
-        if (result.success && result.data) {
+        if (result.data) {
           setProducts(result.data.products || [])
           setTotalCount(result.data.total || (result.data.products?.length || 0))
         }
@@ -92,7 +96,12 @@ export function ProductListingPage() {
       }
     }
     loadProducts()
-  }, [searchQuery, selectedTaxonomy, sortBy, viewLimit])
+  }, [searchQuery, selectedTaxonomy, sortBy, viewLimit, currentPage, priceRange.max])
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedTaxonomy, sortBy])
 
   // Context-aware category sync
   useEffect(() => {
@@ -121,7 +130,7 @@ export function ProductListingPage() {
 
   return (
     <Layout>
-      <div className="pt-40 pb-20 bg-white min-h-screen">
+      <div className="pt-2 pb-20 bg-white min-h-screen">
         <Container>
           {/* Breadcrumbs */}
           <nav className="flex items-center gap-2 text-[9px] lg:text-[11px] tracking-[0.25em] uppercase text-muted-foreground/50 font-semibold mb-12">
@@ -156,7 +165,10 @@ export function ProductListingPage() {
                 {[9, 12, 18, 24].map(num => (
                   <button
                     key={num}
-                    onClick={() => setViewLimit(num)}
+                    onClick={() => {
+                      setViewLimit(num)
+                      setCurrentPage(1)
+                    }}
                     className={cn(
                       "text-[10px] lg:text-[13px] font-bold transition-all",
                       viewLimit === num ? "text-brand" : "text-brand/20 hover:text-brand/40"
@@ -280,9 +292,28 @@ export function ProductListingPage() {
                     <p className="text-[8px] lg:text-[10px] text-muted-foreground/50 tracking-[0.05em] font-medium mb-2 text-center">
                       {product.category?.name || "Ready to wear"}
                     </p>
-                    <p className="text-xs lg:text-base font-bold tracking-[0.02em] text-brand text-center">
-                      ₹{(product.priceToUser || product.price || 0).toLocaleString('en-IN')}
-                    </p>
+                    <div className="flex flex-col items-center">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs lg:text-base font-bold tracking-[0.02em] text-brand">
+                          ₹{(() => {
+                            const basePrice = product.publicPrice || product.price || 0
+                            const discount = product.discountPublic || 0
+                            const effectivePrice = discount > 0 ? Math.round(basePrice * (1 - discount / 100)) : basePrice
+                            return effectivePrice.toLocaleString('en-IN')
+                          })()}
+                        </p>
+                        {(product.discountPublic > 0) && (
+                          <p className="text-[9px] lg:text-[11px] text-muted-foreground/40 line-through">
+                            ₹{(product.publicPrice || product.priceToUser || product.price || 0).toLocaleString('en-IN')}
+                          </p>
+                        )}
+                      </div>
+                      {(product.discountPublic > 0) && (
+                        <p className="text-[9px] lg:text-[10px] font-bold text-green-600 mt-0.5">
+                          {Math.round(product.discountPublic)}% OFF
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )
               })
@@ -290,7 +321,11 @@ export function ProductListingPage() {
               <div className="col-span-full py-40 text-center space-y-4">
                 <p className="text-xl font-serif text-brand/40 italic">No pieces found in this curation.</p>
                 <button
-                  onClick={() => setSelectedTaxonomy({ category: 'all', look: 'all', theme: 'all', collection: 'all' })}
+                  onClick={() => {
+                    setSelectedTaxonomy({ category: 'all', look: 'all', theme: 'all', collection: 'all' });
+                    setSearchParams({});
+                    setPriceRange({ min: 0, max: 100000 });
+                  }}
                   className="text-xs font-bold tracking-widest uppercase text-accent border-b border-accent pb-1"
                 >
                   Clear all filters
@@ -302,14 +337,34 @@ export function ProductListingPage() {
           {/* Pagination */}
           {totalCount > viewLimit && (
             <div className="mt-32 flex items-center justify-center gap-2">
-              <button className="w-10 h-10 flex items-center justify-center border border-brand text-brand bg-brand text-white font-bold text-xs uppercase transition-all">1</button>
-              <button className="w-10 h-10 flex items-center justify-center border border-brand/40 text-brand hover:bg-muted/5 transition-all text-xs uppercase">2</button>
-              <button className="w-10 h-10 flex items-center justify-center border border-brand/40 text-brand hover:bg-muted/5 transition-all text-xs uppercase">3</button>
-              <span className="mx-2 text-brand/30">...</span>
-              <button className="w-10 h-10 flex items-center justify-center border border-brand/40 text-brand hover:bg-muted/5 transition-all text-xs uppercase">9</button>
-              <button className="ml-4 text-brand hover:text-accent transition-all">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="1.5" /></svg>
-              </button>
+              {Array.from({ length: Math.ceil(totalCount / viewLimit) }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => {
+                    setCurrentPage(page)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className={cn(
+                    "w-10 h-10 flex items-center justify-center border transition-all text-xs uppercase font-bold",
+                    currentPage === page
+                      ? "border-brand bg-brand text-white"
+                      : "border-brand/40 text-brand hover:bg-muted/5"
+                  )}
+                >
+                  {page}
+                </button>
+              ))}
+              {currentPage < Math.ceil(totalCount / viewLimit) && (
+                <button
+                  onClick={() => {
+                    setCurrentPage(prev => prev + 1)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className="ml-4 text-brand hover:text-accent transition-all"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="1.5" /></svg>
+                </button>
+              )}
             </div>
           )}
         </Container>
@@ -355,6 +410,72 @@ export function ProductListingPage() {
                   </div>
                   <button className="bg-brand text-white px-6 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-accent transition-all shadow-lg">Filter</button>
                 </div>
+              </div>
+            </section>
+
+            {/* Category Filter */}
+            <section className="space-y-6">
+              <div className="flex items-center justify-between h-8 border-b border-muted/10">
+                <h3 className="text-[10px] font-bold tracking-[0.25em] uppercase text-brand/30">Filter by Category</h3>
+                <svg className="w-4 h-4 text-brand/20 rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6" strokeWidth="2" /></svg>
+              </div>
+              <div className="flex flex-col gap-4 max-h-[250px] overflow-y-auto no-scrollbar pr-4">
+                {taxonomies.categories.map(cat => (
+                  <label key={cat._id || cat.id} className="flex items-center group cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={selectedTaxonomy.category === (cat._id || cat.id)}
+                      onChange={() => setSelectedTaxonomy(prev => ({
+                        ...prev,
+                        category: prev.category === (cat._id || cat.id) ? 'all' : (cat._id || cat.id)
+                      }))}
+                    />
+                    <div className={cn(
+                      "w-4 h-4 border transition-all mr-4 flex items-center justify-center",
+                      selectedTaxonomy.category === (cat._id || cat.id) ? "border-brand bg-brand" : "border-muted/30 group-hover:border-brand/50"
+                    )}>
+                      {selectedTaxonomy.category === (cat._id || cat.id) && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" strokeWidth="3" /></svg>}
+                    </div>
+                    <span className={cn(
+                      "text-[13px] font-medium tracking-wide uppercase transition-all",
+                      selectedTaxonomy.category === (cat._id || cat.id) ? "text-brand" : "text-brand/50 group-hover:text-brand"
+                    )}>{cat.name}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            {/* Look Filter */}
+            <section className="space-y-6">
+              <div className="flex items-center justify-between h-8 border-b border-muted/10">
+                <h3 className="text-[10px] font-bold tracking-[0.25em] uppercase text-brand/30">Filter by Look</h3>
+                <svg className="w-4 h-4 text-brand/20 rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6" strokeWidth="2" /></svg>
+              </div>
+              <div className="flex flex-col gap-4 max-h-[250px] overflow-y-auto no-scrollbar pr-4">
+                {taxonomies.looks.map(look => (
+                  <label key={look._id || look.id} className="flex items-center group cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={selectedTaxonomy.look === (look._id || look.id)}
+                      onChange={() => setSelectedTaxonomy(prev => ({
+                        ...prev,
+                        look: prev.look === (look._id || look.id) ? 'all' : (look._id || look.id)
+                      }))}
+                    />
+                    <div className={cn(
+                      "w-4 h-4 border transition-all mr-4 flex items-center justify-center",
+                      selectedTaxonomy.look === (look._id || look.id) ? "border-brand bg-brand" : "border-muted/30 group-hover:border-brand/50"
+                    )}>
+                      {selectedTaxonomy.look === (look._id || look.id) && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" strokeWidth="3" /></svg>}
+                    </div>
+                    <span className={cn(
+                      "text-[13px] font-medium tracking-wide uppercase transition-all",
+                      selectedTaxonomy.look === (look._id || look.id) ? "text-brand" : "text-brand/50 group-hover:text-brand"
+                    )}>{look.name}</span>
+                  </label>
+                ))}
               </div>
             </section>
 

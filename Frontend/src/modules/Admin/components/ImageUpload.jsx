@@ -11,8 +11,18 @@ import { cn } from '../../../lib/cn'
  * @param {Function} onChange - Callback when images change
  * @param {number} maxImages - Maximum number of images (default: 4)
  * @param {boolean} disabled - Disable upload
+ * @param {number} aspectRatio - Target aspect ratio for cropping (e.g., 1 for square, 0.66 for 2:3 portrait)
+ * @param {string} folder - Cloudinary folder to upload to
  */
-export function ImageUpload({ images = [], onChange, maxImages = 4, disabled = false }) {
+export function ImageUpload({
+  images = [],
+  onChange,
+  maxImages = 4,
+  disabled = false,
+  aspectRatio = null,
+  folder = 'canx/products'
+}) {
+
   const [uploadingIndex, setUploadingIndex] = useState(null)
   const [error, setError] = useState(null)
   const [draggedIndex, setDraggedIndex] = useState(null)
@@ -71,16 +81,15 @@ export function ImageUpload({ images = [], onChange, maxImages = 4, disabled = f
       clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
       maxFileSize: 5000000, // 5MB
       cropping: true,
-      // croppingAspectRatio: 1, // Removed to allow any aspect ratio
+      croppingAspectRatio: aspectRatio,
       croppingShowDimensions: true,
       croppingDefaultSelectionRatio: 0.9,
-      folder: 'canx/products', // Organize images in folder
+      folder: folder, // Organize images in folder
       transformation: [
         {
-          width: 1200,
-          height: 1200,
-          crop: 'pad',
-          background: 'white',
+          width: aspectRatio ? 1200 : undefined,
+          height: aspectRatio ? Math.round(1200 / aspectRatio) : undefined,
+          crop: aspectRatio ? 'fill' : 'limit',
           quality: 'auto:good', // Optimize quality and file size
           fetchFormat: 'auto', // Auto format (webp when supported)
         },

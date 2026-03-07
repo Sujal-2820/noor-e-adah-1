@@ -787,7 +787,7 @@ export function AccountSupportPage() {
             <strong>Phone:</strong> +91 1800-XXX-XXXX
           </p>
           <p className="account-support__section-text">
-            <strong>Email:</strong> support@satpurabio.com
+            <strong>Email:</strong> support@nooreadah.com
           </p>
           <p className="account-support__section-text">
             <strong>Hours:</strong> Mon-Sat, 9 AM - 6 PM

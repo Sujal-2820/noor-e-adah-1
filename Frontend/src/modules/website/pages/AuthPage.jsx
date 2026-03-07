@@ -131,6 +131,7 @@ export function AuthPage() {
 
             if (result.success) {
                 localStorage.setItem('user_token', result.data.token)
+                localStorage.setItem('user_token_expiry', Date.now() + 7 * 24 * 60 * 60 * 1000)
                 dispatch({
                     type: 'AUTH_LOGIN',
                     payload: result.data.user
@@ -183,6 +184,7 @@ export function AuthPage() {
 
             if (result.success) {
                 localStorage.setItem('user_token', result.data.token)
+                localStorage.setItem('user_token_expiry', Date.now() + 7 * 24 * 60 * 60 * 1000)
                 dispatch({
                     type: 'AUTH_LOGIN',
                     payload: result.data.user

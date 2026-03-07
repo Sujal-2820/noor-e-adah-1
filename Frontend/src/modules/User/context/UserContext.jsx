@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useReducer, useEffect, useState } from 'react'
 import { getUserProfile, getFinancialSettings } from '../services/userApi'
+import { getDeliveryConfig } from '../../../services/catalogApi'
 
 const initialState = {
   language: 'en',
@@ -32,6 +33,11 @@ const initialState = {
     deliveryCharge: 50,
     minimumUserPurchase: 50000,
   },
+  deliveryConfig: {
+    mode: 'flat_rate',
+    domestic: { charge: 150, minFreeDelivery: null, timeLabel: '7-8 days', isEnabled: true },
+    international: { charge: null, timeLabel: 'Coming Soon', isEnabled: false },
+  },
 }
 
 // Use a symbol to detect if context is actually provided
@@ -58,6 +64,8 @@ function reducer(state, action) {
       return { ...state, role: action.payload }
     case 'SET_SETTINGS':
       return { ...state, settings: { ...state.settings, ...action.payload } }
+    case 'SET_DELIVERY_CONFIG':
+      return { ...state, deliveryConfig: action.payload }
     case 'AUTH_LOGIN':
       return {
         ...state,
@@ -343,6 +351,16 @@ export function UserProvider({ children }) {
   useEffect(() => {
     const initializeUser = async () => {
       const token = localStorage.getItem('user_token')
+      const expiry = localStorage.getItem('user_token_expiry')
+
+      // Clear token if the 7-day client-side expiry has passed
+      if (token && expiry && Date.now() > parseInt(expiry, 10)) {
+        localStorage.removeItem('user_token')
+        localStorage.removeItem('user_token_expiry')
+        setIsInitialized(true)
+        return
+      }
+
       if (token && !state.authenticated) {
         try {
           const profileResult = await getUserProfile()
@@ -359,11 +377,13 @@ export function UserProvider({ children }) {
           } else {
             // Token is invalid, remove it
             localStorage.removeItem('user_token')
+            localStorage.removeItem('user_token_expiry')
           }
         } catch (error) {
           console.error('Failed to initialize user:', error)
           // Token might be invalid, remove it
           localStorage.removeItem('user_token')
+          localStorage.removeItem('user_token_expiry')
         }
       }
       setIsInitialized(true)
@@ -385,6 +405,22 @@ export function UserProvider({ children }) {
       }
     }
     fetchSettings()
+  }, [])
+
+  // Fetch delivery config on mount (public endpoint, no auth needed)
+  useEffect(() => {
+    const fetchDeliveryConfig = async () => {
+      try {
+        const result = await getDeliveryConfig()
+        if (result?.success && result.data) {
+          dispatch({ type: 'SET_DELIVERY_CONFIG', payload: result.data })
+        }
+      } catch (error) {
+        // Non-critical — fall back to defaults already set in initialState
+        console.warn('Delivery config fetch failed, using defaults:', error?.message)
+      }
+    }
+    fetchDeliveryConfig()
   }, [])
 
   // Persist cart to localStorage whenever it changes

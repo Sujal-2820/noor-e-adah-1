@@ -229,7 +229,7 @@ export default function CategoryForm({ categoryId, initialType = 'category', onC
                         {/* Image */}
                         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                             <label className="text-sm font-bold text-gray-700 uppercase tracking-tight block mb-4">
-                                Cover Image <span className="text-gray-400 text-xs font-normal">(optional — square works best)</span>
+                                Cover Image <span className="text-gray-400 text-xs font-normal">(Portrait 2:3 ratio, e.g. 800x1200 works best)</span>
                             </label>
                             <div className="bg-gray-50 p-8 rounded-2xl border border-dashed border-gray-200">
                                 <ImageUpload
@@ -237,9 +237,12 @@ export default function CategoryForm({ categoryId, initialType = 'category', onC
                                     maxImages={1}
                                     onChange={images => set('image', images[0] || null)}
                                     disabled={isSaving}
+                                    aspectRatio={2 / 3}
+                                    folder="canx/taxonomy"
                                 />
                             </div>
                         </div>
+
                     </div>
 
                     {/* Sidebar */}

@@ -113,4 +113,12 @@ export async function searchProducts(params = {}) {
     return apiRequest(`/catalog/products?${queryParams}`)
 }
 
-
+/**
+ * Get Delivery Config (charge, time) for the storefront
+ * GET /catalog/delivery-config (public endpoint)
+ *
+ * @returns {Promise<Object>} - { mode, domestic: { charge, timeLabel, ... }, international: { ... } }
+ */
+export async function getDeliveryConfig() {
+    return apiRequest('/catalog/delivery-config')
+}

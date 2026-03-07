@@ -48,6 +48,23 @@ const offerSchema = new mongoose.Schema(
       default: [],
       // Optional - carousels can be image-only without linked products
     },
+    buttonText: {
+      type: String,
+      trim: true,
+    },
+    buttonLink: {
+      type: String,
+      trim: true,
+    },
+    textPosition: {
+      type: String,
+      enum: [
+        'left-top', 'left-center', 'left-bottom',
+        'center-top', 'center-center', 'center-bottom',
+        'right-top', 'right-center', 'right-bottom'
+      ],
+      default: 'center-center',
+    },
 
     // Special offer-specific fields
     specialTag: {

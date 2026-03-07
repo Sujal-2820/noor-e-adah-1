@@ -8,7 +8,7 @@ export function Layout({ children }) {
     <div className="flex flex-col min-h-screen bg-white">
       <WebsiteHeader />
       <CartSidebar />
-      <main className="flex-grow pt-[120px] lg:pt-[140px]">
+      <main className="flex-grow pt-[90px] lg:pt-[100px]">
         {children}
       </main>
       <WebsiteFooter />

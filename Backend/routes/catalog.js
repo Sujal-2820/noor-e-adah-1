@@ -22,16 +22,26 @@ const Category = require('../models/Category');
 router.get('/products', async (req, res, next) => {
     try {
         // Build query — only active products
-        const { limit = 50, offset = 0, category, search, sort = 'createdAt' } = req.query;
+        const { limit = 50, offset = 0, category, look, theme, collection, search, minPrice, maxPrice, sort = 'createdAt' } = req.query;
 
         const query = { isActive: true };
-        if (category && category !== 'all') {
-            query.category = category;
+        if (category && category !== 'all') query.category = category;
+        if (look && look !== 'all') query.look = look;
+        if (theme && theme !== 'all') query.theme = theme;
+        if (collection && collection !== 'all') query.collection = collection;
+
+        // Price filter
+        if (minPrice || maxPrice) {
+            query.publicPrice = {};
+            if (minPrice) query.publicPrice.$gte = parseFloat(minPrice);
+            if (maxPrice) query.publicPrice.$lte = parseFloat(maxPrice);
         }
+
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { description: { $regex: search, $options: 'i' } },
+                { shortDescription: { $regex: search, $options: 'i' } }
             ];
         }
 
@@ -39,16 +49,23 @@ router.get('/products', async (req, res, next) => {
         let sortObj = {};
         if (sort === 'popular') {
             sortObj = { salesCount: -1 };
-        } else if (sort === 'priceAsc') {
-            sortObj = { price: 1 };
-        } else if (sort === 'priceDesc') {
-            sortObj = { price: -1 };
+        } else if (sort === 'priceAsc' || sort === 'price_asc') {
+            sortObj = { publicPrice: 1 };
+        } else if (sort === 'priceDesc' || sort === 'price_desc') {
+            sortObj = { publicPrice: -1 };
+        } else if (sort === 'rating_desc' || sort === 'rating') {
+            sortObj = { 'ratings.average': -1 };
+        } else if (sort === 'createdAt_desc' || sort === 'latest') {
+            sortObj = { createdAt: -1 };
         } else {
             sortObj = { createdAt: -1 };
         }
 
         const products = await Product.find(query)
             .populate('category', 'name type')
+            .populate('look', 'name')
+            .populate('theme', 'name')
+            .populate('collection', 'name')
             .sort(sortObj)
             .skip(parseInt(offset))
             .limit(parseInt(limit));
@@ -154,4 +171,20 @@ router.get('/categories', async (req, res, next) => {
     }
 });
 
+/**
+ * @route   GET /api/catalog/delivery-config
+ * @desc    Get delivery charge and time config (public, for storefront)
+ * @access  Public
+ */
+router.get('/delivery-config', async (req, res, next) => {
+    try {
+        const { loadDeliveryConfig } = require('../utils/deliveryUtils');
+        const config = await loadDeliveryConfig();
+        res.status(200).json({ success: true, data: config });
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;
+

@@ -502,7 +502,19 @@ export function useWebsiteApi() {
         () => websiteApi.addAddress(addressData),
         (data) => ({
           type: 'ADD_ADDRESS',
-          payload: data.address || data,
+          // data is the full address object returned by the backend
+          payload: {
+            id: data.id || data._id,
+            name: data.name,
+            phone: data.phone,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            pincode: data.pincode,
+            isDefault: data.isDefault || false,
+            landmark: data.landmark,
+            addressType: data.addressType,
+          },
         }),
         'Failed to add address',
       )
@@ -555,10 +567,33 @@ export function useWebsiteApi() {
   const fetchAddresses = useCallback(async () => {
     return handleApiCall(
       websiteApi.getAddresses,
-      null,
+      (data) => {
+        // Dispatch CLEAR_ADDRESSES first, then bulk-add
+        dispatch({ type: 'CLEAR_ADDRESSES' })
+        if (data?.addresses) {
+          data.addresses.forEach((addr) => {
+            dispatch({
+              type: 'ADD_ADDRESS',
+              payload: {
+                id: addr.id || addr._id,
+                name: addr.name,
+                phone: addr.phone,
+                address: addr.address,
+                city: addr.city,
+                state: addr.state,
+                pincode: addr.pincode,
+                isDefault: addr.isDefault || false,
+                landmark: addr.landmark,
+                addressType: addr.addressType,
+              },
+            })
+          })
+        }
+        return null // no single dispatch needed
+      },
       'Failed to load addresses',
     )
-  }, [handleApiCall])
+  }, [handleApiCall, dispatch])
 
   // Favourites APIs
   const addToFavourites = useCallback(

@@ -30,9 +30,15 @@ async function handleResponse(response) {
       },
     }
 
-    // If 401, also clear token
+    // Only clear token on 401 if the stored expiry has actually passed
     if (response.status === 401) {
-      localStorage.removeItem('user_token')
+      const expiry = localStorage.getItem('user_token_expiry')
+      const isExpired = !expiry || Date.now() > parseInt(expiry, 10)
+      if (isExpired) {
+        localStorage.removeItem('user_token')
+        localStorage.removeItem('user_token_expiry')
+      }
+      // If not expired, keep the token - the 401 might be a bad request, not an expired token
     }
 
     return errorResponse

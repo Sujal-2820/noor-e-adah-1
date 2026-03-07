@@ -5093,8 +5093,16 @@ exports.addAddress = async (req, res, next) => {
       success: true,
       data: {
         id: newAddress._id,
-        ...req.body,
-        isDefault: newAddress.isDefault
+        addressId: newAddress.addressId,
+        name: newAddress.name,
+        phone: newAddress.phone,
+        address: newAddress.address,
+        city: newAddress.city,
+        state: newAddress.state,
+        pincode: newAddress.pincode,
+        isDefault: newAddress.isDefault,
+        landmark: newAddress.landmark,
+        addressType: newAddress.addressType,
       }
     });
   } catch (error) {
@@ -5111,23 +5119,44 @@ exports.updateAddress = async (req, res, next) => {
   try {
     const userId = req.user._id;
     const { addressId } = req.params;
+    const { name, phone, address, city, state, pincode, isDefault, landmark, addressType } = req.body;
 
-    const updatedAddress = await Address.findOneAndUpdate(
-      { _id: addressId, userId },
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const existingAddress = await Address.findOne({ _id: addressId, userId });
 
-    if (!updatedAddress) {
+    if (!existingAddress) {
       return res.status(404).json({
         success: false,
         message: 'Address not found'
       });
     }
 
+    // Update fields
+    if (name !== undefined) existingAddress.name = name;
+    if (phone !== undefined) existingAddress.phone = phone;
+    if (address !== undefined) existingAddress.address = address;
+    if (city !== undefined) existingAddress.city = city;
+    if (state !== undefined) existingAddress.state = state;
+    if (pincode !== undefined) existingAddress.pincode = pincode;
+    if (isDefault !== undefined) existingAddress.isDefault = isDefault;
+    if (landmark !== undefined) existingAddress.landmark = landmark;
+    if (addressType !== undefined) existingAddress.addressType = addressType;
+
+    await existingAddress.save(); // pre-save hook handles isDefault logic
+
     res.status(200).json({
       success: true,
-      data: updatedAddress
+      data: {
+        id: existingAddress._id,
+        name: existingAddress.name,
+        phone: existingAddress.phone,
+        address: existingAddress.address,
+        city: existingAddress.city,
+        state: existingAddress.state,
+        pincode: existingAddress.pincode,
+        isDefault: existingAddress.isDefault,
+        landmark: existingAddress.landmark,
+        addressType: existingAddress.addressType,
+      }
     });
   } catch (error) {
     next(error);
