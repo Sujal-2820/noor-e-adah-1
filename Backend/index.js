@@ -29,7 +29,8 @@ const defaultOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:5173',
   'https://www.iraagritech.com',
-  'https://iraagritech.com'
+  'https://iraagritech.com',
+  'https://noor-e-adah-1.vercel.app'
 ];
 
 // Clean up environment origins (remove trailing slashes)
