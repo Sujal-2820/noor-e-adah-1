@@ -38,3 +38,6 @@ temp/
 .env
 .env.local
 .env.*.local
+
+# Deployment helpers (containing secrets)
+render_firebase_svc_env.txt
