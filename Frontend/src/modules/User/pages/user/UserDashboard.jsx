@@ -39,7 +39,6 @@ import { playNotificationSoundIfEnabled } from '../../../../utils/notificationSo
 import * as catalogApi from '../../../../services/catalogApi'
 import * as userApi from '../../services/userApi'
 import { UserLoadingScreen } from '../../components/UserLoadingScreen'
-import './UserLoadingScreen.css'
 
 // New Catalog Views
 import { UserHomeView } from './views/UserHomeView'
