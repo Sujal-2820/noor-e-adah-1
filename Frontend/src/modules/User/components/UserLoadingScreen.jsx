@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Trans } from '../../../../components/Trans';
+import { Trans } from '../../../components/Trans';
 import './UserLoadingScreen.css';
 
 export function UserLoadingScreen({ progress = 0, message = "Preparing your experience..." }) {
