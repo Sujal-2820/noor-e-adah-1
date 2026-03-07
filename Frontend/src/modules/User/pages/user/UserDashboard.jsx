@@ -38,6 +38,8 @@ import { MarkdownRenderer } from '../../../../components/MarkdownRenderer'
 import { playNotificationSoundIfEnabled } from '../../../../utils/notificationSound'
 import * as catalogApi from '../../../../services/catalogApi'
 import * as userApi from '../../services/userApi'
+import { UserLoadingScreen } from '../../components/UserLoadingScreen'
+import './UserLoadingScreen.css'
 
 // New Catalog Views
 import { UserHomeView } from './views/UserHomeView'
@@ -88,6 +90,11 @@ export function UserDashboard({ onLogout }) {
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false)
   const [isNotificationAnimating, setIsNotificationAnimating] = useState(false)
   const previousNotificationsCountRef = useRef(0)
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingMessage, setLoadingMessage] = useState("Initializing experience")
 
   // Valid tabs for navigation
   const validTabs = ['home', 'orders', 'profile', 'product-detail', 'catalog-cart', 'checkout', 'category-products', 'favourites']
@@ -268,6 +275,9 @@ export function UserDashboard({ onLogout }) {
 
     const loadUserData = async () => {
       try {
+        setLoadingProgress(10)
+        setLoadingMessage("Connecting to server")
+        
         // Only fetch profile if not already authenticated
         if (!profile?.id) {
           const profileResult = await fetchProfile()
@@ -290,6 +300,9 @@ export function UserDashboard({ onLogout }) {
           }
         }
 
+        setLoadingProgress(30)
+        setLoadingMessage("Fetching your dashboard")
+
         // Fetch dashboard overview
         const dashboardResult = await fetchDashboardData()
         if (dashboardResult.error?.status === 401) {
@@ -299,7 +312,72 @@ export function UserDashboard({ onLogout }) {
           if (onLogout) {
             onLogout()
           }
+          return
         }
+
+        setLoadingProgress(50)
+        setLoadingMessage("Pre-loading collections")
+
+        // Step 3: Fetch initial content for pre-loading
+        const [pResult, cResult, oResult] = await Promise.all([
+          getProducts({ limit: 10 }),
+          catalogApi.getCategories(),
+          catalogApi.getOffers()
+        ]);
+
+        const urlsToPreload = [];
+        if (pResult.data?.products) {
+          pResult.data.products.slice(0, 6).forEach(p => {
+            if (p.primaryImage) urlsToPreload.push(p.primaryImage);
+            // Pre-load video for the first 3 products with videos
+            if (p.video?.url) {
+               const v = document.createElement('video');
+               v.preload = 'auto';
+               v.src = p.video.url;
+               if (p.video.thumbnail) urlsToPreload.push(p.video.thumbnail);
+            }
+          });
+        }
+        if (cResult.success && cResult.data) {
+          cResult.data.slice(0, 8).forEach(c => {
+            const img = (c.image?.url || c.image);
+            if (img && typeof img === 'string') urlsToPreload.push(img);
+          });
+        }
+        if (oResult.success && oResult.data?.carousels) {
+          oResult.data.carousels.forEach(c => {
+            if (c.imageUrl) urlsToPreload.push(c.imageUrl);
+          });
+        }
+
+        setLoadingProgress(70)
+        setLoadingMessage("Optimizing media")
+
+        const uniqueUrls = Array.from(new Set(urlsToPreload.filter(url => url && typeof url === 'string')));
+        if (uniqueUrls.length > 0) {
+          const stepSize = 25 / uniqueUrls.length;
+          await Promise.all(uniqueUrls.map(url => {
+            return new Promise((resolve) => {
+              const img = new Image();
+              img.onload = () => {
+                setLoadingProgress(prev => Math.min(prev + stepSize, 98));
+                resolve();
+              };
+              img.onerror = () => {
+                setLoadingProgress(prev => Math.min(prev + stepSize, 98));
+                resolve();
+              };
+              img.src = url;
+            });
+          }));
+        }
+
+        setLoadingProgress(100)
+        setLoadingMessage("Welcome to Noor E Adah")
+        
+        // Short delay to show completed progress
+        setTimeout(() => setIsLoading(false), 800)
+
       } catch (err) {
         console.error('Failed to load user data:', err)
         if (err.error?.status === 401) {
@@ -309,6 +387,8 @@ export function UserDashboard({ onLogout }) {
             onLogout()
           }
         }
+        // Even if pre-loading fails, show the dashboard
+        setIsLoading(false)
       }
     }
 
@@ -673,6 +753,10 @@ export function UserDashboard({ onLogout }) {
     }, delay)
     return () => clearTimeout(timer)
   }, [pendingScroll, activeTab])
+
+  if (isLoading) {
+    return <UserLoadingScreen progress={loadingProgress} message={loadingMessage} />
+  }
 
   return (
     <>

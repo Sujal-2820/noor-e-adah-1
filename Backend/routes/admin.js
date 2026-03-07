@@ -4,7 +4,7 @@ const router = express.Router();
 // Import controllers
 const adminController = require('../controllers/adminController');
 const adminTaskController = require('../controllers/adminTaskController');
-const UserAdminMessageController = require('../controllers/UserAdminMessageController');
+const UserAdminMessageController = require('../controllers/userAdminMessageController');
 
 // Import middleware
 const { authorizeAdmin } = require('../middleware/auth');
