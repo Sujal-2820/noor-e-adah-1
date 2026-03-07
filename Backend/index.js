@@ -81,7 +81,7 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
-    version: '1.0.1',
+    version: '1.0.2',
     message: 'Noor E Adah Backend Server is running correctly',
     timestamp: new Date().toISOString(),
   });
