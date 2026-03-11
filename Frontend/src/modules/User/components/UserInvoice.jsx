@@ -156,7 +156,7 @@ export function UserInvoice({ order, user, onClose }) {
                             <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Authorized Admin</p>
                         </div>
                         <div className="space-y-1.5">
-                            <h3 className="text-base font-black text-gray-900 tracking-tight">NOOR E ADAH</h3>
+                            <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="h-10 w-auto object-contain mb-2" />
                             <p className="text-[11px] text-gray-500 leading-relaxed font-bold">
                                 B-42, Corporate Park, Netaji Subhash Place,<br />
                                 Pitam Pura, District North West,<br />

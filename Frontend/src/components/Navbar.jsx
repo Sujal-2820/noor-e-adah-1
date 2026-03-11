@@ -24,7 +24,7 @@ const defaultCta = {
 }
 
 export function Navbar({
-  brand = { name: 'Noor E Adah', logo: '/logo.png' },
+  brand = { name: 'Noor E Adah', logo: '/NoorEAdah.jpeg' },
   links = defaultLinks,
   cta = defaultCta,
 }) {

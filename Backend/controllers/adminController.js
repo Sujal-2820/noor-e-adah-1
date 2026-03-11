@@ -680,7 +680,7 @@ exports.getProductDetails = async (req, res, next) => {
 
     // Get User assignments for this product
     const assignments = await ProductAssignment.find({ productId, isActive: true })
-      .populate('UserId', 'name phone location')
+      .populate('userId', 'name phone location')
       .select('-__v');
 
     res.status(200).json({
@@ -1342,7 +1342,7 @@ exports.assignProductToUser = async (req, res, next) => {
 
     // Check if User exists and is approved
     const user = await User.findById(UserId);
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
@@ -1654,49 +1654,23 @@ exports.getUserDetails = async (req, res, next) => {
       .select('-__v -otp')
       .populate('approvedBy', 'name email');
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
       });
     }
 
-    // Get User's credit purchases
-    const purchases = await CreditPurchase.find({ UserId })
-      .populate('items.productId', 'name sku')
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .select('-__v');
-
     // Get User's product assignments
-    const assignments = await ProductAssignment.find({ UserId, isActive: true })
+    const assignments = await ProductAssignment.find({ userId: UserId, isActive: true })
       .populate('productId', 'name sku category')
       .select('-__v');
-
-    // Calculate credit statistics
-    const creditRemaining = User.creditPolicy.limit - User.creditUsed;
-    const creditUtilization = User.creditPolicy.limit > 0
-      ? (User.creditUsed / User.creditPolicy.limit) * 100
-      : 0;
 
     res.status(200).json({
       success: true,
       data: {
-        User,
-        creditInfo: {
-          limit: User.creditPolicy.limit,
-          used: User.creditUsed,
-          remaining: creditRemaining,
-          utilization: Math.round(creditUtilization * 100) / 100,
-          dueDate: User.creditPolicy.dueDate,
-        },
-        escalationInfo: {
-          count: User.escalationCount || 0,
-          history: User.escalationHistory || [],
-          canBan: (User.escalationCount || 0) > 3,
-        },
-        banInfo: User.banInfo || {},
-        purchases,
+        user,
+        banInfo: user.banInfo || {},
         assignments,
       },
     });
@@ -1716,54 +1690,26 @@ exports.approveUser = async (req, res, next) => {
 
     const user = await User.findById(UserId);
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
       });
     }
 
-    if (User.status === 'approved') {
-      return res.status(400).json({
-        success: false,
-        message: 'User is already approved',
-      });
-    }
+    // Approve User
+    user.isActive = true;
+    user.approvedAt = new Date();
+    user.approvedBy = req.admin._id;
 
-    // Geographic rule (20km radius) removed per user request.
-    // Any User can be approved regardless of proximity to others.
+    await user.save();
 
-    // Approve User and set default credit policy
-    User.status = 'approved';
-    User.isActive = true;
-    User.approvedAt = new Date();
-    User.approvedBy = req.admin._id;
-
-    // Set default credit policy (no limit, 30 days repayment, 2% penalty)
-    if (!User.creditPolicy) {
-      User.creditPolicy = {
-        repaymentDays: 30,
-        penaltyRate: 2,
-      };
-    } else {
-      // Ensure defaults if missing
-      if (!User.creditPolicy.repaymentDays) {
-        User.creditPolicy.repaymentDays = 30;
-      }
-      if (User.creditPolicy.penaltyRate === undefined || User.creditPolicy.penaltyRate === null) {
-        User.creditPolicy.penaltyRate = 2;
-      }
-    }
-
-    await User.save();
-
-    // TODO: Send notification to User (SMS/Email)
     console.log(`✅ User approved: ${user.name} (${user.phone})`);
 
     res.status(200).json({
       success: true,
       data: {
-        User,
+        user,
         message: 'User approved successfully',
       },
     });
@@ -1784,7 +1730,7 @@ exports.rejectUser = async (req, res, next) => {
 
     const user = await User.findById(UserId);
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
@@ -1818,832 +1764,8 @@ exports.rejectUser = async (req, res, next) => {
   }
 };
 
+// End of User management controllers
 
-/**
- * @desc    Get all User purchase requests (global)
- * @route   GET /api/admin/Users/purchases
- * @access  Private (Admin)
- */
-exports.getAllUserPurchases = async (req, res, next) => {
-  try {
-    const { status, UserId, page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
-
-    // Build query
-    const query = {};
-
-    if (status) {
-      query.status = status;
-    }
-
-    if (UserId) {
-      query.userId = UserId;
-    }
-
-    // Search functionality (by User name or purchase amount)
-    if (search) {
-      // If search is provided, we'll need to populate User first and filter
-      // For now, we can search by amount or use text search if available
-      const searchNum = parseFloat(search);
-      if (!isNaN(searchNum)) {
-        // Search by amount
-        query.totalAmount = { $gte: searchNum * 0.9, $lte: searchNum * 1.1 }; // Allow 10% tolerance
-      }
-    }
-
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Sort
-    const sort = {};
-    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-
-    // Execute query with User population
-    const purchases = await CreditPurchase.find(query)
-      .populate('UserId', 'name phone email location creditUsed creditLimit creditPolicy')
-      .populate('items.productId', 'name sku category wholesalePrice publicPrice')
-      .populate('reviewedBy', 'name email')
-      .sort(sort)
-      .skip(skip)
-      .limit(limitNum)
-      .select('-__v');
-
-    // If search was provided and it's a string, filter by User name
-    let filteredPurchases = purchases;
-    if (search && isNaN(parseFloat(search))) {
-      filteredPurchases = purchases.filter(purchase => {
-        const UserName = purchase.userId?.name || '';
-        return UserName.toLowerCase().includes(search.toLowerCase());
-      });
-    }
-
-    // Get total count (after search filter if applicable)
-    let total = await CreditPurchase.countDocuments(query);
-    if (search && isNaN(parseFloat(search))) {
-      // Recalculate total for string searches (approximate)
-      total = filteredPurchases.length;
-    }
-
-    // Add User performance data to each purchase
-    const purchasesWithPerformance = await Promise.all(filteredPurchases.map(async (purchase) => {
-      const User = purchase.userId;
-
-      if (!User) {
-        return {
-          ...purchase.toObject(),
-          UserPerformance: null
-        };
-      }
-
-      // Calculate outstanding dues (unpaid purchases)
-      const outstandingPurchases = await CreditPurchase.find({
-        userId: user._id,
-        status: { $in: ['approved', 'sent'] }
-      });
-
-      const outstandingAmount = outstandingPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-      const creditLimit = User.creditLimit || 0;
-      const creditUsed = User.creditUsed || 0;
-      const creditUtilization = creditLimit > 0 ? (creditUsed / creditLimit) * 100 : 0;
-
-      return {
-        ...purchase.toObject(),
-        UserPerformance: {
-          creditLimit,
-          creditUsed,
-          outstandingAmount,
-          hasOutstandingDues: outstandingAmount > 0,
-          creditUtilization: Math.round(creditUtilization * 10) / 10 // Round to 1 decimal
-        }
-      };
-    }));
-
-    res.status(200).json({
-      success: true,
-      data: {
-        purchases: purchasesWithPerformance,
-        pagination: {
-          currentPage: pageNum,
-          totalPages: Math.ceil(total / limitNum),
-          totalItems: total,
-          itemsPerPage: limitNum,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Get User purchase requests (User-specific)
- * @route   GET /api/admin/Users/:UserId/purchases
- * @access  Private (Admin)
- */
-exports.getUserPurchases = async (req, res, next) => {
-  try {
-    const { UserId } = req.params;
-    const { status, page = 1, limit = 20 } = req.query;
-
-    const query = { UserId };
-
-    if (status) {
-      query.status = status;
-    }
-
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    const purchases = await CreditPurchase.find(query)
-      .populate('items.productId', 'name sku category wholesalePrice publicPrice')
-      .populate('reviewedBy', 'name email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .select('-__v');
-
-    const total = await CreditPurchase.countDocuments(query);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        purchases,
-        pagination: {
-          currentPage: pageNum,
-          totalPages: Math.ceil(total / limitNum),
-          totalItems: total,
-          itemsPerPage: limitNum,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Approve User purchase request
- * @route   POST /api/admin/Users/purchases/:requestId/approve
- * @access  Private (Admin)
- */
-exports.approveUserPurchase = async (req, res, next) => {
-  try {
-    const { requestId } = req.params;
-    const { shortDescription } = req.body;
-
-    console.log('=== APPROVE PURCHASE REQUEST ===');
-    console.log('Request ID:', requestId);
-    console.log('Request Body:', JSON.stringify(req.body, null, 2));
-    console.log('Request Body Keys:', Object.keys(req.body || {}));
-    console.log('Short Description:', shortDescription);
-    console.log('Short Description Type:', typeof shortDescription);
-    console.log('Short Description Value:', shortDescription);
-    console.log('Is Undefined:', shortDescription === undefined);
-    console.log('Is Null:', shortDescription === null);
-    console.log('Is Empty String:', shortDescription === '');
-    console.log('Trimmed:', shortDescription ? shortDescription.trim() : 'N/A');
-    console.log('===============================');
-
-    // Validate shortDescription - it's required
-    if (!shortDescription || typeof shortDescription !== 'string' || !shortDescription.trim()) {
-      console.log('❌ VALIDATION FAILED');
-      console.log('Reason:', {
-        isFalsy: !shortDescription,
-        isNotString: typeof shortDescription !== 'string',
-        isEmptyAfterTrim: shortDescription && !shortDescription.trim()
-      });
-      return res.status(400).json({
-        success: false,
-        message: 'Short description is required',
-      });
-    }
-
-    console.log('✅ VALIDATION PASSED');
-
-    const purchase = await CreditPurchase.findById(requestId)
-      .populate('items.productId', 'name sku wholesalePrice publicPrice');
-
-    if (!purchase) {
-      return res.status(404).json({
-        success: false,
-        message: 'Purchase request not found',
-      });
-    }
-
-    if (purchase.status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: `Purchase request is already ${purchase.status}`,
-      });
-    }
-
-    const user = await User.findById(purchase.userId);
-
-    if (!User) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    // Update User credit used (no limit check)
-    const newCreditUsed = (User.creditUsed || 0) + purchase.totalAmount;
-
-    // Validate and reserve admin stock
-    for (const item of purchase.items) {
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: 'One of the requested products no longer exists.',
-        });
-      }
-
-      // Check if this is a variant product (has attributeCombination)
-      const hasVariantAttributes = item.attributeCombination &&
-        (item.attributeCombination instanceof Map ? item.attributeCombination.size > 0 : Object.keys(item.attributeCombination || {}).length > 0);
-
-      if (hasVariantAttributes && product.attributeStocks && product.attributeStocks.length > 0) {
-        // Handle variant stock reduction
-        const attributeCombination = item.attributeCombination instanceof Map
-          ? Object.fromEntries(item.attributeCombination)
-          : item.attributeCombination || {};
-
-        // Find matching variant in attributeStocks
-        const matchingVariantIndex = product.attributeStocks.findIndex((variantStock) => {
-          if (!variantStock.attributes) return false;
-          const variantAttrs = variantStock.attributes instanceof Map
-            ? Object.fromEntries(variantStock.attributes)
-            : variantStock.attributes || {};
-
-          // Check if all attributes match
-          return Object.keys(attributeCombination).every(key => {
-            const variantValue = variantAttrs[key];
-            const requestedValue = attributeCombination[key];
-            return variantValue === requestedValue;
-          });
-        });
-
-        if (matchingVariantIndex === -1) {
-          return res.status(400).json({
-            success: false,
-            message: `Variant not found for ${product.name} with the selected attributes.`,
-          });
-        }
-
-        const variantStock = product.attributeStocks[matchingVariantIndex];
-        const variantDisplayStock = variantStock.displayStock || 0;
-        const variantActualStock = variantStock.actualStock || 0;
-
-        if (item.quantity > variantDisplayStock) {
-          return res.status(400).json({
-            success: false,
-            message: `Insufficient variant stock for ${product.name}. Available: ${variantDisplayStock}, Requested: ${item.quantity}`,
-          });
-        }
-
-        // Update variant stock in attributeStocks array
-        product.attributeStocks[matchingVariantIndex].displayStock = Math.max(0, variantDisplayStock - item.quantity);
-        product.attributeStocks[matchingVariantIndex].actualStock = Math.max(0, variantActualStock - item.quantity);
-
-        // Update product with modified attributeStocks
-        await Product.updateOne(
-          { _id: item.productId },
-          {
-            $set: {
-              attributeStocks: product.attributeStocks,
-            }
-          }
-        );
-
-        console.log(`✅ Variant stock updated for ${product.name}:`, {
-          variant: attributeCombination,
-          displayStock: `${variantDisplayStock} → ${product.attributeStocks[matchingVariantIndex].displayStock}`,
-          actualStock: `${variantActualStock} → ${product.attributeStocks[matchingVariantIndex].actualStock}`,
-        });
-      } else {
-        // Handle non-variant product stock reduction
-        const adminStock = product.displayStock ?? product.stock ?? 0;
-        if (item.quantity > adminStock) {
-          return res.status(400).json({
-            success: false,
-            message: `Insufficient admin stock for ${product.name}. Available: ${adminStock}, Requested: ${item.quantity}`,
-          });
-        }
-
-        // Update stock without triggering full validation
-        // Use updateOne to avoid validation errors for existing products
-        await Product.updateOne(
-          { _id: item.productId },
-          {
-            $set: {
-              displayStock: Math.max(0, adminStock - item.quantity),
-              actualStock: Math.max(0, (product.actualStock ?? adminStock) - item.quantity),
-            }
-          }
-        );
-
-        console.log(`✅ Main product stock updated for ${product.name}:`, {
-          displayStock: `${adminStock} → ${Math.max(0, adminStock - item.quantity)}`,
-          actualStock: `${product.actualStock ?? adminStock} → ${Math.max(0, (product.actualStock ?? adminStock) - item.quantity)}`,
-        });
-      }
-
-      await ProductAssignment.findOneAndUpdate(
-        { productId: item.productId, userId: user._id },
-        {
-          $setOnInsert: {
-            assignedBy: req.admin._id,
-            assignedAt: new Date(),
-            stock: 0,
-            isActive: true,
-            notes: 'Auto-assigned during purchase approval',
-          },
-        },
-        { upsert: true, new: true }
-      );
-    }
-
-    const expectedDeliveryAt = new Date(Date.now() + (DELIVERY_TIMELINE_HOURS || 24) * 60 * 60 * 1000);
-
-    // Approve purchase
-    purchase.status = 'approved';
-    purchase.reviewedBy = req.admin._id;
-    purchase.reviewedAt = new Date();
-    purchase.reviewedAt = new Date();
-    purchase.deliveryStatus = 'pending';
-    purchase.expectedDeliveryAt = expectedDeliveryAt;
-    purchase.deliveryNotes = `Purchase approved. Awaiting stock dispatch.`;
-    await purchase.save();
-
-    // Update User credit
-    User.creditUsed = newCreditUsed;
-    if (User.creditPolicy.dueDate === undefined && User.creditPolicy.repaymentDays) {
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + User.creditPolicy.repaymentDays);
-      User.creditPolicy.dueDate = dueDate;
-    }
-    await User.save();
-
-    // Process Purchase Incentives (Phase 4)
-    try {
-      await incentiveService.processIncentivesForPurchase(purchase._id, user._id, purchase.totalAmount);
-    } catch (incentiveError) {
-      console.error('Failed to process incentives:', incentiveError);
-      // Don't fail the whole approval if incentives fail
-    }
-
-    // SEND User NOTIFICATION: Credit Purchase Approved
-    try {
-      await UserNotification.createNotification({
-        userId: user._id,
-        type: 'credit_purchase_approved',
-        title: 'Stock Purchase Approved',
-        message: `Your stock purchase of ₹${purchase.totalAmount} has been approved and is scheduled for delivery.`,
-        relatedEntityType: 'credit_purchase',
-        relatedEntityId: purchase._id,
-        priority: 'normal',
-        metadata: { purchaseId: purchase.creditPurchaseId, amount: purchase.totalAmount }
-      });
-    } catch (notifError) {
-      console.error('Failed to send purchase approval notification:', notifError);
-    }
-
-    console.log(`✅ Purchase approved: ₹${purchase.totalAmount} for User ${user.name}`);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        purchase,
-        User: {
-          id: user._id,
-          name: user.name,
-          creditUsed: User.creditUsed,
-        },
-        message: 'Purchase request approved successfully',
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Reject User purchase request
- * @route   POST /api/admin/Users/purchases/:requestId/reject
- * @access  Private (Admin)
- */
-exports.rejectUserPurchase = async (req, res, next) => {
-  try {
-    const { requestId } = req.params;
-    const { reason } = req.body;
-
-    const purchase = await CreditPurchase.findById(requestId);
-
-    if (!purchase) {
-      return res.status(404).json({
-        success: false,
-        message: 'Purchase request not found',
-      });
-    }
-
-    if (purchase.status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: `Purchase request is already ${purchase.status}`,
-      });
-    }
-
-    // Reject purchase
-    purchase.status = 'rejected';
-    purchase.reviewedBy = req.admin._id;
-    purchase.reviewedAt = new Date();
-    if (reason) {
-      purchase.rejectionReason = reason;
-    }
-    await purchase.save();
-
-    // Send rejection notification to User with reason
-    try {
-      await UserNotification.createNotification({
-        userId: purchase.userId,
-        type: 'credit_purchase_rejected',
-        title: 'Stock Purchase Rejected',
-        message: `Your stock purchase of ₹${purchase.totalAmount} has been rejected.${reason ? ` Reason: ${reason}` : ''}`,
-        relatedEntityType: 'credit_purchase',
-        relatedEntityId: purchase._id,
-        priority: 'high',
-        metadata: { purchaseId: purchase.creditPurchaseId, reason }
-      });
-    } catch (notifError) {
-      console.error('Failed to send purchase rejection notification:', notifError);
-    }
-
-    console.log(`❌ Purchase rejected: ₹${purchase.totalAmount}${reason ? ` - Reason: ${reason}` : ''}`);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        purchase,
-        message: 'Purchase request rejected successfully',
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Delete User purchase invoice
- * @route   DELETE /api/admin/Users/purchases/:requestId
- * @access  Private (Admin)
- */
-exports.deleteUserPurchase = async (req, res, next) => {
-  try {
-    const { requestId } = req.params;
-
-    // Find the purchase record
-    const purchase = await CreditPurchase.findById(requestId);
-
-    if (!purchase) {
-      return res.status(404).json({
-        success: false,
-        message: 'Purchase invoice not found',
-      });
-    }
-
-    // If purchase was approved, we must revert the changes to User credit and product stock
-    if (purchase.status === 'approved') {
-      console.log(`[AdminDelete] Reverting approved purchase ${requestId}...`);
-
-      // 1. Revert User Credit
-      const user = await User.findById(purchase.userId);
-      if (User) {
-        const oldCreditUsed = User.creditUsed || 0;
-        User.creditUsed = Math.max(0, oldCreditUsed - purchase.totalAmount);
-        await User.save();
-        console.log(`[AdminDelete] Reverted credit for User ${user.name}: ${oldCreditUsed} -> ${User.creditUsed}`);
-      }
-
-      // 2. Revert Product Stock
-      for (const item of purchase.items) {
-        try {
-          const product = await Product.findById(item.productId);
-          if (product) {
-            // Check if it was a variant product
-            const hasVariantAttributes = item.attributeCombination &&
-              (item.attributeCombination instanceof Map ? item.attributeCombination.size > 0 : Object.keys(item.attributeCombination || {}).length > 0);
-
-            if (hasVariantAttributes && product.attributeStocks && product.attributeStocks.length > 0) {
-              const attributeCombination = item.attributeCombination instanceof Map
-                ? Object.fromEntries(item.attributeCombination)
-                : item.attributeCombination || {};
-
-              const matchingVariantIndex = product.attributeStocks.findIndex((variantStock) => {
-                if (!variantStock.attributes) return false;
-                const variantAttrs = variantStock.attributes instanceof Map
-                  ? Object.fromEntries(variantStock.attributes)
-                  : variantStock.attributes || {};
-
-                return Object.keys(attributeCombination).every(key => {
-                  return String(variantAttrs[key]) === String(attributeCombination[key]);
-                });
-              });
-
-              if (matchingVariantIndex !== -1) {
-                product.attributeStocks[matchingVariantIndex].displayStock = (product.attributeStocks[matchingVariantIndex].displayStock || 0) + item.quantity;
-                product.attributeStocks[matchingVariantIndex].actualStock = (product.attributeStocks[matchingVariantIndex].actualStock || 0) + item.quantity;
-
-                await Product.updateOne(
-                  { _id: item.productId },
-                  { $set: { attributeStocks: product.attributeStocks } }
-                );
-                console.log(`[AdminDelete] Reverted variant stock for ${product.name}`);
-              }
-            } else {
-              // Non-variant product
-              await Product.updateOne(
-                { _id: item.productId },
-                {
-                  $inc: {
-                    displayStock: item.quantity,
-                    actualStock: item.quantity,
-                  }
-                }
-              );
-              console.log(`[AdminDelete] Reverted standard stock for ${product.name}: +${item.quantity}`);
-            }
-          }
-        } catch (stockError) {
-          console.error(`[AdminDelete] Failed to revert stock for item ${item.productId}:`, stockError);
-        }
-      }
-
-      // 3. Revert Incentives
-      try {
-        const PurchaseIncentive = require('../models/PurchaseIncentive');
-
-        const relatedIncentives = await UserIncentiveHistory.find({ purchaseOrderId: requestId });
-        for (const claim of relatedIncentives) {
-          // Decrement currentRedemptions on the scheme
-          await PurchaseIncentive.updateOne(
-            { _id: claim.incentiveId },
-            { $inc: { currentRedemptions: -1 } }
-          );
-        }
-        // Remove incentive history records
-        await UserIncentiveHistory.deleteMany({ purchaseOrderId: requestId });
-        console.log(`[AdminDelete] Reverted ${relatedIncentives.length} incentives related to purchase ${requestId}`);
-      } catch (incentiveError) {
-        console.error(`[AdminDelete] Error reverting incentives for purchase ${requestId}:`, incentiveError);
-      }
-    }
-
-    // Finally delete the purchase record
-    await CreditPurchase.findByIdAndDelete(requestId);
-    console.log(`[AdminDelete] Purchase invoice ${requestId} permanently removed from system.`);
-
-    res.status(200).json({
-      success: true,
-      data: { id: requestId },
-      message: 'Purchase invoice deleted successfully. Credit and stock have been reverted.',
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
-/**
- * @desc    Mark purchase as being processed (packing/readying)
- * @route   POST /api/admin/Users/purchases/:requestId/process
- * @access  Private (Admin)
- */
-exports.processUserPurchase = async (req, res, next) => {
-  try {
-    const { requestId } = req.params;
-    const { deliveryNotes } = req.body;
-
-    const purchase = await CreditPurchase.findById(requestId);
-
-    if (!purchase) {
-      return res.status(404).json({
-        success: false,
-        message: 'Purchase request not found',
-      });
-    }
-
-    if (purchase.status !== 'approved') {
-      return res.status(400).json({
-        success: false,
-        message: `Purchase can only be processed if approved. Current status: ${purchase.status}`,
-      });
-    }
-
-    purchase.deliveryStatus = 'processing';
-    if (deliveryNotes) {
-      purchase.deliveryNotes = deliveryNotes;
-    }
-    await purchase.save();
-
-    // SEND User NOTIFICATION: Purchase Processing
-    try {
-      await UserNotification.createNotification({
-        userId: purchase.userId,
-        type: 'credit_purchase_processing',
-        title: 'Order Processing',
-        message: `Your stock purchase #${purchase.creditPurchaseId || purchase._id} is now being processed.`,
-        relatedEntityType: 'credit_purchase',
-        relatedEntityId: purchase._id,
-        priority: 'normal',
-        metadata: { purchaseId: purchase.creditPurchaseId, status: 'processing' }
-      });
-    } catch (notifError) {
-      console.error('Failed to send purchase processing notification:', notifError);
-    }
-
-    res.status(200).json({
-      success: true,
-      data: { purchase, message: 'Stock marked as processing (packing)' },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Mark stock as sent (in transit)
- * @route   POST /api/admin/Users/purchases/:requestId/send
- * @access  Private (Admin)
- */
-exports.sendUserPurchaseStock = async (req, res, next) => {
-  try {
-    const { requestId } = req.params;
-    const { deliveryNotes } = req.body;
-
-    const purchase = await CreditPurchase.findById(requestId);
-
-    if (!purchase) {
-      return res.status(404).json({
-        success: false,
-        message: 'Purchase request not found',
-      });
-    }
-
-    if (purchase.status !== 'approved') {
-      return res.status(400).json({
-        success: false,
-        message: `Stock can only be sent for approved requests. Current status: ${purchase.status}`,
-      });
-    }
-
-    purchase.deliveryStatus = 'in_transit';
-    if (deliveryNotes) {
-      purchase.deliveryNotes = deliveryNotes;
-    }
-    await purchase.save();
-
-    // SEND User NOTIFICATION: Purchase Dispatched
-    try {
-      await UserNotification.createNotification({
-        userId: purchase.userId,
-        type: 'credit_purchase_dispatched',
-        title: 'Order Dispatched',
-        message: `Your stock purchase #${purchase.creditPurchaseId || purchase._id} has been dispatched and is on the way.`,
-        relatedEntityType: 'credit_purchase',
-        relatedEntityId: purchase._id,
-        priority: 'high',
-        metadata: { purchaseId: purchase.creditPurchaseId, status: 'dispatched' }
-      });
-    } catch (notifError) {
-      console.error('Failed to send purchase dispatch notification:', notifError);
-    }
-
-    res.status(200).json({
-      success: true,
-      data: { purchase, message: 'Stock marked as in-transit' },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Confirm delivery and update User inventory
- * @route   POST /api/admin/Users/purchases/:requestId/confirm-delivery
- * @access  Private (Admin)
- */
-exports.confirmUserPurchaseDelivery = async (req, res, next) => {
-  try {
-    const { requestId } = req.params;
-    const { deliveryNotes } = req.body;
-
-    const purchase = await CreditPurchase.findById(requestId);
-
-    if (!purchase) {
-      return res.status(404).json({
-        success: false,
-        message: 'Purchase request not found',
-      });
-    }
-
-    if (purchase.deliveryStatus === 'delivered') {
-      return res.status(400).json({
-        success: false,
-        message: 'Purchase is already marked as delivered',
-      });
-    }
-
-    // Logic to update User inventory (ProductAssignment)
-
-    for (const item of purchase.items) {
-      let assignment = await ProductAssignment.findOne({
-        userId: purchase.userId,
-        productId: item.productId,
-      });
-
-      if (!assignment) {
-        assignment = await ProductAssignment.create({
-          userId: purchase.userId,
-          productId: item.productId,
-          assignedBy: req.admin._id,
-          assignedAt: new Date(),
-          stock: 0,
-          isActive: true,
-          notes: 'Auto-created during confirmed stock delivery',
-        });
-      }
-
-      // Update Global Stock
-      assignment.stock += (Number(item.quantity) || 0);
-
-      // Update Attribute Stock if variants exist
-      const attributeCombination = item.attributeCombination instanceof Map
-        ? Object.fromEntries(item.attributeCombination)
-        : item.attributeCombination || {};
-
-      const hasVariants = Object.keys(attributeCombination).length > 0;
-
-      if (hasVariants) {
-        if (!assignment.attributeStocks) assignment.attributeStocks = [];
-
-        const matchingVariant = assignment.attributeStocks.find(variant => {
-          if (!variant.attributes) return false;
-          const variantAttrs = variant.attributes instanceof Map
-            ? Object.fromEntries(variant.attributes)
-            : variant.attributes;
-
-          return Object.keys(attributeCombination).every(key => String(variantAttrs[key]) === String(attributeCombination[key]));
-        });
-
-        if (matchingVariant) {
-          matchingVariant.stock = (matchingVariant.stock || 0) + (Number(item.quantity) || 0);
-        } else {
-          assignment.attributeStocks.push({
-            attributes: attributeCombination,
-            stock: Number(item.quantity) || 0,
-            isActive: true
-          });
-        }
-      }
-
-      await assignment.save();
-    }
-
-    purchase.deliveryStatus = 'delivered';
-    purchase.deliveredAt = new Date();
-    if (deliveryNotes) {
-      purchase.deliveryNotes = deliveryNotes;
-    }
-    await purchase.save();
-
-    // SEND User NOTIFICATION: Purchase Delivered
-    try {
-      await UserNotification.createNotification({
-        userId: purchase.userId,
-        type: 'credit_purchase_delivered',
-        title: 'Order Delivered',
-        message: `Your stock purchase #${purchase.creditPurchaseId || purchase._id} has been successfully delivered and added to your inventory.`,
-        relatedEntityType: 'credit_purchase',
-        relatedEntityId: purchase._id,
-        priority: 'high',
-        metadata: { purchaseId: purchase.creditPurchaseId, status: 'delivered' }
-      });
-    } catch (notifError) {
-      console.error('Failed to send purchase delivery notification:', notifError);
-    }
-
-    res.status(200).json({
-      success: true,
-      data: { purchase, message: 'Stock delivery confirmed and inventory updated' },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
 /**
  * @desc    Ban User (temporary or permanent) - requires >3 escalations
@@ -2664,7 +1786,7 @@ exports.banUser = async (req, res, next) => {
 
     const user = await User.findById(UserId);
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
@@ -2740,7 +1862,7 @@ exports.unbanUser = async (req, res, next) => {
 
     const user = await User.findById(UserId);
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
@@ -2809,7 +1931,7 @@ exports.deleteUser = async (req, res, next) => {
 
     const user = await User.findById(UserId);
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
@@ -2914,42 +2036,11 @@ exports.getUserRankings = async (req, res, next) => {
     const Users = await User.aggregate([
       {
         $match: {
-          status: 'approved',
+          isActive: true,
           isDeleted: { $ne: true }
         }
       },
-      // Lookup Purchases
-      {
-        $lookup: {
-          from: 'creditpurchases',
-          localField: '_id',
-          foreignField: 'UserId',
-          as: 'purchases'
-        }
-      },
-      // Lookup SUCCESSFUL Repayments
-      {
-        $lookup: {
-          from: 'creditrepayments',
-          let: { vId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$UserId', '$$vId'] },
-                status: 'completed'
-              }
-            }
-          ],
-          as: 'repayments'
-        }
-      },
-      {
-        $addFields: {
-          orderCount: { $size: '$purchases' },
-          repaymentFrequency: { $size: '$repayments' },
-          repaidAmountTotal: { $sum: '$repayments.totalAmount' }
-        }
-      },
+      // Simplified rankings without credit-related data
       {
         $project: {
           name: 1,
@@ -2959,17 +2050,10 @@ exports.getUserRankings = async (req, res, next) => {
           shopName: 1,
           'location.city': 1,
           'location.state': 1,
-          creditHistory: {
-            creditScore: '$creditHistory.creditScore',
-            // Map our calculated fields to the expected keys
-            totalRepaid: '$repaidAmountTotal',
-            totalRepaymentCount: '$repaymentFrequency'
-          },
           performanceTier: 1,
-          orderCount: 1,
+          orderCount: { $literal: 0 }, // Placeholder for now
         }
       },
-      { $sort: sortStage },
       { $limit: parseInt(limit) }
     ]);
 
@@ -3203,7 +2287,7 @@ exports.approveUserWithdrawal = async (req, res, next) => {
     const { paymentReference, paymentMethod, paymentDate, adminRemarks } = req.body;
 
     const withdrawal = await WithdrawalRequest.findById(requestId)
-      .populate('UserId')
+      .populate('userId')
       .populate('bankAccountId');
 
     if (!withdrawal) {
@@ -3229,7 +2313,7 @@ exports.approveUserWithdrawal = async (req, res, next) => {
 
     const user = await User.findById(withdrawal.userId);
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
@@ -3444,7 +2528,7 @@ exports.rejectUserWithdrawal = async (req, res, next) => {
 
     const user = await User.findById(withdrawal.userId);
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
@@ -3747,10 +2831,6 @@ exports.getPaymentHistory = async (req, res, next) => {
     const shouldIncludePayments = !activityType || activityType === 'all' ||
       activityType === 'user_payment_advance' || activityType === 'user_payment_remaining';
 
-    // Also include CreditRepayment records for credit repayments
-    const shouldIncludeCreditRepayments = !activityType || activityType === 'all' ||
-      activityType === 'User_credit_repayment';
-
     let combinedHistory = history;
     let totalCount = totalResult;
 
@@ -3878,89 +2958,6 @@ exports.getPaymentHistory = async (req, res, next) => {
       totalCount = history.length + uniquePaymentEntries.length;
     }
 
-    // Include CreditRepayment records
-    if (shouldIncludeCreditRepayments) {
-      const creditRepaymentQuery = {};
-
-      // Apply date filter
-      if (startDate || endDate) {
-        creditRepaymentQuery.createdAt = {};
-        if (startDate) creditRepaymentQuery.createdAt.$gte = new Date(startDate);
-        if (endDate) creditRepaymentQuery.createdAt.$lte = new Date(endDate);
-      }
-
-      // Apply status filter
-      if (status && status !== 'all') {
-        if (status === 'completed') {
-          creditRepaymentQuery.status = 'completed';
-        } else {
-          creditRepaymentQuery.status = status;
-        }
-      } else {
-        // Only show completed repayments by default
-        creditRepaymentQuery.status = 'completed';
-      }
-
-      // Apply User filter
-      if (UserId) {
-        creditRepaymentQuery.userId = UserId;
-      }
-
-      console.log('💰 [PaymentHistory] CreditRepayment query:', JSON.stringify(creditRepaymentQuery, null, 2));
-      const allCreditRepayments = await CreditRepayment.find(creditRepaymentQuery)
-        .sort({ createdAt: -1 })
-        .populate('UserId', 'name phone UserId')
-        .select('-__v');
-
-      console.log(`💰 [PaymentHistory] Found ${allCreditRepayments.length} CreditRepayment records`);
-
-      // Convert CreditRepayment records to PaymentHistory format
-      const creditRepaymentEntries = allCreditRepayments.map(repayment => {
-        return {
-          _id: repayment._id,
-          historyId: repayment.repaymentId,
-          activityType: 'User_credit_repayment',
-          userId: repayment.userId?._id,
-          amount: repayment.amount,
-          currency: 'INR',
-          status: repayment.status === 'completed' ? 'completed' : repayment.status,
-          paymentMethod: 'razorpay',
-          description: `User credit repayment of ₹${repayment.amount}${repayment.penaltyAmount > 0 ? ` (including ₹${repayment.penaltyAmount} penalty)` : ''}`,
-          metadata: {
-            repaymentId: repayment.repaymentId,
-            creditUsedBefore: repayment.creditUsedBefore,
-            creditUsedAfter: repayment.creditUsedAfter,
-            penaltyAmount: repayment.penaltyAmount,
-            razorpayPaymentId: repayment.razorpayPaymentId,
-          },
-          createdAt: repayment.createdAt,
-          updatedAt: repayment.updatedAt,
-          processedAt: repayment.paidAt || repayment.createdAt,
-          User: repayment.userId ? {
-            _id: repayment.userId._id,
-            name: repayment.userId.name,
-            phone: repayment.userId.phone,
-            userId: repayment.userId.userId,
-          } : null,
-        };
-      });
-
-      // Merge with existing history
-      combinedHistory = [...combinedHistory, ...creditRepaymentEntries]
-        .sort((a, b) => {
-          const dateA = new Date(a.createdAt || a.processedAt || 0);
-          const dateB = new Date(b.createdAt || b.processedAt || 0);
-          return dateB - dateA;
-        });
-
-      // Apply pagination after merging
-      const skip = (pageNum - 1) * limitNum;
-      combinedHistory = combinedHistory.slice(skip, skip + limitNum);
-
-      // Update total count
-      totalCount = combinedHistory.length;
-    }
-
     // Calculate summary statistics
     const summaryPipeline = [
       { $match: query },
@@ -4013,7 +3010,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
-    // Determine status filter - default to completed/credited/approved if not specified
+    // Determine status filter
     let statusFilter = { $in: ['completed', 'credited', 'approved'] };
     if (status && status !== 'all') {
       if (status === 'completed') {
@@ -4027,7 +3024,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
       }
     }
 
-    // Get stats from PaymentHistory - filter by status
+    // Get stats from PaymentHistory
     const historyStatsCompleted = await PaymentHistory.aggregate([
       {
         $match: {
@@ -4041,7 +3038,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
           totalUserPayments: {
             $sum: {
               $cond: [
-                // BROKEN_KEY_REMOVED: { $in: ['$activityType', ['user_payment_advance', 'user_payment_remaining']] },
+                { $in: ['$activityType', ['user_payment_advance', 'user_payment_remaining']] },
                 '$amount',
                 0,
               ],
@@ -4055,12 +3052,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
           totalSellerCommissions: {
             $sum: {
               $cond: [
-                {
-                  $and: [
-                    { $eq: ['$activityType', 'seller_commission_credited'] },
-                    // BROKEN_KEY_REMOVED: { $in: ['$status', ['completed', 'credited', 'approved']] }
-                  ]
-                },
+                { $eq: ['$activityType', 'seller_commission_credited'] },
                 '$amount',
                 0,
               ],
@@ -4069,7 +3061,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
           totalUserWithdrawals: {
             $sum: {
               $cond: [
-                // BROKEN_KEY_REMOVED: { $in: ['$activityType', ['User_withdrawal_approved', 'User_withdrawal_completed']] },
+                { $in: ['$activityType', ['User_withdrawal_approved', 'User_withdrawal_completed']] },
                 '$amount',
                 0,
               ],
@@ -4078,7 +3070,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
           totalSellerWithdrawals: {
             $sum: {
               $cond: [
-                // BROKEN_KEY_REMOVED: { $in: ['$activityType', ['seller_withdrawal_approved', 'seller_withdrawal_completed']] },
+                { $in: ['$activityType', ['seller_withdrawal_approved', 'seller_withdrawal_completed']] },
                 '$amount',
                 0,
               ],
@@ -4088,7 +3080,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
       },
     ]);
 
-    // Get total activities count (all statuses)
+    // Get total activities count
     const totalActivitiesResult = await PaymentHistory.aggregate([
       { $match: query },
       {
@@ -4099,7 +3091,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
       },
     ]);
 
-    // Get Payment records stats - filter by status
+    // Get Payment records stats
     const paymentQuery = {};
     if (startDate || endDate) {
       paymentQuery.createdAt = {};
@@ -4107,35 +3099,23 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
       if (endDate) paymentQuery.createdAt.$lte = new Date(endDate);
     }
 
-    // Map PaymentHistory status to Payment status
     if (status && status !== 'all') {
       if (status === 'completed') {
         paymentQuery.status = PAYMENT_STATUS.FULLY_PAID;
       } else if (status === 'pending') {
         paymentQuery.status = PAYMENT_STATUS.PARTIAL_PAID;
-      } else if (status === 'rejected') {
-        paymentQuery.status = PAYMENT_STATUS.FAILED;
       }
     } else {
-      // Default: only count fully paid payments
       paymentQuery.status = PAYMENT_STATUS.FULLY_PAID;
     }
 
-    // Get Payment IDs that are already in PaymentHistory to avoid double counting
+    // Filter out payments already in PaymentHistory
     const existingPaymentIds = await PaymentHistory.distinct('metadata.paymentId', {
       ...query,
       'metadata.paymentId': { $exists: true, $ne: null }
     });
 
-    console.log(`📊 [PaymentHistoryStats] Found ${existingPaymentIds.length} Payment IDs already in PaymentHistory`);
-
-    // Get Payment records that are NOT in PaymentHistory
-    // Note: We match by paymentId field (string) against metadata.paymentId from PaymentHistory
-    const paymentQueryUnique = {
-      ...paymentQuery,
-    };
-
-    // Only filter out existing payments if we have any
+    const paymentQueryUnique = { ...paymentQuery };
     if (existingPaymentIds.length > 0) {
       paymentQueryUnique.paymentId = { $nin: existingPaymentIds };
     }
@@ -4146,33 +3126,7 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
         $group: {
           _id: null,
           totalUserPayments: { $sum: '$amount' },
-          totalPayments: { $sum: 1 },
-        },
-      },
-    ]);
-
-    // Get CreditRepayment stats - filter by status
-    const creditRepaymentQuery = {};
-    if (startDate || endDate) {
-      creditRepaymentQuery.createdAt = {};
-      if (startDate) creditRepaymentQuery.createdAt.$gte = new Date(startDate);
-      if (endDate) creditRepaymentQuery.createdAt.$lte = new Date(endDate);
-    }
-
-    if (status && status !== 'all') {
-      creditRepaymentQuery.status = status === 'completed' ? 'completed' : status;
-    } else {
-      // Default: only count completed repayments
-      creditRepaymentQuery.status = 'completed';
-    }
-
-    const creditRepaymentStats = await CreditRepayment.aggregate([
-      { $match: creditRepaymentQuery },
-      {
-        $group: {
-          _id: null,
-          totalCreditRepayments: { $sum: '$amount' },
-          totalRepayments: { $sum: 1 },
+          totalPaymentsCount: { $sum: 1 },
         },
       },
     ]);
@@ -4181,67 +3135,32 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
       totalUserPayments: 0,
       totalUserEarnings: 0,
       totalUserWithdrawals: 0,
+      totalSellerWithdrawals: 0,
+      totalSellerCommissions: 0,
     };
 
     const paymentResult = paymentStats[0] || {
       totalUserPayments: 0,
-      totalPayments: 0,
+      totalPaymentsCount: 0,
     };
 
-    const creditRepaymentResult = creditRepaymentStats[0] || {
-      totalCreditRepayments: 0,
-      totalRepayments: 0,
-    };
+    const totalActivities = (totalActivitiesResult[0]?.totalActivities || 0) + paymentResult.totalPaymentsCount;
 
-
-    // Get total activities count including all sources
-    // Count PaymentHistory records (already includes most activities)
-    const totalActivities = totalActivitiesResult[0]?.totalActivities || 0;
-
-    // Count Payment records that are NOT in PaymentHistory (to avoid double counting)
-    const paymentCountQuery = { ...paymentQueryUnique };
-    const paymentCount = await Payment.countDocuments(paymentCountQuery);
-
-
-    // Count CreditRepayment records that are NOT in PaymentHistory
-    // Check which repayment IDs are already in PaymentHistory
-    const existingRepaymentIds = await PaymentHistory.distinct('metadata.repaymentId', {
-      ...query,
-      'metadata.repaymentId': { $exists: true, $ne: null }
-    });
-
-    const creditRepaymentCountQuery = { ...creditRepaymentQuery };
-    if (existingRepaymentIds.length > 0) {
-      creditRepaymentCountQuery.repaymentId = { $nin: existingRepaymentIds };
-    }
-    const creditRepaymentCount = await CreditRepayment.countDocuments(creditRepaymentCountQuery);
-
-    console.log(`📊 [PaymentHistoryStats] Activity counts:`, {
-      paymentHistory: totalActivities,
-      payments: paymentCount,
-      creditRepayments: creditRepaymentCount,
-      total: totalActivities + paymentCount + creditRepaymentCount,
-    });
-
-    // Combine stats
-    const combinedStats = {
-      totalUserPayments: historyResult.totalUserPayments + paymentResult.totalUserPayments,
-      totalUserEarnings: historyResult.totalUserEarnings,
-      totalUserWithdrawals: historyResult.totalUserWithdrawals,
-      totalActivities: totalActivities + paymentCount + creditRepaymentCount,
-    };
-
-    console.log('📊 [PaymentHistoryStats] Calculated stats:', {
-      historyResult,
-      paymentResult,
-      creditRepaymentResult,
+    const data = {
+      totalPayments: (historyResult.totalUserPayments || 0) + (paymentResult.totalUserPayments || 0),
+      totalEarnings: historyResult.totalUserEarnings || 0,
+      totalWithdrawals: (historyResult.totalUserWithdrawals || 0) + (historyResult.totalSellerWithdrawals || 0),
+      totalCommissions: historyResult.totalSellerCommissions || 0,
       totalActivities,
-      combinedStats,
-    });
+      stats: {
+        history: historyResult,
+        payments: paymentResult,
+      },
+    };
 
     res.status(200).json({
       success: true,
-      data: combinedStats,
+      data,
     });
   } catch (error) {
     console.error('❌ [PaymentHistoryStats] Error:', error);
@@ -4380,9 +3299,7 @@ exports.getUsers = async (req, res, next) => {
       .sort(sort)
       .skip(skip)
       .limit(limitNum)
-      .select('-__v -otp')
-      .populate('seller', 'sellerId name')
-      .populate('assignedUser', 'name phone');
+      .select('-__v -otp');
 
     const total = await User.countDocuments(query);
 
@@ -4413,9 +3330,7 @@ exports.getUserDetails = async (req, res, next) => {
     const { userId } = req.params;
 
     const user = await User.findById(userId)
-      .select('-__v -otp')
-      .populate('seller', 'sellerId name phone email')
-      .populate('assignedUser', 'name phone location');
+      .select('-__v -otp');
 
     if (!user) {
       return res.status(404).json({
@@ -4426,7 +3341,7 @@ exports.getUserDetails = async (req, res, next) => {
 
     // Get user's orders count and stats
 
-    const ordersCount = await Order.countDocuments({ assignedassigneduserId: user._id });
+    const ordersCount = await Order.countDocuments({ userId: user._id });
     const totalSpentResult = await Order.aggregate([
       { $match: { userId: user._id, status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] }, paymentStatus: PAYMENT_STATUS.FULLY_PAID } },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
@@ -4434,7 +3349,7 @@ exports.getUserDetails = async (req, res, next) => {
     const totalSpent = totalSpentResult[0]?.total || 0;
 
     // Get user's recent orders
-    const recentOrders = await Order.find({ assignedassigneduserId: user._id })
+    const recentOrders = await Order.find({ userId: user._id })
       .sort({ createdAt: -1 })
       .limit(10)
       .select('orderNumber totalAmount status createdAt paymentStatus')
@@ -4629,8 +3544,7 @@ exports.getOrders = async (req, res, next) => {
       .skip(skip)
       .limit(limitNum)
       .populate('userId', 'name phone email location')
-      .populate('UserId', 'name phone location')
-      .populate('seller', 'sellerId name phone')
+      .populate('assignedUserId', 'userId name phone')
       .select('-__v')
       .lean();
 
@@ -4676,8 +3590,8 @@ exports.getOrderDetails = async (req, res, next) => {
 
     const order = await Order.findById(orderId)
       .populate('userId', 'name phone email location')
-      .populate('UserId', 'name phone location')
-      .populate('seller', 'sellerId name phone')
+      .populate('userId', 'name phone location')
+      .populate('assignedUserId', 'userId name phone')
       .populate('items.productId', 'name sku category wholesalePrice publicPrice')
       .populate('parentOrderId')
       .populate('childOrderIds')
@@ -4739,8 +3653,8 @@ exports.generateInvoice = async (req, res, next) => {
 
     const order = await Order.findById(orderId)
       .populate('userId', 'name phone email location')
-      .populate('UserId', 'name phone location')
-      .populate('seller', 'sellerId name phone')
+      .populate('userId', 'name phone location')
+      .populate('assignedUserId', 'userId name phone')
       .populate('items.productId', 'name sku category wholesalePrice publicPrice')
       .select('-__v');
 
@@ -5109,8 +4023,7 @@ exports.getEscalatedOrders = async (req, res, next) => {
       .skip(skip)
       .limit(limitNum)
       .populate('userId', 'name phone email location')
-      .populate('UserId', 'name phone location')
-      .populate('seller', 'sellerId name')
+      .populate('assignedUserId', 'userId name phone')
       .populate('items.productId', 'name sku category')
       .select('-__v')
       .lean();
@@ -6072,133 +4985,7 @@ exports.getCredits = async (req, res, next) => {
   }
 };
 
-/**
- * @desc    Get User credit history
- * @route   GET /api/admin/finance/Users/:UserId/history
- * @access  Private (Admin)
- */
-exports.getUserCreditHistory = async (req, res, next) => {
-  try {
-    const { UserId } = req.params;
-    const { page = 1, limit = 20, startDate, endDate } = req.query;
-
-    const user = await User.findById(UserId);
-
-    if (!User) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    // Build query for credit purchases and payments
-    const query = { UserId };
-
-    // Date range filter
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) {
-        query.createdAt.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        const toDate = new Date(endDate);
-        toDate.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = toDate;
-      }
-    }
-
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Get credit purchases
-    const creditPurchases = await CreditPurchase.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .populate('items.productId', 'name sku')
-      .select('-__v');
-
-    // Get payments related to this User (through orders)
-    const UserOrders = await Order.find({ UserId }).select('_id orderNumber');
-    const orderIds = UserOrders.map(o => o._id);
-
-    const payments = await Payment.find({ orderId: { $in: orderIds } })
-      .sort({ createdAt: -1 })
-      .populate('orderId', 'orderNumber totalAmount')
-      .select('-__v')
-      .limit(limitNum);
-
-    // Get modern repayments (CreditRepayment system)
-    const creditRepayments = await CreditRepayment.find({
-      userId: user._id,
-      status: 'completed'
-    })
-      .sort({ createdAt: -1 })
-      .limit(limitNum)
-      .select('-gatewayResponse -__v');
-
-    const totalPurchases = await CreditPurchase.countDocuments(query);
-
-    // Transform items to shared history format
-    const history = [
-      ...creditPurchases.map(purchase => ({
-        id: purchase._id,
-        type: 'credit_purchase',
-        amount: purchase.totalAmount,
-        date: purchase.createdAt,
-        description: `Credit purchase - ${purchase.items.length} item(s)`,
-        status: purchase.status,
-        products: purchase.items.map(item => ({
-          name: item.productId?.name || item.productName,
-          quantity: item.quantity,
-          price: item.unitPrice,
-        })),
-      })),
-      ...payments.map(payment => ({
-        id: payment._id,
-        type: 'repayment',
-        amount: payment.amount,
-        date: payment.createdAt,
-        description: `Order Payment (${payment.orderId?.orderNumber || 'N/A'})`,
-        status: payment.status === 'fully_paid' ? 'completed' : payment.status,
-        orderNumber: payment.orderId?.orderNumber,
-      })),
-      ...creditRepayments.map(repayment => ({
-        id: repayment._id,
-        type: 'repayment',
-        amount: repayment.totalAmount,
-        date: repayment.paidAt || repayment.createdAt,
-        description: `Credit Repayment (${repayment.repaymentId})`,
-        status: repayment.status,
-      }))
-    ].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    res.status(200).json({
-      success: true,
-      data: {
-        User: {
-          id: user._id,
-          name: user.name,
-          phone: user.phone,
-          creditLimit: User.creditLimit || 0,
-          creditUsed: User.creditUsed || 0,
-          creditRemaining: (User.creditLimit || 0) - (User.creditUsed || 0),
-        },
-        history: history.slice(0, limitNum),
-        pagination: {
-          currentPage: pageNum,
-          totalPages: Math.ceil(totalPurchases / limitNum),
-          totalItems: history.length,
-          itemsPerPage: limitNum,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// End of Financial history
 
 /**
  * @desc    Get financial parameters
@@ -6299,86 +5086,9 @@ exports.updateFinancialParameters = async (req, res, next) => {
   }
 };
 
+
 /**
- * @desc    Get credit recovery status
- * @route   GET /api/admin/finance/recovery
- * @access  Private (Admin)
- */
-exports.getRecoveryStatus = async (req, res, next) => {
-  try {
-    const { period = '30' } = req.query; // days
-
-    const daysAgo = new Date();
-    daysAgo.setDate(daysAgo.getDate() - parseInt(period));
-
-    // Get all Users with credit
-    const UsersWithCredit = await User.find({
-      status: 'approved',
-      isActive: true,
-      creditUsed: { $gt: 0 },
-    }).select('creditUsed creditPolicy approvedAt');
-
-    // Calculate recovery statistics
-    const totalOutstanding = UsersWithCredit.reduce((sum, v) => sum + v.creditUsed, 0);
-
-    // Get completed credit purchases (for recovery tracking)
-    const completedPurchases = await CreditPurchase.find({
-      status: 'approved',
-      createdAt: { $gte: daysAgo },
-    }).select('totalAmount createdAt');
-
-    // Calculate recovered amount (simplified - assumes payments reduce credit)
-    // In production, this would track actual repayments
-    const recoveredAmount = completedPurchases.length > 0
-      ? completedPurchases.reduce((sum, p) => sum + p.totalAmount, 0)
-      : 0;
-
-    // Calculate overdue Users
-    const now = new Date();
-    const overdueUsers = UsersWithCredit.filter(User => {
-      if (!User.creditPolicy.dueDate) return false;
-      return now > User.creditPolicy.dueDate;
-    });
-
-    const overdueAmount = overdueUsers.reduce((sum, v) => sum + v.creditUsed, 0);
-
-    // Calculate recovery rate (percentage)
-    const totalCreditEver = totalOutstanding + recoveredAmount;
-    const recoveryRate = totalCreditEver > 0
-      ? (recoveredAmount / totalCreditEver) * 100
-      : 0;
-
-    // Calculate average recovery time (simplified)
-    const averageRecoveryDays = completedPurchases.length > 0
-      ? completedPurchases.reduce((sum, p) => {
-        const daysSince = Math.floor((now - p.createdAt) / (1000 * 60 * 60 * 24));
-        return sum + daysSince;
-      }, 0) / completedPurchases.length
-      : 0;
-
-    res.status(200).json({
-      success: true,
-      data: {
-        period: parseInt(period),
-        recovery: {
-          totalOutstanding,
-          overdueAmount,
-          recoveredAmount,
-          pendingAmount: totalOutstanding - recoveredAmount,
-          recoveryRate: Math.round(recoveryRate * 100) / 100,
-        },
-        statistics: {
-          totalUsersWithCredit: UsersWithCredit.length,
-          overdueUsers: overdueUsers.length,
-          completedPurchases: completedPurchases.length,
-          averageRecoveryDays: Math.round(averageRecoveryDays * 100) / 100,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+ * @desc    Get Logistics settings
 
 // ============================================================================
 // ANALYTICS & REPORTING CONTROLLERS
@@ -7412,247 +6122,7 @@ exports.deleteOffer = async (req, res, next) => {
   }
 };
 
-/**
- * @desc    Get all User credit repayments
- * @route   GET /api/admin/finance/repayments
- * @access  Private (Admin)
- */
-exports.getRepayments = async (req, res, next) => {
-  try {
-    const { page = 1, limit = 20, status, UserId, startDate, endDate } = req.query;
-
-    // Build query
-    const query = {};
-
-    if (status) {
-      query.status = status;
-    }
-
-    if (UserId) {
-      query.userId = UserId;
-    }
-
-    // Date range filter
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) {
-        query.createdAt.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        const toDate = new Date(endDate);
-        toDate.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = toDate;
-      }
-    }
-
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Get repayments with User and bank account details
-    const repayments = await CreditRepayment.find(query)
-      .populate('UserId', 'name phone location')
-      .populate('bankAccountId', 'accountHolderName bankName accountNumber ifscCode')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .select('-gatewayResponse -__v')
-      .lean();
-
-    const total = await CreditRepayment.countDocuments(query);
-
-    // Calculate summary statistics
-    const summary = await CreditRepayment.aggregate([
-      {
-        $match: query,
-      },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalPrincipalSettled: { $sum: '$amount' },
-          totalPenalty: {
-            $sum: { $add: [{ $ifNull: ['$financialBreakdown.interestAddition', 0] }, { $ifNull: ['$penaltyAmount', 0] }] }
-          },
-          totalCashPaid: { $sum: '$totalAmount' },
-        },
-      },
-    ]);
-
-    const allStatusSummary = await CreditRepayment.aggregate([
-      {
-        $match: query,
-      },
-      {
-        $group: {
-          _id: null,
-          totalCompleted: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-          totalPending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-          totalFailed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
-          // Use totalAmount for actual cash received (the true 'Repaid Amount')
-          totalRepaid: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$totalAmount', 0] } },
-          // Sum interest from new financial breakdown plus legacy penaltyAmount
-          totalPenaltyPaid: {
-            $sum: {
-              $cond: [
-                { $eq: ['$status', 'completed'] },
-                { $add: [{ $ifNull: ['$financialBreakdown.interestAddition', 0] }, { $ifNull: ['$penaltyAmount', 0] }] },
-                0
-              ]
-            }
-          },
-        },
-      },
-    ]);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        repayments,
-        summary: allStatusSummary[0] || {
-          totalCompleted: 0,
-          totalPending: 0,
-          totalFailed: 0,
-          totalRepaid: 0,
-          totalPenaltyPaid: 0,
-        },
-        statusBreakdown: summary,
-        pagination: {
-          currentPage: pageNum,
-          totalPages: Math.ceil(total / limitNum),
-          totalItems: total,
-          itemsPerPage: limitNum,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Get repayment details
- * @route   GET /api/admin/finance/repayments/:repaymentId
- * @access  Private (Admin)
- */
-exports.getRepaymentDetails = async (req, res, next) => {
-  try {
-    const { repaymentId } = req.params;
-
-    const repayment = await CreditRepayment.findById(repaymentId)
-      .populate('UserId', 'name phone email location creditLimit creditUsed creditPolicy')
-      .populate('bankAccountId', 'accountHolderName bankName accountNumber ifscCode branchName')
-      .populate('reviewedBy', 'name email')
-      .select('-gatewayResponse -__v')
-      .lean();
-
-    if (!repayment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Repayment not found',
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        repayment,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Get User repayments
- * @route   GET /api/admin/finance/Users/:UserId/repayments
- * @access  Private (Admin)
- */
-exports.getUserRepayments = async (req, res, next) => {
-  try {
-    const { UserId } = req.params;
-    const { page = 1, limit = 20, status } = req.query;
-
-    const user = await User.findById(UserId);
-
-    if (!User) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    const query = {
-      userId: user._id,
-    };
-
-    if (status) {
-      query.status = status;
-    }
-
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    const repayments = await CreditRepayment.find(query)
-      .populate('bankAccountId', 'accountHolderName bankName accountNumber ifscCode')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .select('-gatewayResponse -__v')
-      .lean();
-
-    const total = await CreditRepayment.countDocuments(query);
-
-    // Calculate User repayment summary
-    const summary = await CreditRepayment.aggregate([
-      {
-        $match: {
-          userId: user._id,
-          status: 'completed',
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalRepaid: { $sum: '$amount' },
-          totalPenaltyPaid: { $sum: '$penaltyAmount' },
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        User: {
-          id: user._id,
-          name: user.name,
-          phone: user.phone,
-          creditUsed: User.creditUsed,
-          creditLimit: User.creditLimit || 0,
-        },
-        repayments,
-        summary: summary[0] || {
-          totalRepaid: 0,
-          totalPenaltyPaid: 0,
-          count: 0,
-        },
-        pagination: {
-          currentPage: pageNum,
-          totalPages: Math.ceil(total / limitNum),
-          totalItems: total,
-          itemsPerPage: limitNum,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// End of Financial controllers
 
 // ============================================================================
 // REVIEW MANAGEMENT ROUTES

@@ -260,15 +260,12 @@ export function WebsiteHeader() {
           {/* Left: Logo (Centered in image, but actually left-ish depending on view) */}
           {/* In the image, Logo is on the far left, then Nav links start */}
           <div className="absolute left-1/2 -translate-x-1/2 lg:relative lg:left-0 lg:translate-x-0 order-first lg:mr-16">
-            <Link to="/" className="block group/logo text-center lg:text-left">
-              <div className="flex flex-col">
-                <span className="text-xl sm:text-2xl lg:text-[28px] font-serif tracking-[0.1em] font-light text-brand leading-none uppercase">
-                  Noor E Adah
-                </span>
-                <span className="text-[7px] lg:text-[8px] tracking-[0.3em] font-semibold text-brand/30 uppercase mt-2 transition-all group-hover:text-accent">
-                  Official Boutique
-                </span>
-              </div>
+            <Link to="/" className="block group/logo">
+              <img 
+                src="/NoorEAdah.jpeg" 
+                alt="Noor E Adah" 
+                className="h-12 lg:h-16 w-auto object-contain transition-transform duration-300 group-hover:scale-105" 
+              />
             </Link>
           </div>
 

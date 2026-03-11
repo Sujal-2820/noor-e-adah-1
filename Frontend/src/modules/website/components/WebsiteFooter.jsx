@@ -77,9 +77,7 @@ export function WebsiteFooter() {
               Noor E Adah is a brand that honours India's rich cultural heritage, breathing new life into traditional textiles and techniques with a contemporary twist, all while maintaining a strong focus on sustainability and ethical production.
             </p>
             <div className="flex flex-col items-center lg:items-end mt-4">
-              <span className="text-xl font-serif tracking-[-0.02em] font-bold text-brand leading-none">
-                NOOR E ADAH
-              </span>
+              <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="h-10 w-auto object-contain mb-2" />
               <span className="text-[8px] tracking-[0.4em] font-light text-brand/40 uppercase mt-1 transition-all group-hover:tracking-[0.5em] group-hover:text-accent">
                 OFFICIAL
               </span>

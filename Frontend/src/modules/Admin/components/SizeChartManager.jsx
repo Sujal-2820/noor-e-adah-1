@@ -276,6 +276,25 @@ export function SizeChartManager({ value, onChange }) {
     const [unit, setUnit] = useState(value?.unit || 'inches')
     const [importFlash, setImportFlash] = useState(false)
 
+    // Sync internal state with props when value changes (e.g. when product data loads)
+    useEffect(() => {
+        if (value && value.headers && value.rows) {
+            // Use JSON stringify for a simple deep comparison to avoid infinite loops
+            const current = JSON.stringify({ headers, rows, unit })
+            const incoming = JSON.stringify({
+                headers: value.headers,
+                rows: value.rows,
+                unit: value.unit || 'inches'
+            })
+
+            if (current !== incoming) {
+                setHeaders(value.headers)
+                setRows(value.rows)
+                setUnit(value.unit || 'inches')
+            }
+        }
+    }, [value])
+
     useEffect(() => {
         onChange?.({ headers, rows, unit })
     }, [headers, rows, unit])

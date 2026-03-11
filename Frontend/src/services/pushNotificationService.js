@@ -148,7 +148,7 @@ function setupForegroundNotificationHandler(onNotificationReceived) {
             const { title, body } = payload.notification;
             new Notification(title, {
                 body,
-                icon: '/logo.png', // Fallback icon
+                icon: '/NoorEAdah.jpeg', // Fallback icon
                 data: payload.data
             });
         }

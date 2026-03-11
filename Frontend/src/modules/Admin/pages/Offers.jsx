@@ -26,6 +26,8 @@ export function OffersPage({ subRoute = null, navigate }) {
     title: '',
     description: '',
     image: '',
+    buttonText: '',
+    buttonLink: '',
     productIds: [],
     order: 0,
     isActive: true,
@@ -504,6 +506,13 @@ export function OffersPage({ subRoute = null, navigate }) {
                               {carousel.description && (
                                 <p className="text-sm text-gray-600 mt-1 line-clamp-2">{carousel.description}</p>
                               )}
+                              {carousel.buttonText && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">
+                                    CTA: {carousel.buttonText}
+                                  </span>
+                                </div>
+                              )}
                               <p className="text-xs text-gray-500 mt-2">
                                 {carousel.productIds?.length || 0} product{carousel.productIds?.length !== 1 ? 's' : ''} linked
                               </p>
@@ -654,6 +663,8 @@ function CarouselFormScreen({ editingCarousel, allProducts, productsLoading, onS
     title: editingCarousel?.title || '',
     description: editingCarousel?.description || '',
     image: editingCarousel?.image || '',
+    buttonText: editingCarousel?.buttonText || '',
+    buttonLink: editingCarousel?.buttonLink || '',
     productIds: editingCarousel?.productIds?.map(p => p._id || p) || [],
     order: editingCarousel?.order || carouselCount || 0,
     isActive: editingCarousel?.isActive !== false,
@@ -667,6 +678,8 @@ function CarouselFormScreen({ editingCarousel, allProducts, productsLoading, onS
         title: editingCarousel.title || '',
         description: editingCarousel.description || '',
         image: editingCarousel.image || '',
+        buttonText: editingCarousel.buttonText || '',
+        buttonLink: editingCarousel.buttonLink || '',
         productIds: editingCarousel.productIds?.map(p => p._id || p) || [],
         isActive: editingCarousel.isActive !== false,
       })
@@ -731,14 +744,38 @@ function CarouselFormScreen({ editingCarousel, allProducts, productsLoading, onS
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(Optional)</span></label>
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
-              placeholder="Short description for the carousel"
+              placeholder="Short description for the carousel (Optional)"
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6 bg-gray-50/50 -mx-6 px-6 pb-6 rounded-b-none">
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-1">CTA Button Text <span className="text-gray-400 font-normal">(Optional)</span></label>
+              <input
+                type="text"
+                value={form.buttonText}
+                onChange={(e) => setForm({ ...form, buttonText: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
+                placeholder="e.g., Shop Now, View Collection"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Button Redirect Link <span className="text-gray-400 font-normal">(Optional)</span></label>
+              <input
+                type="text"
+                value={form.buttonLink}
+                onChange={(e) => setForm({ ...form, buttonLink: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., /category/fashion or https://..."
+              />
+              <p className="text-[10px] text-gray-500 mt-1 italic">Internal links start with /, external links with http://</p>
+            </div>
           </div>
 
           <div>

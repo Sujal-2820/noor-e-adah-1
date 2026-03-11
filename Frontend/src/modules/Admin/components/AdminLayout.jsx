@@ -23,7 +23,7 @@ export function AdminLayout({ sidebar, children, onExit }) {
         )}>
           <div className={cn('flex items-center gap-3 overflow-hidden transition-all', open ? 'opacity-100' : 'opacity-0 w-0')}>
             <div className="flex h-8 w-8 items-center justify-center bg-white rounded overflow-hidden flex-shrink-0">
-              <img src="/logo.png" alt="Noor E Adah" className="h-full w-full object-contain" />
+              <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="h-full w-full object-contain" />
             </div>
             <div>
               <p className="text-sm font-semibold text-white">Noor E Adah</p>
