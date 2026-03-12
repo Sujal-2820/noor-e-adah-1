@@ -6,15 +6,16 @@
  */
 
 export const CLOUDINARY_CONFIG = {
-  cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dhmtagkyz',
-  apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY || '883114994776468',
-  uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'canx-products', // Unsigned upload preset name (must be created in Cloudinary Dashboard)
+  cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dqljknimv',
+  apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY || '841232994941198',
+  uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'noor_images', // Unsigned upload preset name (must be created in Cloudinary Dashboard)
+  uploadPresetDocuments: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET_DOCUMENTS || 'noor_images',
   // To create the unsigned upload preset:
   // 1. Go to Cloudinary Dashboard > Settings > Upload
   // 2. Click "Add upload preset"
-  // 3. Name it "canx-products"
+  // 3. Name it "canx-international-products"
   // 4. Set "Signing mode" to "Unsigned"
-  // 5. Set folder to "canx/products"
+  // 5. Set folder to "noor-e-adah/products"
   // 6. Enable "Use filename" and "Unique filename"
   // 7. Add transformation: width: 800, height: 800, crop: limit, quality: auto
 }
@@ -25,7 +26,7 @@ export const CLOUDINARY_CONFIG = {
  */
 export const UPLOAD_WIDGET_OPTIONS = {
   cloudName: CLOUDINARY_CONFIG.cloudName,
-  uploadPreset: 'unsigned', // Use unsigned preset for client-side uploads
+  uploadPreset: CLOUDINARY_CONFIG.uploadPreset, // Use the configured preset for client-side uploads
   sources: ['local', 'camera', 'url'],
   multiple: false, // Upload one at a time for better control
   maxFiles: 4, // Maximum 4 images per product

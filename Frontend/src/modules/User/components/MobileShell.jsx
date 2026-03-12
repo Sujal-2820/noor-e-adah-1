@@ -148,7 +148,7 @@ export function MobileShell({ title, subtitle, children, navigation, menuContent
         <div className="user-shell-header__glow" />
         <div className="user-shell-header__first-row user-shell-header__controls relative z-10 flex items-center justify-between">
           <div className="user-shell-header__brand">
-            <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="h-8 w-auto object-contain rounded" />
+            <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="h-8 w-auto object-contain rounded" />
           </div>
 
           {/* Search Bar - Between Logo and Navigation (Laptop Only) */}
@@ -323,7 +323,7 @@ export function MobileShell({ title, subtitle, children, navigation, menuContent
           <div className="user-shell-footer__content">
             {/* Brand Column */}
             <div className="user-shell-footer__column">
-              <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="h-10 w-auto object-contain mb-4" />
+              <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="h-10 w-auto object-contain mb-4" />
               <p className="user-shell-footer__slogan"><Trans>Premium Indian Ethnic Wear</Trans></p>
               <div className="user-shell-footer__about">
                 <h4 className="user-shell-footer__heading"><Trans>Our Story</Trans></h4>

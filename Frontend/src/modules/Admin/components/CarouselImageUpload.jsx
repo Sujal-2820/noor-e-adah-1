@@ -123,7 +123,7 @@ export function CarouselImageUpload({ image = '', onChange, disabled = false, ti
       croppingAspectRatio: 2.67, // ~8:3 aspect ratio (1600:600)
       croppingDefaultSelectionRatio: 0.9,
       croppingShowDimensions: true,
-      folder: 'canx/carousels',
+      folder: 'noor-e-adah/carousels',
       transformation: [
         {
           width: 1600,

@@ -262,7 +262,7 @@ export function WebsiteHeader() {
           <div className="absolute left-1/2 -translate-x-1/2 lg:relative lg:left-0 lg:translate-x-0 order-first lg:mr-16">
             <Link to="/" className="block group/logo">
               <img 
-                src="/NoorEAdah.jpeg" 
+                src="/assets/NoorEAdahLogo.png" 
                 alt="Noor E Adah" 
                 className="h-12 lg:h-16 w-auto object-contain transition-transform duration-300 group-hover:scale-105" 
               />

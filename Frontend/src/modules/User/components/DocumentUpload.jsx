@@ -59,7 +59,7 @@ export function DocumentUpload({
     }
 
     // Validate upload preset is configured
-    const uploadPreset = CLOUDINARY_CONFIG?.uploadPreset?.trim()
+    const uploadPreset = CLOUDINARY_CONFIG?.uploadPresetDocuments?.trim() || CLOUDINARY_CONFIG?.uploadPreset?.trim()
     if (!uploadPreset || uploadPreset === '') {
       setError('Upload preset is not configured. Please contact support.')
       console.error('Cloudinary upload preset is missing:', CLOUDINARY_CONFIG)
@@ -116,7 +116,7 @@ export function DocumentUpload({
             error.status === 'Upload preset not found' ||
             error.statusText === 'Upload preset not found' ||
             errorMessage.includes('Upload preset must be specified')) {
-            setError('Upload preset not configured. Please create the preset "ira-sathi-products" in Cloudinary Dashboard: Settings → Upload → Add upload preset → Name: "ira-sathi-products" → Signing mode: "Unsigned" → Save')
+            setError('Upload preset not configured. Please create the preset "canx-international-products" in Cloudinary Dashboard: Settings → Upload → Add upload preset → Name: "canx-international-products" → Signing mode: "Unsigned" → Save')
           } else if (errorString.includes('file size') || errorString.includes('size') || errorString.includes('too large')) {
             setError('File size exceeds 5MB limit. Please upload a smaller document.')
           } else if (errorString.includes('format') || errorString.includes('type') || errorString.includes('not allowed') || errorString.includes('invalid')) {

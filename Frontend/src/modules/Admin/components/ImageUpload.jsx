@@ -20,7 +20,7 @@ export function ImageUpload({
   maxImages = 4,
   disabled = false,
   aspectRatio = null,
-  folder = 'canx/products'
+  folder = 'noor-e-adah/products'
 }) {
 
   const [uploadingIndex, setUploadingIndex] = useState(null)

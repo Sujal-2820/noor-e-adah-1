@@ -16,7 +16,7 @@ export function UserLoadingScreen({ progress = 0, message = "Preparing your expe
     <div className="user-loading-screen">
       <div className="user-loading-screen__content">
         <div className="user-loading-screen__brand">
-          <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="h-16 w-auto object-contain rounded-full mb-4 shadow-xl ring-2 ring-brand-faded p-1" />
+          <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="h-16 w-auto object-contain rounded-full mb-4 shadow-xl ring-2 ring-brand-faded p-1" />
           <p className="user-loading-screen__subtitle">
             OFFICIAL BOUTIQUE
           </p>

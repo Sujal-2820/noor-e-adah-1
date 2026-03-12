@@ -118,7 +118,7 @@ export function AdminLogin({ onSubmit }) {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white mb-4 overflow-hidden border border-gray-200">
-            <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="h-full w-full object-contain p-2" />
+            <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="h-full w-full object-contain p-2" />
           </div>
           <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold">Admin Access</p>
           <h1 className="text-3xl font-bold text-gray-900">Sign in to Noor E Adah</h1>

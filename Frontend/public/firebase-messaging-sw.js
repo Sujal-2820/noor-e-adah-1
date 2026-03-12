@@ -27,7 +27,7 @@ messaging.onBackgroundMessage((payload) => {
     const notificationTitle = payload.notification.title;
     const notificationOptions = {
         body: payload.notification.body,
-        icon: payload.notification.icon || '/NoorEAdah.jpeg',
+        icon: payload.notification.icon || '/assets/NoorEAdahLogo.png',
         data: payload.data,
         tag: payload.data?.type || 'general' // Group notifications by type
     };

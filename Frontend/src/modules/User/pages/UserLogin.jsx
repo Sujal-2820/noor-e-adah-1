@@ -205,7 +205,7 @@ export function UserLogin({ onSuccess, onSwitchToRegister }) {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white mb-4 shadow-sm border border-blue-100 p-2 overflow-hidden">
-            <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="w-full h-full object-contain" />
+            <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="w-full h-full object-contain" />
           </div>
           <p className="text-xs uppercase tracking-wide text-blue-600 font-semibold">Welcome Back</p>
           <h1 className="text-3xl font-bold text-gray-900">Sign in as User</h1>

@@ -141,7 +141,7 @@ export function OtpVerification({ phone, email, onVerify, onResend, onBack, load
         <div className="flex flex-col items-center gap-3">
           {/* Logo */}
           <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full ${theme.iconBg} mb-2 overflow-hidden border-2 ${theme.borderColor}`}>
-            <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="h-full w-full object-contain p-2" />
+            <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="h-full w-full object-contain p-2" />
           </div>
 
           {/* User Type Badge */}

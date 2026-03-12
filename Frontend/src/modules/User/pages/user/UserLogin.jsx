@@ -175,7 +175,7 @@ export function UserLogin({ onSuccess, onSwitchToRegister }) {
           {/* Brand Identity */}
           <div className="flex flex-col items-center mb-6">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-2 shadow-sm border border-blue-100 p-2 overflow-hidden">
-              <img src="/NoorEAdah.jpeg" alt="Noor E Adah" className="w-full h-full object-contain" />
+              <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="w-full h-full object-contain" />
             </div>
             <div className="flex flex-col -space-y-1">
               <span className="text-lg font-black text-slate-900 tracking-tighter uppercase">Noor E <span className="text-accent">Adah</span></span>
