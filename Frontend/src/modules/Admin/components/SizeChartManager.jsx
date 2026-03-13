@@ -295,8 +295,12 @@ export function SizeChartManager({ value, onChange }) {
         }
     }, [value])
 
+    // Debounce parent updates to preserve typing performance
     useEffect(() => {
-        onChange?.({ headers, rows, unit })
+        const timer = setTimeout(() => {
+            onChange?.({ headers, rows, unit })
+        }, 500)
+        return () => clearTimeout(timer)
     }, [headers, rows, unit])
 
     const addHeader = () => {

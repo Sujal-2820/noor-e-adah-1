@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback } from 'react'
+import { useMemo, useRef, useCallback, useEffect } from 'react'
 import JoditEditor from 'jodit-react'
 import { cn } from '../../../lib/cn'
 
@@ -79,12 +79,37 @@ export function MarkdownEditor({
     },
     // Custom width
     width: 'auto',
+    toolbarSticky: false, // Prevents layout jumps that cause auto-scroll
+    scrollWhenTyping: false, // Prevents Jodit from forcing scrolls
+    // Performance optimizations
+    observer: {
+      timeout: 100 // increase timeout for observer
+    },
+    useSplitMode: false,
+    link: {
+      followOnHotKey: true
+    }
   }), [disabled, placeholder])
+
+  // Use a ref to track the latest value locally without triggering re-renders
+  const lastValue = useRef(value)
+
+  // Sync internal ref when prop value changes from outside (e.g. product loaded)
+  useEffect(() => {
+    if (value !== lastValue.current) {
+      lastValue.current = value
+    }
+  }, [value])
 
   const emit = useCallback((newContent) => {
     // Normalise Jodit's empty-paragraph signal to empty string
     const cleaned = newContent === '<p><br></p>' ? '' : newContent
-    onChange({ target: { name, value: cleaned } })
+
+    // Only emit if value actually changed to avoid redundant parent re-renders
+    if (cleaned !== lastValue.current) {
+      lastValue.current = cleaned
+      onChange({ target: { name, value: cleaned } })
+    }
   }, [onChange, name])
 
   return (
@@ -190,20 +215,13 @@ export function MarkdownEditor({
         }
       `}</style>
 
-      {/*
-        key={value.slice(0,40)} — forces Jodit to remount with the correct initial
-        HTML whenever the form is populated with an existing product's data.
-        Without this, Jodit's internal state does not sync from the `value` prop
-        after first mount, causing blank or stale content on edit.
-        We slice to 40 chars so minor mid-typing changes don't cause remounts.
-      */}
       <JoditEditor
-        key={value ? value.slice(0, 40) : '__empty__'}
         ref={editorRef}
         value={value}
         config={config}
-        onBlur={emit}
-        onChange={emit}
+        onBlur={emit} // Update parent state when user leaves the editor
+        // We REMOVE onChange here to prevent the lag loop and cursor loss
+        // Jodit keeps internal state perfectly. onBlur ensures parent gets the final data.
       />
 
       <div className="px-3 py-1.5 bg-gray-50 border border-t-0 border-gray-300 rounded-b-xl text-xs text-gray-500" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -1 }}>
