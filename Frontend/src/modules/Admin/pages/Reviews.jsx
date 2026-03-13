@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { FilterBar } from '../components/FilterBar'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 import { cn } from '../../../lib/cn'
 
 const columns = [
@@ -29,6 +30,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
   const [responseText, setResponseText] = useState('')
   const [editingResponse, setEditingResponse] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState('')
   const [filters, setFilters] = useState({
     productId: '',
     userId: '',
@@ -144,6 +147,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
     }
 
     try {
+      setIsProcessing(true)
+      setProcessingMessage(editingResponse ? 'Updating Response...' : 'Submitting Response...')
       let result
       if (editingResponse) {
         result = await updateReviewResponse(selectedReview._id, { response: responseText })
@@ -162,6 +167,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to submit response')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -170,6 +177,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
     if (!confirm('Are you sure you want to delete this response?')) return
 
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Deleting Response...')
       const result = await deleteReviewResponse(review._id)
       if (result.data) {
         success('Response deleted successfully')
@@ -179,6 +188,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to delete response')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -197,6 +208,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
     }
 
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Updating Review Status...')
       const result = await moderateReview(review._id, updateData)
       if (result.data) {
         success('Review moderated successfully')
@@ -206,6 +219,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to moderate review')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -214,6 +229,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
     if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) return
 
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Deleting Review...')
       const result = await deleteReview(review._id)
       if (result.data) {
         success('Review deleted successfully')
@@ -223,6 +240,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to delete review')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -597,6 +616,8 @@ export function ReviewsPage({ subRoute = null, navigate }) {
           </div>
         </div>
       )}
+
+      <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
     </div>
   )
 }

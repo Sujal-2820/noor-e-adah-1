@@ -9,6 +9,7 @@ import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
 
 import { cn } from '../../../lib/cn'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 
 const columns = [
   { Header: 'Order ID', accessor: 'id' },
@@ -80,6 +81,8 @@ export function OrdersPage({ subRoute = null, navigate }) {
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('')
   const [statusUpdateNotes, setStatusUpdateNotes] = useState('')
   const [isRevert, setIsRevert] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState('')
 
   // Dropdown state for actions menu
   const [openActionsDropdown, setOpenActionsDropdown] = useState(null)
@@ -244,6 +247,8 @@ export function OrdersPage({ subRoute = null, navigate }) {
 
   const handleReassignSubmit = async (orderId, reassignData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Reassigning Order...')
       const result = await reassignOrder(orderId, reassignData)
       if (result.data) {
         setCurrentView(null)
@@ -263,6 +268,8 @@ export function OrdersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to reassign order', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -302,6 +309,8 @@ export function OrdersPage({ subRoute = null, navigate }) {
     }
 
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Reverting Escalation...')
       const result = await revertEscalation(selectedOrderForRevert.id, { reason: revertReason.trim() })
       if (result.data) {
         setCurrentView(null)
@@ -314,11 +323,15 @@ export function OrdersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to revert escalation', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleFulfillFromWarehouse = async (orderId, fulfillmentData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Processing Fulfillment...')
       const result = await fulfillOrderFromWarehouse(orderId, fulfillmentData)
       if (result.data) {
         // After successful fulfill, automatically open status update interface
@@ -364,11 +377,15 @@ export function OrdersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to fulfill order', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleUpdateOrderStatus = async (orderId, updateData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Updating Status...')
       const result = await updateOrderStatus(orderId, updateData)
       if (result.data) {
         setCurrentView(null)
@@ -385,6 +402,8 @@ export function OrdersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to update order status', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -1789,6 +1808,7 @@ export function OrdersPage({ subRoute = null, navigate }) {
           />
         </div>
       </section>
+      <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
     </div>
   )
 }

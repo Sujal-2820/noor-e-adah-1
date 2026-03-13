@@ -4,6 +4,7 @@ import { cn } from '../../../lib/cn'
 import { DataTable } from '../components/DataTable'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 
 /**
  * Push Notifications Management Page
@@ -50,6 +51,8 @@ export function PushNotificationsPage({ subRoute = null, navigate }) {
     })
     const [formErrors, setFormErrors] = useState({})
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [processingMessage, setProcessingMessage] = useState('')
 
     const [pushHistory, setPushHistory] = useState([])
     const [loadingHistory, setLoadingHistory] = useState(false)
@@ -140,6 +143,8 @@ export function PushNotificationsPage({ subRoute = null, navigate }) {
         if (!validateForm()) return
 
         setIsSubmitting(true)
+        setIsProcessing(true)
+        setProcessingMessage('Broadcasting Notification...')
 
         try {
             const authToken = localStorage.getItem('admin_token') || localStorage.getItem('token');
@@ -185,6 +190,7 @@ export function PushNotificationsPage({ subRoute = null, navigate }) {
             error('Failed to send push notification. Please check your connection.')
         } finally {
             setIsSubmitting(false)
+            setIsProcessing(false)
         }
     }
 
@@ -548,6 +554,8 @@ export function PushNotificationsPage({ subRoute = null, navigate }) {
                     )}
                 </div>
             )}
+            {/* Loading Overlay */}
+            <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
         </div>
     )
 }

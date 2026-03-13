@@ -5,6 +5,8 @@ import { useAdminApi } from '../hooks/useAdminApi'
 import { StatusBadge } from '../components/StatusBadge'
 import { DataTable } from '../components/DataTable'
 import { cn } from '../../../lib/cn'
+import { LoadingOverlay } from '../components/LoadingOverlay'
+import { useToast } from '../components/ToastNotification'
 
 const columns = [
     { Header: 'Task', accessor: 'title' },
@@ -23,6 +25,9 @@ export default function TasksPage({ navigate }) {
     const [activeTab, setActiveTab] = useState('pending')
     const [filterList, setFilterList] = useState([])
     const [openActionsDropdown, setOpenActionsDropdown] = useState(null)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [processingMessage, setProcessingMessage] = useState('')
+    const { success, error: showError } = useToast()
 
     const loadTasks = useCallback(async () => {
         await fetchTasks({ status: activeTab === 'all' ? '' : activeTab })
@@ -40,22 +45,39 @@ export default function TasksPage({ navigate }) {
     }, [tasks.updated, loadTasks])
 
     const handleTaskAction = async (task) => {
-        // Navigate to the target screen
-        if (task.link) {
-            // Mark as viewed if it was pending
-            if (task.status === 'pending') {
-                await markTaskViewed(task._id)
-            }
+        try {
+            // Navigate to the target screen
+            if (task.link) {
+                // Mark as viewed if it was pending
+                if (task.status === 'pending') {
+                    setIsProcessing(true)
+                    setProcessingMessage('Updating Task Status...')
+                    await markTaskViewed(task._id)
+                }
 
-            // Navigate to the link (assuming navigate function works with string routes)
-            const route = task.link.startsWith('/') ? task.link.substring(1) : task.link
-            navigate(route)
+                // Navigate to the link (assuming navigate function works with string routes)
+                const route = task.link.startsWith('/') ? task.link.substring(1) : task.link
+                navigate(route)
+            }
+        } catch (error) {
+            showError(error.message || 'Failed to update task')
+        } finally {
+            setIsProcessing(false)
         }
     }
 
     const handleCompleteTask = async (taskId) => {
-        await markTaskCompleted(taskId)
-        loadTasks()
+        try {
+            setIsProcessing(true)
+            setProcessingMessage('Completing Task...')
+            await markTaskCompleted(taskId)
+            success('Task marked as completed!')
+            loadTasks()
+        } catch (error) {
+            showError(error.message || 'Failed to complete task')
+        } finally {
+            setIsProcessing(false)
+        }
     }
 
     const getCategoryIcon = (category) => {
@@ -288,6 +310,7 @@ export default function TasksPage({ navigate }) {
                     <p className="text-sm opacity-90 mt-1">Escalated orders require immediate attention to maintain delivery SLAs.</p>
                 </div>
             </div>
+            <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
         </div>
     )
 }

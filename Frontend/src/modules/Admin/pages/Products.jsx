@@ -8,6 +8,7 @@ import { ProductAttributesModal } from '../components/ProductAttributesModal'
 import { useAdminState } from '../context/AdminContext'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 import { uploadProductVideo } from '../services/adminApi'
 import { cn } from '../../../lib/cn'
 
@@ -33,6 +34,8 @@ export function ProductsPage({ subRoute = null, navigate }) {
   const [showAttributesModal, setShowAttributesModal] = useState(false)
   const [selectedProductForAttributes, setSelectedProductForAttributes] = useState(null)
   const [openActionsDropdown, setOpenActionsDropdown] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState('')
 
   const regionColors = [
     { border: 'border-green-200', bg: 'bg-gradient-to-br from-green-50 to-green-100/50', text: 'text-green-700', progress: 'bg-gradient-to-r from-green-500 to-green-600' },
@@ -125,29 +128,34 @@ export function ProductsPage({ subRoute = null, navigate }) {
   }
 
   const handleDeleteProduct = async (productId) => {
-    if (window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
-      try {
-        const result = await deleteProduct(productId)
-        if (result.data) {
-          fetchProducts()
-          success('Product deleted successfully!')
-        } else if (result.error) {
-          const errorMessage = result.error.message || 'Failed to delete product'
-          // Check if it's a warning (product has active assignments)
-          if (errorMessage.includes('active user assignment')) {
-            showWarning(errorMessage, 6000)
-          } else {
-            showError(errorMessage, 5000)
-          }
+    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) return
+    try {
+      setIsProcessing(true)
+      setProcessingMessage('Deleting Product...')
+      const result = await deleteProduct(productId)
+      if (result.data) {
+        fetchProducts()
+        success('Product deleted successfully!', 3000)
+      } else if (result.error) {
+        const errorMessage = result.error.message || 'Failed to delete product'
+        // Check if it's a warning (product has active assignments)
+        if (errorMessage.includes('active user assignment')) {
+          showWarning(errorMessage, 6000)
+        } else {
+          showError(errorMessage, 5000)
         }
-      } catch (error) {
-        showError(error.message || 'Failed to delete product', 5000)
       }
+    } catch (error) {
+      showError(error.message || 'Failed to delete product', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleToggleVisibility = async (product) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Updating Visibility...')
       const currentVisibility = product.visibility === 'Active' || product.visibility === 'active' ? 'active' : 'inactive'
       const newVisibility = currentVisibility === 'active' ? 'inactive' : 'active'
 
@@ -161,6 +169,8 @@ export function ProductsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to update product visibility', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -175,6 +185,9 @@ export function ProductsPage({ subRoute = null, navigate }) {
       const cleanFormData = pendingVideoFile
         ? { ...formData, video: null }
         : formData
+
+      setIsProcessing(true)
+      setProcessingMessage(selectedProduct ? 'Updating Product...' : 'Creating Product...')
 
       if (selectedProduct) {
         // Update existing product
@@ -231,6 +244,8 @@ export function ProductsPage({ subRoute = null, navigate }) {
     } catch (error) {
       console.error('Error in handleFormSubmit:', error)
       showError(error.message || 'Failed to save product', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -433,6 +448,7 @@ export function ProductsPage({ subRoute = null, navigate }) {
             loading={loading}
           />
         </div>
+        <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
       </div>
     )
   }
@@ -478,12 +494,14 @@ export function ProductsPage({ subRoute = null, navigate }) {
 
       {/* Attributes Modal */}
       <ProductAttributesModal
+        productId={selectedProductForAttributes?._id || selectedProductForAttributes?.id}
+        productName={selectedProductForAttributes?.name}
         isOpen={showAttributesModal}
         onClose={() => {
           setShowAttributesModal(false)
           setSelectedProductForAttributes(null)
+          fetchProducts() // Refresh to get updated stock
         }}
-        product={selectedProductForAttributes}
       />
 
       <div className="space-y-6">

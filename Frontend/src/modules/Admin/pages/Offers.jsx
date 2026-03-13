@@ -1,25 +1,30 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ImageIcon, Plus, Edit2, Trash2, ToggleRight, ToggleLeft, Save, ArrowLeft, AlertCircle, GripVertical } from 'lucide-react'
+import { ImageIcon, Plus, Edit2, Trash2, ToggleRight, ToggleLeft, Save, ArrowLeft, AlertCircle, GripVertical, Smartphone, Monitor, Video, Play } from 'lucide-react'
 import { StatusBadge } from '../components/StatusBadge'
 import { useToast } from '../components/ToastNotification'
 import { cn } from '../../../lib/cn'
 import * as adminApi from '../services/adminApi'
 import { ImageUpload } from '../components/ImageUpload'
-import { CarouselImageUpload } from '../components/CarouselImageUpload'
+import { OfferMediaUpload } from '../components/OfferMediaUpload'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 
 export function OffersPage({ subRoute = null, navigate }) {
   const { success, error: showError, warning } = useToast()
-  const [activeTab, setActiveTab] = useState('carousels') // 'carousels' | 'special-offers'
+  const [activeTab, setActiveTab] = useState('carousels') // 'carousels' | 'smartphone-carousels' | 'special-offers'
   const [carousels, setCarousels] = useState([])
+  const [smartphoneCarousels, setSmartphoneCarousels] = useState([])
   const [specialOffers, setSpecialOffers] = useState([])
   const [loading, setLoading] = useState(true)
   const [carouselCount, setCarouselCount] = useState(0)
+  const [smartphoneCarouselCount, setSmartphoneCarouselCount] = useState(0)
   const [editingCarousel, setEditingCarousel] = useState(null)
   const [editingSpecialOffer, setEditingSpecialOffer] = useState(null)
   const [allProducts, setAllProducts] = useState([])
   const [productsLoading, setProductsLoading] = useState(false)
   const [draggedCarouselIndex, setDraggedCarouselIndex] = useState(null)
   const [dragOverCarouselIndex, setDragOverCarouselIndex] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState('')
 
   // Form states
   const [carouselForm, setCarouselForm] = useState({
@@ -49,8 +54,15 @@ export function OffersPage({ subRoute = null, navigate }) {
       const result = await adminApi.getOffers()
       if (result.success && result.data) {
         setCarousels(result.data.offers?.filter(o => o.type === 'carousel') || [])
+        setSmartphoneCarousels(result.data.offers?.filter(o => o.type === 'smartphone_carousel') || [])
         setSpecialOffers(result.data.offers?.filter(o => o.type === 'special_offer') || [])
-        setCarouselCount(result.data.carouselCount || 0)
+        
+        // Count active offers per type
+        const desktopActive = result.data.offers?.filter(o => o.type === 'carousel' && o.isActive).length || 0
+        const smartphoneActive = result.data.offers?.filter(o => o.type === 'smartphone_carousel' && o.isActive).length || 0
+        
+        setCarouselCount(desktopActive)
+        setSmartphoneCarouselCount(smartphoneActive)
       }
     } catch (err) {
       showError(err.message || 'Failed to load offers')
@@ -83,12 +95,13 @@ export function OffersPage({ subRoute = null, navigate }) {
   useEffect(() => {
     if (subRoute) {
       const parts = subRoute.split('/')
-      if (parts[0] === 'carousel' && parts[1] === 'edit' && parts[2]) {
+      if ((parts[0] === 'carousel' || parts[0] === 'smartphone-carousel') && parts[1] === 'edit' && parts[2]) {
         // Find carousel by ID
-        const carousel = carousels.find(c => (c._id || c.id) === parts[2])
+        const list = parts[0] === 'carousel' ? carousels : smartphoneCarousels
+        const carousel = list.find(c => (c._id || c.id) === parts[2])
         if (carousel) {
           setEditingCarousel(carousel)
-        } else if (carousels.length > 0) {
+        } else if (carousels.length > 0 || smartphoneCarousels.length > 0) {
           // Carousels loaded but not found - might need to refetch
           fetchOffers()
         }
@@ -101,9 +114,9 @@ export function OffersPage({ subRoute = null, navigate }) {
           // Offers loaded but not found - might need to refetch
           fetchOffers()
         }
-      } else if (parts[0] === 'carousel' && parts[1] === 'add') {
+      } else if ((parts[0] === 'carousel' || parts[0] === 'smartphone-carousel') && parts[1] === 'add') {
         // Reset when adding new
-        setEditingCarousel(null)
+        setEditingCarousel({ type: parts[0] === 'carousel' ? 'carousel' : 'smartphone_carousel' })
       } else if (parts[0] === 'special-offer' && parts[1] === 'add') {
         // Reset when adding new
         setEditingSpecialOffer(null)
@@ -116,32 +129,40 @@ export function OffersPage({ subRoute = null, navigate }) {
   }, [subRoute, carousels, specialOffers, fetchOffers])
 
   // Carousel handlers
-  const handleCreateCarousel = () => {
-    if (carouselCount >= 6) {
-      warning('Maximum 6 active carousels allowed. Please delete or deactivate an existing carousel first.')
+  const handleCreateCarousel = (type = 'carousel') => {
+    const count = type === 'carousel' ? carouselCount : smartphoneCarouselCount
+    if (count >= 6) {
+      warning(`Maximum 6 active ${type === 'carousel' ? 'desktop' : 'smartphone'} carousels allowed. Please delete or deactivate an existing one first.`)
       return
     }
-    if (navigate) navigate('offers/carousel/add')
+    const path = type === 'carousel' ? 'offers/carousel/add' : 'offers/smartphone-carousel/add'
+    if (navigate) navigate(path)
   }
 
   const handleEditCarousel = (carousel) => {
     setEditingCarousel(carousel)
-    if (navigate) navigate(`offers/carousel/edit/${carousel._id || carousel.id}`)
+    const typePath = carousel.type === 'carousel' ? 'carousel' : 'smartphone-carousel'
+    if (navigate) navigate(`offers/${typePath}/edit/${carousel._id || carousel.id}`)
   }
 
   const handleSaveCarousel = async (carouselForm) => {
     try {
-      // Title is optional for carousels
-      if (!carouselForm.image) {
-        showError('Image is required for carousel')
+      if (carouselForm.mediaType === 'image' && !carouselForm.image) {
+        showError('Image is required')
         return false
       }
-      // Products are optional for carousels
+      if (carouselForm.mediaType === 'video' && !carouselForm.video) {
+        showError('Video is required')
+        return false
+      }
 
-      if (editingCarousel) {
+      setIsProcessing(true)
+      setProcessingMessage(editingCarousel?._id || editingCarousel?.id ? 'Updating Carousel...' : 'Creating Carousel...')
+
+      if (editingCarousel?._id || editingCarousel?.id) {
         const result = await adminApi.updateOffer(editingCarousel._id || editingCarousel.id, {
           ...carouselForm,
-          type: 'carousel',
+          type: editingCarousel.type,
         })
         if (result.success) {
           success('Carousel updated successfully')
@@ -153,7 +174,7 @@ export function OffersPage({ subRoute = null, navigate }) {
       } else {
         const result = await adminApi.createOffer({
           ...carouselForm,
-          type: 'carousel',
+          type: editingCarousel?.type || 'carousel',
         })
         if (result.success) {
           success('Carousel created successfully')
@@ -166,12 +187,16 @@ export function OffersPage({ subRoute = null, navigate }) {
     } catch (err) {
       showError(err.message || 'Failed to save carousel')
       return false
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleDeleteCarousel = async (id) => {
     if (!confirm('Are you sure you want to delete this carousel?')) return
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Deleting Carousel...')
       const result = await adminApi.deleteOffer(id)
       if (result.success) {
         success('Carousel deleted successfully')
@@ -179,11 +204,15 @@ export function OffersPage({ subRoute = null, navigate }) {
       }
     } catch (err) {
       showError(err.message || 'Failed to delete carousel')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleToggleCarouselActive = async (carousel) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage(carousel.isActive ? 'Deactivating...' : 'Activating...')
       const result = await adminApi.updateOffer(carousel._id || carousel.id, {
         isActive: !carousel.isActive,
       })
@@ -193,6 +222,8 @@ export function OffersPage({ subRoute = null, navigate }) {
       }
     } catch (err) {
       showError(err.message || 'Failed to update carousel')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -234,7 +265,8 @@ export function OffersPage({ subRoute = null, navigate }) {
       return
     }
 
-    const updatedCarousels = [...carousels]
+    const list = activeTab === 'carousels' ? carousels : smartphoneCarousels
+    const updatedCarousels = [...list]
     const draggedCarousel = updatedCarousels[draggedCarouselIndex]
 
     // Remove dragged carousel from its position
@@ -250,11 +282,17 @@ export function OffersPage({ subRoute = null, navigate }) {
     }))
 
     // Optimistically update UI
-    setCarousels(reorderedCarousels)
+    if (draggedCarousel.type === 'carousel') {
+      setCarousels(reorderedCarousels)
+    } else {
+      setSmartphoneCarousels(reorderedCarousels)
+    }
     setDraggedCarouselIndex(null)
 
     // Save new order to backend
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Saving New Order...')
       // Update all carousels with new order
       const updatePromises = reorderedCarousels.map((carousel, idx) =>
         adminApi.updateOffer(carousel._id || carousel.id, { order: idx })
@@ -267,6 +305,8 @@ export function OffersPage({ subRoute = null, navigate }) {
       showError(err.message || 'Failed to update carousel order')
       // Revert on error
       fetchOffers()
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -294,6 +334,9 @@ export function OffersPage({ subRoute = null, navigate }) {
         showError('Special value is required')
         return false
       }
+
+      setIsProcessing(true)
+      setProcessingMessage(editingSpecialOffer?._id || editingSpecialOffer?.id ? 'Updating Special Offer...' : 'Creating Special Offer...')
 
       if (editingSpecialOffer) {
         const result = await adminApi.updateOffer(editingSpecialOffer._id || editingSpecialOffer.id, {
@@ -323,12 +366,16 @@ export function OffersPage({ subRoute = null, navigate }) {
     } catch (err) {
       showError(err.message || 'Failed to save special offer')
       return false
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleDeleteSpecialOffer = async (id) => {
     if (!confirm('Are you sure you want to delete this special offer?')) return
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Deleting Special Offer...')
       const result = await adminApi.deleteOffer(id)
       if (result.success) {
         success('Special offer deleted successfully')
@@ -336,11 +383,15 @@ export function OffersPage({ subRoute = null, navigate }) {
       }
     } catch (err) {
       showError(err.message || 'Failed to delete special offer')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleToggleSpecialOfferActive = async (offer) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage(offer.isActive ? 'Deactivating...' : 'Activating...')
       const result = await adminApi.updateOffer(offer._id || offer.id, {
         isActive: !offer.isActive,
       })
@@ -350,11 +401,14 @@ export function OffersPage({ subRoute = null, navigate }) {
       }
     } catch (err) {
       showError(err.message || 'Failed to update special offer')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   // Show full-screen form views based on subRoute
-  if (subRoute === 'carousel/add' || (subRoute && subRoute.startsWith('carousel/edit'))) {
+  if (subRoute === 'carousel/add' || (subRoute && subRoute.startsWith('carousel/edit')) || subRoute === 'smartphone-carousel/add' || (subRoute && subRoute.startsWith('smartphone-carousel/edit'))) {
+    const isSmartphone = subRoute?.includes('smartphone-carousel')
     return (
       <CarouselFormScreen
         editingCarousel={editingCarousel}
@@ -365,7 +419,8 @@ export function OffersPage({ subRoute = null, navigate }) {
           setEditingCarousel(null)
           if (navigate) navigate('offers')
         }}
-        carouselCount={carouselCount}
+        carouselCount={isSmartphone ? smartphoneCarouselCount : carouselCount}
+        isSmartphone={isSmartphone}
       />
     )
   }
@@ -402,13 +457,26 @@ export function OffersPage({ subRoute = null, navigate }) {
           <button
             onClick={() => setActiveTab('carousels')}
             className={cn(
-              'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+              'py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
               activeTab === 'carousels'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             )}
           >
-            Carousels ({carouselCount}/6)
+            <Monitor className="h-4 w-4" />
+            Desktop Carousels ({carouselCount}/6)
+          </button>
+          <button
+            onClick={() => setActiveTab('smartphone-carousels')}
+            className={cn(
+              'py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
+              activeTab === 'smartphone-carousels'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            )}
+          >
+            <Smartphone className="h-4 w-4" />
+            Smartphone Carousels ({smartphoneCarouselCount}/6)
           </button>
           <button
             onClick={() => setActiveTab('special-offers')}
@@ -424,34 +492,48 @@ export function OffersPage({ subRoute = null, navigate }) {
         </nav>
       </div>
 
-      {/* Carousels Tab */}
-      {activeTab === 'carousels' && (
+      {/* Desktop & Smartphone Carousels List */}
+      {(activeTab === 'carousels' || activeTab === 'smartphone-carousels') && (
         <div className="space-y-4">
-          {carouselCount >= 6 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">Maximum carousels reached</p>
-                <p className="text-sm text-yellow-700 mt-1">
-                  You have reached the maximum limit of 6 active carousels. Delete or deactivate an existing carousel to add a new one.
-                </p>
+          {activeTab === 'carousels' ? (
+            carouselCount >= 6 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Maximum desktop carousels reached</p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    You have reached the maximum limit of 6 active desktop carousels.
+                  </p>
+                </div>
               </div>
-            </div>
+            )
+          ) : (
+            smartphoneCarouselCount >= 6 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Maximum smartphone carousels reached</p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    You have reached the maximum limit of 6 active smartphone carousels.
+                  </p>
+                </div>
+              </div>
+            )
           )}
 
           <div className="flex justify-end">
             <button
-              onClick={handleCreateCarousel}
-              disabled={carouselCount >= 6}
+              onClick={() => handleCreateCarousel(activeTab === 'carousels' ? 'carousel' : 'smartphone_carousel')}
+              disabled={activeTab === 'carousels' ? carouselCount >= 6 : smartphoneCarouselCount >= 6}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors',
-                carouselCount >= 6
+                (activeTab === 'carousels' ? carouselCount >= 6 : smartphoneCarouselCount >= 6)
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               )}
             >
               <Plus className="h-4 w-4" />
-              Add Carousel
+              Add {activeTab === 'carousels' ? 'Desktop' : 'Smartphone'} Carousel
             </button>
           </div>
 
@@ -459,24 +541,27 @@ export function OffersPage({ subRoute = null, navigate }) {
             <div className="text-center py-12">
               <p className="text-gray-500">Loading carousels...</p>
             </div>
-          ) : carousels.length === 0 ? (
+          ) : (activeTab === 'carousels' ? carousels : smartphoneCarousels).length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 font-medium">No carousels yet</p>
-              <p className="text-sm text-gray-500 mt-1">Create your first carousel to display on the user dashboard</p>
+              <p className="text-sm text-gray-500 mt-1 text-center">Create your first carousel to display on the {activeTab === 'carousels' ? 'desktop' : 'smartphone'} view</p>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-gray-500 mb-2 flex items-center gap-2">
                 <GripVertical className="h-4 w-4" />
-                Drag carousels to reorder them (top carousel appears first on user dashboard)
+                Drag to reorder
               </p>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {carousels
+                {(activeTab === 'carousels' ? carousels : smartphoneCarousels)
                   .sort((a, b) => (a.order || 0) - (b.order || 0))
                   .map((carousel, index) => {
                     const isDragging = draggedCarouselIndex === index
                     const isDragOver = dragOverCarouselIndex === index
+                    const isVideo = carousel.mediaType === 'video'
+                    const mediaSrc = isVideo ? carousel.video : carousel.image
+                    
                     return (
                       <div
                         key={carousel._id || carousel.id}
@@ -487,39 +572,55 @@ export function OffersPage({ subRoute = null, navigate }) {
                         onDragLeave={handleCarouselDragLeave}
                         onDrop={(e) => handleCarouselDrop(e, index)}
                         className={cn(
-                          'border rounded-lg p-4 space-y-3 cursor-move transition-all',
+                          'border rounded-2xl p-4 space-y-3 cursor-move transition-all flex flex-col',
                           carousel.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75',
                           isDragging && 'opacity-50 scale-95',
                           isDragOver && 'ring-2 ring-blue-500 ring-offset-2 scale-105'
                         )}
                       >
-                        <div className="flex items-start gap-2">
-                          <GripVertical className="h-5 w-5 text-gray-400 mt-1 flex-shrink-0" />
+                        <div className="flex items-start gap-2 flex-grow">
+                          <GripVertical className="h-5 w-5 text-gray-300 mt-1 flex-shrink-0" />
                           <div className="flex-1">
-                            {carousel.image && (
-                              <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
-                                <img src={carousel.image} alt={carousel.title} className="w-full h-full object-cover" />
-                              </div>
-                            )}
+                            <div className={cn(
+                              "relative rounded-xl overflow-hidden bg-gray-100 mb-3",
+                              carousel.orientation === 'vertical' ? "aspect-[9/16]" : "aspect-video"
+                            )}>
+                              {isVideo ? (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <Video className="h-8 w-8 text-gray-400" />
+                                  <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded flex items-center gap-1 font-bold">
+                                    <Video className="h-3 w-3" /> VIDEO
+                                  </div>
+                                </div>
+                              ) : (
+                                <img src={mediaSrc} alt={carousel.title} className="w-full h-full object-cover" />
+                              )}
+                            </div>
                             <div>
-                              <h3 className="font-medium text-gray-900">{carousel.title}</h3>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-gray-900 truncate flex-1">{carousel.title || 'Untitled Carousel'}</h3>
+                                {isVideo && <Video className="h-3.5 w-3.5 text-blue-500" />}
+                              </div>
                               {carousel.description && (
-                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{carousel.description}</p>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{carousel.description}</p>
                               )}
                               {carousel.buttonText && (
-                                <div className="mt-2 flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded uppercase">
-                                    CTA: {carousel.buttonText}
-                                  </span>
+                                <div className="mt-2 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                                  CTA: {carousel.buttonText}
                                 </div>
                               )}
-                              <p className="text-xs text-gray-500 mt-2">
-                                {carousel.productIds?.length || 0} product{carousel.productIds?.length !== 1 ? 's' : ''} linked
-                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-bold rounded">
+                                  {carousel.orientation === 'vertical' ? 'VERTICAL' : 'HORIZONTAL'}
+                                </span>
+                                <span className="text-[9px] text-gray-400 font-medium">
+                                  {carousel.productIds?.length || 0} Products Linked
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="flex items-center justify-between pt-3 border-t">
                           <StatusBadge status={carousel.isActive ? 'active' : 'inactive'} />
                           <div className="flex items-center gap-2">
                             <button
@@ -527,13 +628,13 @@ export function OffersPage({ subRoute = null, navigate }) {
                                 e.stopPropagation()
                                 handleToggleCarouselActive(carousel)
                               }}
-                              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-green-600 transition-colors"
                               title={carousel.isActive ? 'Deactivate' : 'Activate'}
                             >
                               {carousel.isActive ? (
                                 <ToggleRight className="h-5 w-5 text-green-600" />
                               ) : (
-                                <ToggleLeft className="h-5 w-5 text-gray-400" />
+                                <ToggleLeft className="h-5 w-5" />
                               )}
                             </button>
                             <button
@@ -541,20 +642,20 @@ export function OffersPage({ subRoute = null, navigate }) {
                                 e.stopPropagation()
                                 handleEditCarousel(carousel)
                               }}
-                              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
                               title="Edit"
                             >
-                              <Edit2 className="h-4 w-4 text-gray-600" />
+                              <Edit2 className="h-4 w-4" />
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleDeleteCarousel(carousel._id || carousel.id)
                               }}
-                              className="p-1.5 hover:bg-red-50 rounded transition-colors"
+                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-600 transition-colors"
                               title="Delete"
                             >
-                              <Trash2 className="h-4 w-4 text-red-600" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
@@ -653,39 +754,44 @@ export function OffersPage({ subRoute = null, navigate }) {
         </div>
       )}
 
+      <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
     </div>
   )
 }
 
 // Carousel Form Screen Component
-function CarouselFormScreen({ editingCarousel, allProducts, productsLoading, onSave, onCancel, carouselCount }) {
+function CarouselFormScreen({ editingCarousel, allProducts, productsLoading, onSave, onCancel, carouselCount, isSmartphone }) {
   const [form, setForm] = useState({
     title: editingCarousel?.title || '',
     description: editingCarousel?.description || '',
     image: editingCarousel?.image || '',
+    video: editingCarousel?.video || '',
+    mediaType: editingCarousel?.mediaType || 'image',
+    orientation: editingCarousel?.orientation || (isSmartphone ? 'vertical' : 'horizontal'),
     buttonText: editingCarousel?.buttonText || '',
     buttonLink: editingCarousel?.buttonLink || '',
     productIds: editingCarousel?.productIds?.map(p => p._id || p) || [],
     order: editingCarousel?.order || carouselCount || 0,
     isActive: editingCarousel?.isActive !== false,
   })
-  const [imageUrl, setImageUrl] = useState(form.image || '')
-  const isEditing = !!editingCarousel
+  const isEditing = !!(editingCarousel?._id || editingCarousel?.id)
 
   useEffect(() => {
-    if (editingCarousel) {
+    if (editingCarousel?._id || editingCarousel?.id) {
       setForm({
         title: editingCarousel.title || '',
         description: editingCarousel.description || '',
         image: editingCarousel.image || '',
+        video: editingCarousel.video || '',
+        mediaType: editingCarousel.mediaType || 'image',
+        orientation: editingCarousel.orientation || (isSmartphone ? 'vertical' : 'horizontal'),
         buttonText: editingCarousel.buttonText || '',
         buttonLink: editingCarousel.buttonLink || '',
         productIds: editingCarousel.productIds?.map(p => p._id || p) || [],
         isActive: editingCarousel.isActive !== false,
       })
-      setImageUrl(editingCarousel.image || '')
     }
-  }, [editingCarousel])
+  }, [editingCarousel, isSmartphone])
 
 
   const handleProductToggle = (productId) => {
@@ -754,40 +860,95 @@ function CarouselFormScreen({ editingCarousel, allProducts, productsLoading, onS
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6 bg-gray-50/50 -mx-6 px-6 pb-6 rounded-b-none">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-1">CTA Button Text <span className="text-gray-400 font-normal">(Optional)</span></label>
+              <label className="block text-sm font-bold text-gray-900 mb-1">CTA Button Text <span className="text-gray-400 font-normal text-[10px] uppercase ml-1">(Optional)</span></label>
               <input
                 type="text"
                 value={form.buttonText}
                 onChange={(e) => setForm({ ...form, buttonText: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
-                placeholder="e.g., Shop Now, View Collection"
+                className="w-full px-4 py-3 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium transition-all"
+                placeholder="e.g., Shop Now"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-1">Button Redirect Link <span className="text-gray-400 font-normal">(Optional)</span></label>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Button Redirect Link <span className="text-gray-400 font-normal text-[10px] uppercase ml-1">(Optional)</span></label>
               <input
                 type="text"
                 value={form.buttonLink}
                 onChange={(e) => setForm({ ...form, buttonLink: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., /category/fashion or https://..."
+                className="w-full px-4 py-3 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium transition-all"
+                placeholder="e.g., /category/fashion"
               />
-              <p className="text-[10px] text-gray-500 mt-1 italic">Internal links start with /, external links with http://</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-50/30 p-6 rounded-3xl border border-indigo-100">
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <Play className="h-4 w-4 text-indigo-500" /> Media Type
+              </label>
+              <div className="flex gap-2">
+                {['image', 'video'].map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setForm({ ...form, mediaType: type })}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-xl border-2 text-sm font-bold transition-all capitalize",
+                      form.mediaType === type 
+                        ? "border-indigo-600 bg-indigo-600 text-white shadow-lg shadow-indigo-200" 
+                        : "border-gray-200 bg-white text-gray-600 hover:border-indigo-300"
+                    )}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <GripVertical className="h-4 w-4 text-indigo-500" /> Orientation
+              </label>
+              <div className="flex gap-2">
+                {['horizontal', 'vertical'].map(orient => (
+                  <button
+                    key={orient}
+                    type="button"
+                    onClick={() => setForm({ ...form, orientation: orient })}
+                    disabled={!isSmartphone && orient === 'vertical'}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-xl border-2 text-sm font-bold transition-all capitalize",
+                      form.orientation === orient 
+                        ? "border-indigo-600 bg-indigo-600 text-white shadow-lg shadow-indigo-200" 
+                        : "border-gray-200 bg-white text-gray-600 hover:border-indigo-300",
+                      !isSmartphone && orient === 'vertical' && "opacity-30 cursor-not-allowed"
+                    )}
+                  >
+                    {orient}
+                  </button>
+                ))}
+              </div>
+              {!isSmartphone && (
+                <p className="text-[10px] text-gray-400 mt-1 italic font-medium">Vertical orientation is smartphone-exclusive</p>
+              )}
             </div>
           </div>
 
           <div>
-            <CarouselImageUpload
-              image={imageUrl}
+            <OfferMediaUpload
+              mediaType={form.mediaType}
+              url={form.mediaType === 'image' ? form.image : form.video}
+              orientation={form.orientation}
               onChange={(url) => {
-                setImageUrl(url)
-                setForm({ ...form, image: url })
+                if (form.mediaType === 'image') {
+                  setForm({ ...form, image: url })
+                } else {
+                  setForm({ ...form, video: url })
+                }
               }}
               disabled={false}
-              title={form.title}
-              description={form.description}
             />
           </div>
 
@@ -842,36 +1003,70 @@ function CarouselFormScreen({ editingCarousel, allProducts, productsLoading, onS
           </div>
 
           {/* Preview Container - Placed here before buttons */}
-          {imageUrl && (
-            <div className="pt-4 border-t border-gray-200">
-              <p className="text-xs font-semibold text-gray-700 mb-2">Preview: How it will appear on user dashboard</p>
-              <div className="relative rounded-xl border-2 border-gray-300 overflow-hidden bg-gray-50 mx-auto" style={{
-                width: '380px',
-                maxWidth: '100%',
-                height: '200px'
-              }}>
-                <img
-                  src={imageUrl}
-                  alt="Carousel preview"
-                  className="w-full h-full object-cover"
-                  style={{ objectPosition: 'center' }}
-                />
+          {(form.image || form.video) && (
+            <div className="pt-8 border-t border-gray-100 flex flex-col items-center">
+              <p className="text-xs font-black text-gray-400 mb-6 uppercase tracking-[0.2em]">Preview: User Interface</p>
+              
+              <div className={cn(
+                "relative rounded-[2.5rem] border-[8px] border-gray-900 overflow-hidden bg-gray-950 shadow-2xl transition-all duration-500",
+                form.orientation === 'vertical' ? "w-[280px] aspect-[9/19]" : "w-[400px] aspect-video"
+              )}>
+                {/* Status Bar for Phone View */}
+                {form.orientation === 'vertical' && (
+                  <div className="absolute top-0 left-0 right-0 h-8 flex items-center justify-between px-6 z-20">
+                    <span className="text-[10px] text-white font-bold">9:41</span>
+                    <div className="w-16 h-4 bg-black rounded-b-xl" />
+                    <div className="flex gap-1">
+                      <div className="w-3 h-3 rounded-full border border-white/40" />
+                      <div className="w-3 h-3 rounded-full bg-white/40" />
+                    </div>
+                  </div>
+                )}
+
+                {form.mediaType === 'video' ? (
+                  <video 
+                    src={form.video} 
+                    autoPlay 
+                    muted 
+                    loop 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <img
+                    src={form.image}
+                    alt="Carousel preview"
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                
                 {/* Overlay gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                
                 {/* Text overlay preview */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-white z-10">
-                  <h3 className="text-lg font-bold mb-1" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                    {form.title || 'Carousel Title'}
-                  </h3>
+                <div className={cn(
+                  "absolute bottom-0 left-0 right-0 p-8 text-white z-10",
+                  form.orientation === 'vertical' ? "pb-12" : "pb-8"
+                )}>
+                  {form.title && (
+                    <h3 className="text-xl font-black mb-2 uppercase tracking-tight leading-tight">
+                      {form.title}
+                    </h3>
+                  )}
                   {form.description && (
-                    <p className="text-sm opacity-95" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.2)' }}>
+                    <p className="text-xs opacity-80 font-medium line-clamp-2 mb-4">
                       {form.description}
                     </p>
                   )}
+                  {form.buttonText && (
+                    <div className="inline-block px-4 py-2 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-lg">
+                      {form.buttonText}
+                    </div>
+                  )}
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1 text-center">
-                Actual carousel dimensions: 380px × 200px (matches user dashboard)
+              
+              <p className="text-[10px] text-gray-400 mt-6 font-bold uppercase tracking-widest">
+                Mockup represents {form.orientation} {form.mediaType} carousel
               </p>
             </div>
           )}

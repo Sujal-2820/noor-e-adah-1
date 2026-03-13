@@ -134,12 +134,14 @@ router.get('/offers', async (req, res, next) => {
 
         // Group by type
         const carousels = offers.filter(o => o.type === 'carousel' || o.type === 'banner');
-        const specialOffers = offers.filter(o => o.type === 'special');
+        const smartphoneCarousels = offers.filter(o => o.type === 'smartphone_carousel');
+        const specialOffers = offers.filter(o => (o.type === 'special' || o.type === 'special_offer'));
 
         res.status(200).json({
             success: true,
             data: {
                 carousels,
+                smartphoneCarousels,
                 specialOffers,
                 offers
             }

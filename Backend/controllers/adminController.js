@@ -5861,11 +5861,14 @@ exports.getOffers = async (req, res, next) => {
       .populate('linkedProductIds', 'name wholesalePrice publicPrice images primaryImage')
       .sort({ order: 1, createdAt: -1 });
 
+    const isSmartphone = type === 'smartphone_carousel';
+    const mainType = type || 'carousel';
+
     res.status(200).json({
       success: true,
       data: {
         offers,
-        carouselCount: await Offer.countDocuments({ type: 'carousel', isActive: true }),
+        carouselCount: await Offer.getCarouselCount(mainType),
         maxCarousels: 6,
       },
     });
@@ -5914,32 +5917,37 @@ exports.createOffer = async (req, res, next) => {
     const { type, title, description, image, productIds, specialTag, specialValue, linkedProductIds, order, buttonText, buttonLink, textPosition } = req.body;
 
     // Validate required fields based on type
-    if (!type || !['carousel', 'special_offer'].includes(type)) {
+    if (!type || !['carousel', 'special_offer', 'smartphone_carousel'].includes(type)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid offer type. Must be "carousel" or "special_offer"',
+        message: 'Invalid offer type. Must be "carousel", "special_offer", or "smartphone_carousel"',
       });
     }
 
-    if (type === 'carousel') {
-      if (!image) {
+    const { mediaType = 'image', video, orientation = 'horizontal' } = req.body;
+
+    if (type === 'carousel' || type === 'smartphone_carousel') {
+      if (mediaType === 'image' && !image) {
         return res.status(400).json({
           success: false,
-          message: 'Image is required for carousel offers',
+          message: 'Image is required for image-based carousels',
+        });
+      }
+      if (mediaType === 'video' && !video) {
+        return res.status(400).json({
+          success: false,
+          message: 'Video URL is required for video-based carousels',
         });
       }
 
-      // Check carousel limit (max 6)
-      const carouselCount = await Offer.countDocuments({ type: 'carousel', isActive: true });
+      // Check carousel limit (max 6 active) for the specific type
+      const carouselCount = await Offer.getCarouselCount(type);
       if (carouselCount >= 6) {
         return res.status(400).json({
           success: false,
-          message: 'Maximum 6 active carousels allowed. Please delete or deactivate an existing carousel first.',
+          message: `Maximum 6 active ${type.replace('_', ' ')}s allowed. Please delete or deactivate an existing one first.`,
         });
       }
-
-
-      // Products are optional for carousels
     }
 
     if (type === 'special_offer') {
@@ -5972,10 +5980,10 @@ exports.createOffer = async (req, res, next) => {
       }
     }
 
-    // Determine order for carousel
+    // Determine order for carousels
     let offerOrder = order;
-    if (type === 'carousel' && offerOrder === undefined) {
-      const maxOrder = await Offer.findOne({ type: 'carousel' })
+    if ((type === 'carousel' || type === 'smartphone_carousel') && offerOrder === undefined) {
+      const maxOrder = await Offer.findOne({ type })
         .sort({ order: -1 })
         .select('order');
       offerOrder = maxOrder ? maxOrder.order + 1 : 0;
@@ -5985,15 +5993,18 @@ exports.createOffer = async (req, res, next) => {
       type,
       title,
       description,
-      image: type === 'carousel' ? image : undefined,
-      productIds: type === 'carousel' ? productIds : undefined,
+      mediaType,
+      image: (type === 'carousel' || type === 'smartphone_carousel') && mediaType === 'image' ? image : undefined,
+      video: (type === 'carousel' || type === 'smartphone_carousel') && mediaType === 'video' ? video : undefined,
+      orientation: type === 'smartphone_carousel' ? orientation : 'horizontal',
+      productIds: (type === 'carousel' || type === 'smartphone_carousel') ? productIds : undefined,
       specialTag: type === 'special_offer' ? specialTag : undefined,
       specialValue: type === 'special_offer' ? specialValue : undefined,
       linkedProductIds: type === 'special_offer' ? (linkedProductIds || []) : undefined,
-      order: type === 'carousel' ? offerOrder : undefined,
-      buttonText: type === 'carousel' ? buttonText : undefined,
-      buttonLink: type === 'carousel' ? buttonLink : undefined,
-      textPosition: type === 'carousel' ? textPosition : undefined,
+      order: (type === 'carousel' || type === 'smartphone_carousel') ? offerOrder : undefined,
+      buttonText: (type === 'carousel' || type === 'smartphone_carousel') ? buttonText : undefined,
+      buttonLink: (type === 'carousel' || type === 'smartphone_carousel') ? buttonLink : undefined,
+      textPosition: (type === 'carousel' || type === 'smartphone_carousel') ? textPosition : undefined,
       createdBy: adminId,
       updatedBy: adminId,
     });
@@ -6021,7 +6032,7 @@ exports.updateOffer = async (req, res, next) => {
   try {
     const adminId = req.admin.id;
     const { id } = req.params;
-    const { title, description, image, productIds, specialTag, specialValue, linkedProductIds, isActive, order, buttonText, buttonLink, textPosition } = req.body;
+    const { title, description, image, productIds, specialTag, specialValue, linkedProductIds, isActive, order, buttonText, buttonLink, textPosition, mediaType, video, orientation } = req.body;
 
     const offer = await Offer.findById(id);
     if (!offer) {
@@ -6053,12 +6064,12 @@ exports.updateOffer = async (req, res, next) => {
     }
 
     // Check carousel limit if activating a carousel
-    if (offer.type === 'carousel' && isActive === true && !offer.isActive) {
-      const carouselCount = await Offer.countDocuments({ type: 'carousel', isActive: true });
+    if ((offer.type === 'carousel' || offer.type === 'smartphone_carousel') && isActive === true && !offer.isActive) {
+      const carouselCount = await Offer.getCarouselCount(offer.type);
       if (carouselCount >= 6) {
         return res.status(400).json({
           success: false,
-          message: 'Maximum 6 active carousels allowed. Please delete or deactivate an existing carousel first.',
+          message: `Maximum 6 active ${offer.type.replace('_', ' ')}s allowed. Please delete or deactivate an existing one first.`,
         });
       }
     }
@@ -6066,15 +6077,24 @@ exports.updateOffer = async (req, res, next) => {
     // Update fields
     if (title !== undefined) offer.title = title;
     if (description !== undefined) offer.description = description;
-    if (offer.type === 'carousel' && image !== undefined) offer.image = image;
-    if (offer.type === 'carousel' && productIds !== undefined) offer.productIds = productIds;
-    if (offer.type === 'carousel' && order !== undefined) offer.order = order;
+    
+    // Media fields
+    if (mediaType !== undefined) offer.mediaType = mediaType;
+    if (image !== undefined) offer.image = image;
+    if (video !== undefined) offer.video = video;
+    if (orientation !== undefined) offer.orientation = orientation;
+
+    if ((offer.type === 'carousel' || offer.type === 'smartphone_carousel') && productIds !== undefined) offer.productIds = productIds;
+    if ((offer.type === 'carousel' || offer.type === 'smartphone_carousel') && order !== undefined) offer.order = order;
+    
     if (offer.type === 'special_offer' && specialTag !== undefined) offer.specialTag = specialTag;
     if (offer.type === 'special_offer' && specialValue !== undefined) offer.specialValue = specialValue;
     if (offer.type === 'special_offer' && linkedProductIds !== undefined) offer.linkedProductIds = linkedProductIds;
-    if (offer.type === 'carousel' && buttonText !== undefined) offer.buttonText = buttonText;
-    if (offer.type === 'carousel' && buttonLink !== undefined) offer.buttonLink = buttonLink;
-    if (offer.type === 'carousel' && textPosition !== undefined) offer.textPosition = textPosition;
+    
+    if ((offer.type === 'carousel' || offer.type === 'smartphone_carousel') && buttonText !== undefined) offer.buttonText = buttonText;
+    if ((offer.type === 'carousel' || offer.type === 'smartphone_carousel') && buttonLink !== undefined) offer.buttonLink = buttonLink;
+    if ((offer.type === 'carousel' || offer.type === 'smartphone_carousel') && textPosition !== undefined) offer.textPosition = textPosition;
+    
     if (isActive !== undefined) offer.isActive = isActive;
     offer.updatedBy = adminId;
 

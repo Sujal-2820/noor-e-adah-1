@@ -23,7 +23,10 @@ export function HomePage() {
   const [themes, setThemes] = useState([])
   const [collections, setCollections] = useState([])
   const [popularProducts, setPopularProducts] = useState([])
-  const [carousels, setCarousels] = useState([])
+  const [desktopCarousels, setDesktopCarousels] = useState([])
+  const [smartphoneCarousels, setSmartphoneCarousels] = useState([])
+  const [carousels, setCarousels] = useState([]) // Current active carousels based on screen
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   // Fetch data on mount
   useEffect(() => {
@@ -50,10 +53,20 @@ export function HomePage() {
         }
 
         if (offersResult.success && offersResult.data) {
-          const activeCarousels = (offersResult.data.carousels || [])
+          const desk = (offersResult.data.carousels || [])
             .filter(c => c.isActive !== false)
             .sort((a, b) => (a.order || 0) - (b.order || 0))
-          setCarousels(activeCarousels)
+          
+          const mobile = (offersResult.data.smartphoneCarousels || [])
+            .filter(c => c.isActive !== false)
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+          setDesktopCarousels(desk)
+          setSmartphoneCarousels(mobile)
+          
+          // Initial set based on screen width
+          const currentIsMobile = window.innerWidth < 768
+          setCarousels(currentIsMobile ? (mobile.length > 0 ? mobile : desk) : desk)
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -63,6 +76,20 @@ export function HomePage() {
     }
     loadData()
   }, [])
+
+  // Screen resize listener
+  useEffect(() => {
+    const handleResize = () => {
+      const mobileStatus = window.innerWidth < 768
+      if (mobileStatus !== isMobile) {
+        setIsMobile(mobileStatus)
+        setCarousels(mobileStatus ? (smartphoneCarousels.length > 0 ? smartphoneCarousels : desktopCarousels) : desktopCarousels)
+        setBannerIndex(0) // Reset index on switch
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [isMobile, desktopCarousels, smartphoneCarousels])
 
   // Auto-slide hero
   useEffect(() => {
@@ -101,36 +128,52 @@ export function HomePage() {
       {/* Hero Section */}
       <section className="relative h-[85vh] overflow-hidden bg-surface-muted pt-28">
         {carousels.length > 0 ? (
-          carousels.map((banner, index) => (
-            <div
-              key={banner.id || banner._id}
-              className={cn(
-                "absolute inset-0 transition-opacity duration-1000 ease-in-out",
-                index === bannerIndex ? "opacity-100 z-10" : "opacity-0 z-0"
-              )}
-            >
-              <img
-                src={banner.image}
-                alt={banner.title}
-                className="w-full h-full object-cover transform scale-105 animate-pulse-slow"
-              />
-              <div className="absolute inset-0 bg-black/20" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white p-6 animate-calm-entry">
-                <p className="text-xs sm:text-sm tracking-[0.3em] uppercase mb-4 drop-shadow-md">
-                  {banner.description || "The New Collection"}
-                </p>
-                <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif mb-8 max-w-4xl drop-shadow-lg leading-tight">
-                  {banner.title}
-                </h1>
-                <Link
-                  to="/products"
-                  className="px-10 py-3.5 bg-white text-brand text-xs font-semibold tracking-widest uppercase hover:bg-brand hover:text-white transition-all duration-500 shadow-premium"
-                >
-                  Shop Now
-                </Link>
+          carousels.map((banner, index) => {
+            const isVideo = banner.mediaType === 'video'
+            const mediaSrc = isVideo ? banner.video : banner.image
+            
+            return (
+              <div
+                key={banner.id || banner._id}
+                className={cn(
+                  "absolute inset-0 transition-opacity duration-1000 ease-in-out",
+                  index === bannerIndex ? "opacity-100 z-10" : "opacity-0 z-0"
+                )}
+              >
+                {isVideo ? (
+                  <video
+                    src={mediaSrc}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover transform scale-105"
+                  />
+                ) : (
+                  <img
+                    src={mediaSrc}
+                    alt={banner.title}
+                    className="w-full h-full object-cover transform scale-105 animate-pulse-slow"
+                  />
+                )}
+                <div className="absolute inset-0 bg-black/20" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white p-6 animate-calm-entry">
+                  <p className="text-xs sm:text-sm tracking-[0.3em] uppercase mb-4 drop-shadow-md">
+                    {banner.description || "The New Collection"}
+                  </p>
+                  <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif mb-8 max-w-4xl drop-shadow-lg leading-tight">
+                    {banner.title}
+                  </h1>
+                  <Link
+                    to={banner.buttonLink || "/products"}
+                    className="px-10 py-3.5 bg-white text-brand text-xs font-semibold tracking-widest uppercase hover:bg-brand hover:text-white transition-all duration-500 shadow-premium"
+                  >
+                    {banner.buttonText || "Shop Now"}
+                  </Link>
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         ) : (
           <div className="w-full h-full bg-muted/20 flex items-center justify-center">
             <div className="animate-pulse flex flex-col items-center">

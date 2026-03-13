@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { AlertTriangle, BarChart3, PieChart, Users } from 'lucide-react'
 import { MetricCard } from '../components/MetricCard'
 import { StatusBadge } from '../components/StatusBadge'
@@ -10,10 +10,18 @@ import { DeliverySettingsPanel } from '../components/DeliverySettingsPanel'
 import { useAdminState } from '../context/AdminContext'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { cn } from '../../../lib/cn'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 
 export function DashboardPage() {
   const { dashboard, tasks } = useAdminState()
   const { fetchDashboardData, fetchTasks } = useAdminApi()
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState('')
+
+  const handleProcessingChange = (processing, message = '') => {
+    setIsProcessing(processing)
+    setProcessingMessage(message)
+  }
 
   useEffect(() => {
     fetchDashboardData({ period: '30d' })
@@ -68,7 +76,7 @@ export function DashboardPage() {
 
       {/* Delivery Settings — quick admin control */}
       <section className="grid gap-6 md:grid-cols-2">
-        <DeliverySettingsPanel />
+        <DeliverySettingsPanel onProcessingChange={handleProcessingChange} />
       </section>
 
 
@@ -143,6 +151,7 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+      <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
     </div>
   )
 }

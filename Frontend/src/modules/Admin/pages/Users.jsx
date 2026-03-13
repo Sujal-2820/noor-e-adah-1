@@ -8,6 +8,7 @@ import { UserEditForm } from '../components/UserEditForm'
 import { useAdminState } from '../context/AdminContext'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 
 import { cn } from '../../../lib/cn'
 
@@ -122,6 +123,8 @@ export function UsersPage({ subRoute = null, navigate }) {
   const [purchaseApprovalNotes, setPurchaseApprovalNotes] = useState('') // Notes for purchase approval
   const [loadingPurchaseRequests, setLoadingPurchaseRequests] = useState(false) // Loading state for purchase requests
   const [openActionsDropdown, setOpenActionsDropdown] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState('')
 
   // Format user data for display
   const formatUserForDisplay = (user, flaggedUserIds = new Set()) => {
@@ -292,6 +295,8 @@ export function UsersPage({ subRoute = null, navigate }) {
 
   const handleBanUser = async (userId, banData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage(banData.banType === 'permanent' ? 'Permanently Banning...' : 'Banning User...')
       const result = await banUser(userId, banData)
       if (result.data) {
         setCurrentView(null)
@@ -305,11 +310,15 @@ export function UsersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to ban user', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleUnbanUser = async (userId, unbanData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Revoking Ban...')
       const result = await unbanUser(userId, unbanData)
       if (result.data) {
         fetchUsers()
@@ -320,12 +329,16 @@ export function UsersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to unban user', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
 
   const handleApproveUser = async (userId) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Approving User...')
       const result = await approveUser(userId)
       if (result.success || result.data) {
         setCurrentView(null)
@@ -343,11 +356,15 @@ export function UsersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to approve user', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleRejectUser = async (userId, rejectionData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Rejecting Application...')
       const result = await rejectUser(userId, rejectionData)
       if (result.success || result.data) {
         setCurrentView(null)
@@ -366,12 +383,16 @@ export function UsersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to reject user', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleDeletePurchaseRequest = async (requestId) => {
     if (window.confirm('Are you sure you want to permanently delete this purchase invoice? This action cannot be undone.')) {
       try {
+        setIsProcessing(true)
+        setProcessingMessage('Deleting Invoice...')
         const result = await deleteUserPurchase(requestId)
         if (result.success) {
           success('Purchase invoice deleted successfully')
@@ -386,6 +407,8 @@ export function UsersPage({ subRoute = null, navigate }) {
         }
       } catch (error) {
         showError('An error occurred while deleting the invoice')
+      } finally {
+        setIsProcessing(false)
       }
     }
   }
@@ -399,8 +422,8 @@ export function UsersPage({ subRoute = null, navigate }) {
       return
     }
 
-    console.log('handleApprovePurchase called:', { requestId, shortDescription, trimmedNotes, stateValue: purchaseApprovalNotes })
-
+    setIsProcessing(true)
+    setProcessingMessage('Approving Purchase...')
     setProcessingPurchase(true)
     try {
       const result = await approveUserPurchase(requestId, trimmedNotes)
@@ -433,12 +456,15 @@ export function UsersPage({ subRoute = null, navigate }) {
       showError(error.message || 'Failed to approve purchase request', 5000)
     } finally {
       setProcessingPurchase(false)
+      setIsProcessing(false)
     }
   }
 
   const handleRejectPurchase = async (requestId, rejectionData) => {
-    setProcessingPurchase(true)
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Rejecting Purchase...')
+      setProcessingPurchase(true)
       const result = await rejectUserPurchase(requestId, rejectionData)
       if (result.data) {
         setCurrentView(null)
@@ -456,6 +482,7 @@ export function UsersPage({ subRoute = null, navigate }) {
       showError(error.message || 'Failed to reject purchase request', 5000)
     } finally {
       setProcessingPurchase(false)
+      setIsProcessing(false)
     }
   }
 
@@ -494,6 +521,8 @@ export function UsersPage({ subRoute = null, navigate }) {
 
   const handleSaveUser = async (userData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Updating User Info...')
       const result = await updateUser(selectedUserForEdit.id, userData)
       if (result.data) {
         setCurrentView(null)
@@ -507,6 +536,8 @@ export function UsersPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to update user', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -1970,6 +2001,7 @@ export function UsersPage({ subRoute = null, navigate }) {
       </section>
 
 
+      <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
     </div>
   )
 }

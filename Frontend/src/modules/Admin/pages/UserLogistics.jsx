@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { FilterBar } from '../components/FilterBar'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 import { cn } from '../../../lib/cn'
 
 const columns = [
@@ -37,6 +38,8 @@ export function UserLogisticsPage({ navigate }) {
     const [currentView, setCurrentView] = useState(null) // 'detail'
     const [selectedPurchase, setSelectedPurchase] = useState(null)
     const [notes, setNotes] = useState('')
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [processingMessage, setProcessingMessage] = useState('')
 
     const fetchPurchases = useCallback(async () => {
         const params = {
@@ -67,35 +70,59 @@ export function UserLogisticsPage({ navigate }) {
     }, [fetchPurchases])
 
     const handleProcessOrder = async (id) => {
-        const res = await processUserPurchaseStock(id, { deliveryNotes: notes || 'Order is being processed and packed.' })
-        if (res.success) {
-            success('Order marked as processing')
-            setNotes('')
-            fetchPurchases()
-        } else {
-            showError(res.error?.message || 'Failed to update status')
+        try {
+            setIsProcessing(true)
+            setProcessingMessage('Processing Order...')
+            const res = await processUserPurchaseStock(id, { deliveryNotes: notes || 'Order is being processed and packed.' })
+            if (res.success) {
+                success('Order marked as processing')
+                setNotes('')
+                fetchPurchases()
+            } else {
+                showError(res.error?.message || 'Failed to update status')
+            }
+        } catch (error) {
+            showError(error.message || 'An error occurred while processing order')
+        } finally {
+            setIsProcessing(false)
         }
     }
 
     const handleDispatchOrder = async (id) => {
-        const res = await sendUserPurchaseStock(id, { deliveryNotes: notes || 'Stock has been dispatched.' })
-        if (res.success) {
-            success('Order marked as dispatched (In-Transit)')
-            setNotes('')
-            fetchPurchases()
-        } else {
-            showError(res.error?.message || 'Failed to update status')
+        try {
+            setIsProcessing(true)
+            setProcessingMessage('Dispatching Order...')
+            const res = await sendUserPurchaseStock(id, { deliveryNotes: notes || 'Stock has been dispatched.' })
+            if (res.success) {
+                success('Order marked as dispatched (In-Transit)')
+                setNotes('')
+                fetchPurchases()
+            } else {
+                showError(res.error?.message || 'Failed to update status')
+            }
+        } catch (error) {
+            showError(error.message || 'An error occurred while dispatching order')
+        } finally {
+            setIsProcessing(false)
         }
     }
 
     const handleConfirmDelivery = async (id) => {
-        const res = await confirmUserPurchaseDelivery(id, { deliveryNotes: notes || 'Stock delivered and verified.' })
-        if (res.success) {
-            success('Order confirmed as delivered! Inventory updated.')
-            setNotes('')
-            fetchPurchases()
-        } else {
-            showError(res.error?.message || 'Failed to update status')
+        try {
+            setIsProcessing(true)
+            setProcessingMessage('Confirming Delivery...')
+            const res = await confirmUserPurchaseDelivery(id, { deliveryNotes: notes || 'Stock delivered and verified.' })
+            if (res.success) {
+                success('Order confirmed as delivered! Inventory updated.')
+                setNotes('')
+                fetchPurchases()
+            } else {
+                showError(res.error?.message || 'Failed to update status')
+            }
+        } catch (error) {
+            showError(error.message || 'An error occurred while confirming delivery')
+        } finally {
+            setIsProcessing(false)
         }
     }
 
@@ -426,6 +453,7 @@ export function UserLogisticsPage({ navigate }) {
                     emptyMessage="No matching stock purchase requests found for logistics."
                 />
             </div>
+            <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
         </div>
     )
 }

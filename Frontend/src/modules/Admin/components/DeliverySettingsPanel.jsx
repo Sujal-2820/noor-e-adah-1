@@ -11,7 +11,7 @@ import { getDeliverySettings, updateDeliverySettings } from '../services/adminAp
  * All changes are persisted via the backend Settings model.
  * The component uses deep-merge on the backend so partial updates are safe.
  */
-export function DeliverySettingsPanel() {
+export function DeliverySettingsPanel({ onProcessingChange }) {
     const [config, setConfig] = useState(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -44,6 +44,7 @@ export function DeliverySettingsPanel() {
 
     const handleSave = async () => {
         setSaving(true)
+        if (onProcessingChange) onProcessingChange(true, 'Saving Delivery Settings...')
         try {
             const result = await updateDeliverySettings(form)
             if (result?.success) {
@@ -57,6 +58,7 @@ export function DeliverySettingsPanel() {
             showToast('Network error — please try again', 'error')
         } finally {
             setSaving(false)
+            if (onProcessingChange) onProcessingChange(false)
         }
     }
 

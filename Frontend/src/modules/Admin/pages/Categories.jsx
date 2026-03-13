@@ -9,6 +9,7 @@ import { Plus, Edit2, Trash2, Layers, Palette, Sparkles, BookOpen, Search, GripV
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
 import CategoryForm from '../components/CategoryForm'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 import { cn } from '../../../lib/cn'
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
@@ -38,9 +39,10 @@ export function CategoriesPage({ subRoute, navigate }) {
     const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState('category')
     const [searchTerm, setSearchTerm] = useState('')
-    const [draggedIndex, setDraggedIndex] = useState(null)
     const [dragOverIndex, setDragOverIndex] = useState(null)
     const [isSavingOrder, setIsSavingOrder] = useState(false)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [processingMessage, setProcessingMessage] = useState('')
 
     const api = useAdminApi()
     const toast = useToast()
@@ -48,6 +50,7 @@ export function CategoriesPage({ subRoute, navigate }) {
     // ── Fetch ────────────────────────────────────────────────────────────────
     const fetchAll = async () => {
         setIsLoading(true)
+        setProcessingMessage('Syncing Taxonomy...')
         try {
             const response = await api.getAdminCategories()
             if (response.success) {
@@ -77,6 +80,8 @@ export function CategoriesPage({ subRoute, navigate }) {
     const handleDelete = async (id, type) => {
         if (!window.confirm('Delete this item? This will fail if products are assigned to it.')) return
         try {
+            setIsProcessing(true)
+            setProcessingMessage('Deleting Item...')
             const response = await api.deleteCategory(id)
             if (response.success) {
                 toast.success('Deleted successfully')
@@ -86,6 +91,8 @@ export function CategoriesPage({ subRoute, navigate }) {
             }
         } catch (err) {
             toast.error(err.message || 'Failed to delete')
+        } finally {
+            setIsProcessing(false)
         }
     }
 
@@ -355,6 +362,8 @@ export function CategoriesPage({ subRoute, navigate }) {
                     </button>
                 </div>
             )}
+
+            <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
         </div>
     )
 }

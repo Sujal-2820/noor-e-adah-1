@@ -7,6 +7,7 @@ import { NotificationFormFullScreen } from '../components/NotificationFormFullSc
 import { useAdminState } from '../context/AdminContext'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
+import { LoadingOverlay } from '../components/LoadingOverlay'
 import { cn } from '../../../lib/cn'
 
 const notificationColumns = [
@@ -65,6 +66,8 @@ export function OperationsPage({ subRoute = null, navigate }) {
   const [isRevert, setIsRevert] = useState(false)
   const [openNotificationsDropdown, setOpenNotificationsDropdown] = useState(null)
   const [openEscalationsDropdown, setOpenEscalationsDropdown] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState('')
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -93,6 +96,8 @@ export function OperationsPage({ subRoute = null, navigate }) {
 
   const handleSaveLogisticsSettings = async (settings) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Updating Logistics Settings...')
       const result = await updateLogisticsSettings(settings)
       if (result.data) {
         setCurrentView(null)
@@ -109,11 +114,15 @@ export function OperationsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to update logistics settings', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleSaveNotification = async (notificationData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage(selectedNotification ? 'Updating Notification...' : 'Creating Notification...')
       let result
       if (selectedNotification) {
         result = await updateNotification(selectedNotification.id, notificationData)
@@ -136,12 +145,16 @@ export function OperationsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to save notification', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleDeleteNotification = async (notificationId) => {
     if (window.confirm('Are you sure you want to delete this notification?')) {
       try {
+        setIsProcessing(true)
+        setProcessingMessage('Deleting Notification...')
         const result = await deleteNotification(notificationId)
         if (result.data) {
           setCurrentView(null)
@@ -155,12 +168,16 @@ export function OperationsPage({ subRoute = null, navigate }) {
         }
       } catch (error) {
         showError(error.message || 'Failed to delete notification', 5000)
+      } finally {
+        setIsProcessing(false)
       }
     }
   }
 
   const handleFulfillFromWarehouse = async (orderId, fulfillmentData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Processing Fulfillment...')
       const result = await fulfillOrderFromWarehouse(orderId, fulfillmentData)
       if (result.data) {
         setCurrentView(null)
@@ -178,6 +195,8 @@ export function OperationsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to fulfill order', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -188,6 +207,8 @@ export function OperationsPage({ subRoute = null, navigate }) {
     }
 
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Reverting Escalation...')
       const result = await revertEscalation(selectedOrderForRevert.id, { reason: revertReason.trim() })
       if (result.data) {
         setCurrentView(null)
@@ -201,6 +222,8 @@ export function OperationsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to revert escalation', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -220,6 +243,8 @@ export function OperationsPage({ subRoute = null, navigate }) {
 
   const handleUpdateOrderStatus = async (orderId, updateData) => {
     try {
+      setIsProcessing(true)
+      setProcessingMessage('Updating Status...')
       const result = await updateOrderStatus(orderId, updateData)
       if (result.data) {
         setCurrentView(null)
@@ -236,6 +261,8 @@ export function OperationsPage({ subRoute = null, navigate }) {
       }
     } catch (error) {
       showError(error.message || 'Failed to update order status', 5000)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -1366,6 +1393,7 @@ export function OperationsPage({ subRoute = null, navigate }) {
         />
       </div>
 
+      <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Layers, Palette, Sparkles, BookOpen } from 'lucide-rea
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
 import { ImageUpload } from './ImageUpload'
+import { LoadingOverlay } from './LoadingOverlay'
 
 const TAXONOMY_TYPES = [
     { value: 'category', label: 'Category', icon: Layers, hint: 'e.g. Sarees, Anarkali, Lehengas' },
@@ -310,6 +311,8 @@ export default function CategoryForm({ categoryId, initialType = 'category', onC
                     </div>
                 </div>
             </form>
+
+            <LoadingOverlay isVisible={isSaving} message={isEditing ? 'Updating Item...' : 'Creating Item...'} />
         </div>
     )
 }
