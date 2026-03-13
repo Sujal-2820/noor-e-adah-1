@@ -213,7 +213,7 @@ export function CategoryProductsPage() {
           <div className="category-products-page__grid">
             {products.map((product) => {
               const productId = product._id || product.id
-              const inStock = (product.stock || 0) > 0
+              const outOfStock = (product.displayStock || product.stock || 0) === 0
               const productImage = getPrimaryImageUrl(product)
               const isWishlisted = favourites.includes(productId)
 
@@ -223,23 +223,38 @@ export function CategoryProductsPage() {
                   className="category-products-page__card group"
                   onClick={() => handleProductClick(productId)}
                 >
-                  <div className="category-products-page__card-image-wrapper border border-brand/20 group-hover:border-brand/50 transition-all duration-700 shadow-sm mb-6 product-card-container">
+                  <div className={cn(
+                    "category-products-page__card-image-wrapper border border-brand/20 group-hover:border-brand/50 transition-all duration-700 shadow-sm mb-6 product-card-container",
+                    outOfStock && "grayscale"
+                  )}>
                     <img
                       src={productImage}
                       alt={product.name}
-                      className="category-products-page__card-image product-image-primary"
+                      className={cn("category-products-page__card-image product-image-primary", outOfStock && "opacity-60")}
                     />
 
                     {/* Secondary Image for Hover (Smooth Transition) */}
-                    <img
-                      src={getImageUrlAt(product, 1)}
-                      alt={`${product.name} alternate view`}
-                      className="product-image-secondary"
-                    />
+                    {!outOfStock && (
+                      <img
+                        src={getImageUrlAt(product, 1)}
+                        alt={`${product.name} alternate view`}
+                        className="product-image-secondary"
+                      />
+                    )}
+
+                    {outOfStock && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
+                        <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
+                              Sold Out
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     {authenticated && (
                       <button
                         type="button"
-                        className="category-products-page__card-wishlist"
+                        className="category-products-page__card-wishlist z-20"
                         onClick={(e) => handleToggleFavourite(e, productId)}
                       >
                         <svg
@@ -284,11 +299,14 @@ export function CategoryProductsPage() {
                     )}
                   </div>
                   <button
-                    className="category-products-page__card-button"
-                    onClick={(e) => handleAddToCart(e, productId)}
-                    disabled={!inStock}
+                    className={cn(
+                      "category-products-page__card-button font-bold tracking-widest uppercase",
+                      outOfStock && "bg-gray-100 text-gray-400 cursor-not-allowed border-transparent"
+                    )}
+                    onClick={(e) => !outOfStock && handleAddToCart(e, productId)}
+                    disabled={outOfStock}
                   >
-                    {inStock ? 'Add to Cart' : 'Out of Stock'}
+                    {!outOfStock ? 'Add to Cart' : 'Sold Out'}
                   </button>
                 </div>
               )

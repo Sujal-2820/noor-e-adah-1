@@ -233,6 +233,7 @@ export function ProductListingPage() {
                 const productId = product._id || product.id
                 const productImage = getPrimaryImageUrl(product)
                 const isWishlisted = favourites.includes(productId)
+                const outOfStock = (product.displayStock || product.stock || 0) === 0
 
                 return (
                   <div
@@ -241,31 +242,46 @@ export function ProductListingPage() {
                     style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div
-                      className="relative aspect-[3/4] overflow-hidden bg-surface-muted/30 w-full mb-6 cursor-pointer border border-brand/20 group-hover:border-brand/50 transition-all duration-700 product-card-container"
+                      className={cn(
+                        "relative aspect-[3/4] overflow-hidden bg-surface-muted/30 w-full mb-6 cursor-pointer border border-brand/20 group-hover:border-brand/50 transition-all duration-700 product-card-container",
+                        outOfStock && "grayscale"
+                      )}
                       onClick={() => navigate(`/product/${productId}`)}
                     >
                       <img
                         src={productImage}
                         alt={product.name}
-                        className="w-full h-full object-cover product-image-primary"
+                        className={cn("w-full h-full object-cover product-image-primary", outOfStock && "opacity-60")}
                       />
 
                       {/* Secondary Image for Hover (Smooth Transition) */}
-                      <img
-                        src={getImageUrlAt(product, 1)}
-                        alt={`${product.name} alternate view`}
-                        className="product-image-secondary"
-                      />
+                      {!outOfStock && (
+                        <img
+                          src={getImageUrlAt(product, 1)}
+                          alt={`${product.name} alternate view`}
+                          className="product-image-secondary"
+                        />
+                      )}
+
+                      {outOfStock && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
+                          <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
+                                Sold Out
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Premium Hover Actions Overlay */}
-                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />
+                      {!outOfStock && <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />}
 
                       <div className="absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out z-10 flex flex-col gap-3">
                         <button
                           className="w-full bg-white/95 backdrop-blur-sm text-brand py-3.5 text-[10px] lg:text-[12px] font-bold tracking-[0.15em] uppercase hover:bg-brand hover:text-white transition-all shadow-xl border border-brand/40 font-sans"
                           onClick={(e) => { e.stopPropagation(); navigate(`/product/${productId}`) }}
                         >
-                          Select Piece
+                          {outOfStock ? 'View Piece' : 'Select Piece'}
                         </button>
                       </div>
 

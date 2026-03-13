@@ -25,6 +25,8 @@ export function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState('DESCRIPTION')
   const [isSizeChartOpen, setIsSizeChartOpen] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
 
   const containerRef = useRef(null)
 
@@ -130,6 +132,12 @@ export function ProductDetailPage() {
     const total = product.sizes.reduce((sum, s) => sum + (s.displayStock || 0), 0)
     return Math.floor(total / product.sizes.length)
   }, [selectedSize, product])
+  
+  const isFullyOutOfStock = useMemo(() => {
+    if (!product) return false
+    if (!product.sizes || product.sizes.length === 0) return (product.displayStock || product.stock || 0) === 0
+    return product.sizes.every(s => (s.displayStock === 0) || !s.isAvailable)
+  }, [product])
 
   const discount = currentDiscount > 0 ? Math.round(currentDiscount) : 0
   const discountedPrice = discount > 0 ? Math.round(currentPrice * (1 - discount / 100)) : currentPrice
@@ -171,6 +179,27 @@ export function ProductDetailPage() {
     } finally {
       setIsAdding(false)
     }
+  }
+
+  const openLightbox = (index) => {
+    setLightboxIndex(index)
+    setIsLightboxOpen(true)
+    document.body.style.overflow = 'hidden' // Prevent scroll
+  }
+
+  const closeLightbox = () => {
+    setIsLightboxOpen(false)
+    document.body.style.overflow = 'auto' // Restore scroll
+  }
+
+  const nextLightboxImage = (e) => {
+    e.stopPropagation()
+    setLightboxIndex((prev) => (prev + 1) % images.length)
+  }
+
+  const prevLightboxImage = (e) => {
+    e.stopPropagation()
+    setLightboxIndex((prev) => (prev - 1 + images.length) % images.length)
   }
 
   if (loading) {
@@ -235,8 +264,22 @@ export function ProductDetailPage() {
                 <img
                   src={images[selectedImage]}
                   alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover/main:scale-105"
+                  onClick={() => openLightbox(selectedImage)}
+                  className={cn(
+                    "w-full h-full object-cover transition-transform duration-1000 group-hover/main:scale-105 cursor-zoom-in",
+                    isFullyOutOfStock && "grayscale opacity-80"
+                  )}
                 />
+
+                {isFullyOutOfStock && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] pointer-events-none z-10">
+                    <div className="bg-white/90 px-8 py-3 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-red-100 transform -rotate-2">
+                       <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-600">
+                          Sold Out
+                       </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Navigation Arrows on main image */}
                 <button
@@ -252,7 +295,10 @@ export function ProductDetailPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2" /></svg>
                 </button>
 
-                <div className="absolute top-6 left-6 p-3 bg-white/80 backdrop-blur-sm shadow-premium cursor-pointer hover:bg-white transition-all">
+                <div 
+                  onClick={() => openLightbox(selectedImage)}
+                  className="absolute top-6 left-6 p-3 bg-white/80 backdrop-blur-sm shadow-premium cursor-pointer hover:bg-white transition-all z-10"
+                >
                   <svg className="w-4 h-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
                 </div>
               </div>
@@ -305,15 +351,20 @@ export function ProductDetailPage() {
                     Inclusive of all taxes
                   </span>
                   {/* Stock indicator — only shown if admin enabled showStock */}
-                  {product.showStock && (
+                  {(product.showStock || isFullyOutOfStock) && (
                     currentStock > 0
                       ? currentStock < 10
                         ? <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-amber-600 animate-fade-in">
                           Only {currentStock} left!
                         </span>
                         : null
-                      : selectedSize
-                        ? <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-red-500">Out of Stock</span>
+                      : isFullyOutOfStock || selectedSize
+                        ? <span className="mt-2 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                            <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-red-600">
+                              Temporarily Out of Stock
+                            </span>
+                          </span>
                         : null
                   )}
                 </div>
@@ -392,12 +443,18 @@ export function ProductDetailPage() {
                     +
                   </button>
                 </div>
-                <button
+                 <button
                   onClick={handleAddToCart}
-                  disabled={isAdding}
-                  className="flex-1 bg-brand text-white text-[11px] sm:text-xs font-bold tracking-[0.1em] uppercase hover:bg-accent transition-all duration-500 shadow-premium disabled:opacity-50"
+                  disabled={isAdding || currentStock === 0}
+                  className={cn(
+                    "flex-1 text-[11px] sm:text-xs font-bold tracking-[0.1em] uppercase transition-all duration-500 shadow-premium",
+                    currentStock === 0 
+                      ? "bg-muted text-brand/30 cursor-not-allowed border border-brand/10" 
+                      : "bg-brand text-white hover:bg-accent",
+                    isAdding && "opacity-50"
+                  )}
                 >
-                  {isAdding ? 'Adding...' : 'Add to Bag'}
+                  {isAdding ? 'Adding...' : currentStock === 0 ? 'Out of Stock' : 'Add to Bag'}
                 </button>
               </div>
 
@@ -739,6 +796,77 @@ export function ProductDetailPage() {
       >
         <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.588-5.946 0-6.556 5.332-11.891 11.887-11.891 3.179 0 6.167 1.24 8.411 3.486 2.246 2.247 3.483 5.234 3.483 8.405 0 6.556-5.332 11.89-11.887 11.89-2.015 0-3.991-.512-5.747-1.488l-6.046 1.587zm5.882-1.954l.322.191c1.517.901 3.266 1.378 5.048 1.378 5.419 0 9.83-4.411 9.83-9.83 0-2.622-1.021-5.088-2.876-6.942s-4.32-2.876-6.942-2.876-5.419 4.411-5.419 9.83c0 1.882.531 3.715 1.536 5.304l.211.332-.997 3.64 3.72-.976zm11.458-7.14c-.266-.134-1.574-.776-1.819-.865s-.424-.134-.602.134-.691.865-.847 1.042-.312.197-.578.063c-.266-.134-1.127-.415-2.146-1.325-.793-.706-1.328-1.58-1.484-1.847s-.017-.412.117-.545c.121-.12.266-.312.399-.467.133-.156.178-.267.266-.445s.044-.334-.022-.467c-.067-.134-.602-1.448-.824-1.983-.217-.522-.435-.451-.602-.459l-.512-.007c-.178 0-.468.067-.712.334s-.936.913-.936 2.226c0 1.313.956 2.581 1.089 2.758s1.882 2.873 4.559 4.027c.637.274 1.135.438 1.522.561.64.203 1.222.174 1.682.106.513-.076 1.574-.643 1.796-1.265s.223-1.156.156-1.265-.245-.198-.511-.332z" /></svg>
       </a>
+
+      {/* Premium Lightbox Overlay */}
+      {isLightboxOpen && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in"
+          onClick={closeLightbox}
+        >
+          {/* Close Button */}
+          <button 
+            onClick={closeLightbox}
+            className="absolute top-8 right-8 text-white/50 hover:text-white transition-all p-2 z-[210] hover:rotate-90 duration-500"
+          >
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="1.5" /></svg>
+          </button>
+
+          {/* Navigation Arrows */}
+          <button 
+            onClick={prevLightboxImage}
+            className="absolute left-8 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-full transition-all group active:scale-95"
+          >
+            <svg className="w-8 h-8 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="1.5" /></svg>
+          </button>
+          
+          <button 
+            onClick={nextLightboxImage}
+            className="absolute right-8 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-full transition-all group active:scale-95"
+          >
+            <svg className="w-8 h-8 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="1.5" /></svg>
+          </button>
+
+          {/* Main Enlarged Image */}
+          <div 
+            className="relative max-w-[90vw] max-h-[85vh] flex flex-col items-center gap-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative group/light">
+              <img 
+                src={images[lightboxIndex]} 
+                alt={product.name}
+                className="max-w-full max-h-[75vh] object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-zoom-in"
+              />
+              <div className="absolute top-4 left-4 bg-black/40 backdrop-blur-md px-4 py-1.5 text-[10px] font-bold text-white uppercase tracking-[0.2em] opacity-0 group-hover/light:opacity-100 transition-opacity">
+                {lightboxIndex + 1} / {images.length}
+              </div>
+            </div>
+
+            {/* Lightbox Thumbnails */}
+            <div className="flex gap-4 overflow-x-auto p-2 no-scrollbar">
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setLightboxIndex(idx)}
+                  className={cn(
+                    "w-16 h-20 flex-shrink-0 overflow-hidden border-2 transition-all duration-300",
+                    lightboxIndex === idx ? "border-white scale-110 shadow-premium" : "border-transparent opacity-40 hover:opacity-100"
+                  )}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Product Name at bottom */}
+          <div className="absolute bottom-8 left-0 right-0 text-center">
+            <h2 className="text-white/40 text-[10px] sm:text-[12px] font-bold tracking-[0.4em] uppercase">
+              {product.name}
+            </h2>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

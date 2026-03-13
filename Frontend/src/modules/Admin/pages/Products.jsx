@@ -114,12 +114,12 @@ export function ProductsPage({ subRoute = null, navigate }) {
     fetchProducts()
   }, [fetchProducts])
 
-  // Refresh when products are updated
   useEffect(() => {
     if (products.updated) {
       fetchProducts()
+      dispatch({ type: 'SET_PRODUCTS_UPDATED', payload: false })
     }
-  }, [products.updated, fetchProducts])
+  }, [products.updated, fetchProducts, dispatch])
 
   const handleEditProduct = (product) => {
     // Find original product data (before formatting)
@@ -134,6 +134,9 @@ export function ProductsPage({ subRoute = null, navigate }) {
       setProcessingMessage('Deleting Product...')
       const result = await deleteProduct(productId)
       if (result.data) {
+        // Optimistic update
+        setAllProductsList(prev => prev.filter(p => p.id !== productId))
+        setProductsList(prev => prev.filter(p => p.id !== productId))
         fetchProducts()
         success('Product deleted successfully!', 3000)
       } else if (result.error) {
@@ -546,6 +549,7 @@ export function ProductsPage({ subRoute = null, navigate }) {
           )}
         </div>
       </div>
+      <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
     </div>
   )
 }

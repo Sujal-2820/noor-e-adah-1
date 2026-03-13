@@ -33,9 +33,14 @@ function ReelItem({ product, onNavigate, onAddToCart }) {
         return () => observer.disconnect()
     }, [])
 
+    const outOfStock = (product.displayStock || product.stock || 0) === 0
+
     return (
         <div
-            className="relative flex-none w-[180px] sm:w-[220px] aspect-[9/16] rounded-2xl overflow-hidden bg-gray-100 shadow-xl group cursor-pointer select-none border border-white/10"
+            className={cn(
+                "relative flex-none w-[180px] sm:w-[220px] aspect-[9/16] rounded-2xl overflow-hidden bg-gray-100 shadow-xl group cursor-pointer select-none border border-white/10",
+                outOfStock && "grayscale opacity-80"
+            )}
             onClick={() => onNavigate(product.id || product._id)}
         >
             {/* Optimized Placeholder/Poster */}
@@ -48,40 +53,54 @@ function ReelItem({ product, onNavigate, onAddToCart }) {
                 )}
             />
 
-            <video
-                ref={videoRef}
-                src={product.video?.url}
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                className={cn(
-                    "w-full h-full object-cover transition-opacity duration-700",
-                    (isPlaying || hasStarted) ? "opacity-100" : "opacity-0"
-                )}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-            />
+            {!outOfStock && (
+                <video
+                    ref={videoRef}
+                    src={product.video?.url}
+                    loop
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className={cn(
+                        "w-full h-full object-cover transition-opacity duration-700",
+                        (isPlaying || hasStarted) ? "opacity-100" : "opacity-0"
+                    )}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                />
+            )}
+
+            {outOfStock && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[2px] z-30 pointer-events-none">
+                    <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-red-600">
+                            Sold Out
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {/* Overlay UI */}
             <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-16 z-20 pointer-events-none">
                 <h4 className="text-white text-sm font-bold truncate mb-1 shadow-sm">{product.name}</h4>
                 <div className="flex items-center justify-between">
                     <span className="text-white text-base font-black tracking-tight">₹{(product.userPrice || product.price || 0).toLocaleString('en-IN')}</span>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onAddToCart(product.id || product._id);
-                        }}
-                        className="p-2.5 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-all scale-95 group-hover:scale-110 pointer-events-auto border border-white/20"
-                    >
-                        <ShoppingBag className="h-4.5 w-4.5" />
-                    </button>
+                    {!outOfStock && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAddToCart(product.id || product._id);
+                            }}
+                            className="p-2.5 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-all scale-95 group-hover:scale-110 pointer-events-auto border border-white/20"
+                        >
+                            <ShoppingBag className="h-4.5 w-4.5" />
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Play/Pause state indicators */}
-            {!isPlaying && (
+            {!outOfStock && !isPlaying && (
                 <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                     <div className="p-3.5 bg-black/20 backdrop-blur-md rounded-full text-white scale-110 opacity-80">
                         <Play className="h-8 w-8 fill-current translate-x-0.5" />
@@ -91,8 +110,8 @@ function ReelItem({ product, onNavigate, onAddToCart }) {
 
             {/* Badge */}
             <div className="absolute top-3 left-3 px-2.5 py-1 bg-black/40 backdrop-blur-sm rounded-full text-[8px] text-white font-black tracking-widest flex items-center gap-1.5 z-40 border border-white/10 uppercase">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-                Featured Reel
+                <div className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.5)]", outOfStock ? "bg-gray-400" : "bg-red-500 animate-pulse")} />
+                {outOfStock ? 'Unavailable' : 'Featured Reel'}
             </div>
         </div>
     )

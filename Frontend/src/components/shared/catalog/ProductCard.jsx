@@ -28,6 +28,15 @@ export function ProductCard({ product: rawProduct, onAddToCart, onWishlist, onNa
         >
             <div className="product-card-wrapper__image">
                 <img src={productImage} alt={product.name} className="product-card-wrapper__image-img" />
+                
+                {!inStock && (
+                    <div className="product-card-wrapper__image-overlay">
+                        <span className="product-card-wrapper__out-of-stock-label">
+                            <Trans>Out of Stock</Trans>
+                        </span>
+                    </div>
+                )}
+
                 {/* Rating Badge - only show if showRatingBadge prop is true */}
                 {product.showRatingBadge && (product.rating || product.averageRating) && (
                     <div className="product-card-wrapper__rating-badge">

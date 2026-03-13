@@ -112,7 +112,7 @@ export function FavouritesPage() {
           <div className="favourites-page__grid">
             {favouriteProducts.map((product) => {
               const productId = product._id || product.id
-              const inStock = (product.stock || 0) > 0
+              const outOfStock = (product.displayStock || product.stock || 0) === 0
               const productImage = getPrimaryImageUrl(product)
 
               return (
@@ -121,23 +121,38 @@ export function FavouritesPage() {
                   className="favourites-page__card group"
                   onClick={() => handleProductClick(productId)}
                 >
-                  <div className="favourites-page__card-image-wrapper product-card-container">
+                  <div className={cn(
+                    "favourites-page__card-image-wrapper product-card-container",
+                    outOfStock && "grayscale"
+                  )}>
                     <img
                       src={productImage}
                       alt={product.name}
-                      className="favourites-page__card-image product-image-primary"
+                      className={cn("favourites-page__card-image product-image-primary", outOfStock && "opacity-60")}
                     />
 
                     {/* Secondary Image for Hover (Smooth Transition) */}
-                    <img
-                      src={getImageUrlAt(product, 1)}
-                      alt={`${product.name} alternate view`}
-                      className="product-image-secondary"
-                    />
+                    {!outOfStock && (
+                      <img
+                        src={getImageUrlAt(product, 1)}
+                        alt={`${product.name} alternate view`}
+                        className="product-image-secondary"
+                      />
+                    )}
+
+                    {outOfStock && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
+                        <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
+                              Sold Out
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     <button
                       type="button"
                       className="favourites-page__card-wishlist"
-                      onClick={(e) => handleRemoveFromFavourites(productId)}
+                      onClick={(e) => { e.stopPropagation(); handleRemoveFromFavourites(productId); }}
                     >
                       <svg
                         className="h-5 w-5"
@@ -159,11 +174,14 @@ export function FavouritesPage() {
                     ₹{(product.priceToUser || product.price || 0).toLocaleString('en-IN')}
                   </div>
                   <button
-                    className="favourites-page__card-button"
-                    onClick={(e) => handleAddToCart(e, productId)}
-                    disabled={!inStock}
+                    className={cn(
+                      "favourites-page__card-button font-bold tracking-widest uppercase",
+                      outOfStock && "bg-gray-100 text-gray-400 cursor-not-allowed border-transparent"
+                    )}
+                    onClick={(e) => !outOfStock && handleAddToCart(e, productId)}
+                    disabled={outOfStock}
                   >
-                    {inStock ? 'Add to Cart' : 'Out of Stock'}
+                    {!outOfStock ? 'Add to Cart' : 'Sold Out'}
                   </button>
                 </div>
               )

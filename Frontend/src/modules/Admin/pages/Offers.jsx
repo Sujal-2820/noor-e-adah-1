@@ -199,6 +199,9 @@ export function OffersPage({ subRoute = null, navigate }) {
       setProcessingMessage('Deleting Carousel...')
       const result = await adminApi.deleteOffer(id)
       if (result.success) {
+        // Optimistic update
+        setCarousels(prev => prev.filter(c => (c._id || c.id) !== id))
+        setSmartphoneCarousels(prev => prev.filter(c => (c._id || c.id) !== id))
         success('Carousel deleted successfully')
         fetchOffers()
       }
@@ -378,6 +381,8 @@ export function OffersPage({ subRoute = null, navigate }) {
       setProcessingMessage('Deleting Special Offer...')
       const result = await adminApi.deleteOffer(id)
       if (result.success) {
+        // Optimistic update
+        setSpecialOffers(prev => prev.filter(o => (o._id || o.id) !== id))
         success('Special offer deleted successfully')
         fetchOffers()
       }
@@ -406,354 +411,362 @@ export function OffersPage({ subRoute = null, navigate }) {
     }
   }
 
-  // Show full-screen form views based on subRoute
-  if (subRoute === 'carousel/add' || (subRoute && subRoute.startsWith('carousel/edit')) || subRoute === 'smartphone-carousel/add' || (subRoute && subRoute.startsWith('smartphone-carousel/edit'))) {
-    const isSmartphone = subRoute?.includes('smartphone-carousel')
-    return (
-      <CarouselFormScreen
-        editingCarousel={editingCarousel}
-        allProducts={allProducts}
-        productsLoading={productsLoading}
-        onSave={handleSaveCarousel}
-        onCancel={() => {
-          setEditingCarousel(null)
-          if (navigate) navigate('offers')
-        }}
-        carouselCount={isSmartphone ? smartphoneCarouselCount : carouselCount}
-        isSmartphone={isSmartphone}
-      />
-    )
-  }
+  // ── Render ───────────────────────────────────────────────────────────────
+  const renderContent = () => {
+    // Show full-screen form views based on subRoute
+    if (subRoute === 'carousel/add' || (subRoute && subRoute.startsWith('carousel/edit')) || subRoute === 'smartphone-carousel/add' || (subRoute && subRoute.startsWith('smartphone-carousel/edit'))) {
+      const isSmartphone = subRoute?.includes('smartphone-carousel')
+      return (
+        <CarouselFormScreen
+          editingCarousel={editingCarousel}
+          allProducts={allProducts}
+          productsLoading={productsLoading}
+          onSave={handleSaveCarousel}
+          onCancel={() => {
+            setEditingCarousel(null)
+            if (navigate) navigate('offers')
+          }}
+          carouselCount={isSmartphone ? smartphoneCarouselCount : carouselCount}
+          isSmartphone={isSmartphone}
+        />
+      )
+    }
 
-  if (subRoute === 'special-offer/add' || (subRoute && subRoute.startsWith('special-offer/edit'))) {
-    return (
-      <SpecialOfferFormScreen
-        editingSpecialOffer={editingSpecialOffer}
-        allProducts={allProducts}
-        productsLoading={productsLoading}
-        onSave={handleSaveSpecialOffer}
-        onCancel={() => {
-          setEditingSpecialOffer(null)
-          if (navigate) navigate('offers')
-        }}
-      />
-    )
-  }
+    if (subRoute === 'special-offer/add' || (subRoute && subRoute.startsWith('special-offer/edit'))) {
+      return (
+        <SpecialOfferFormScreen
+          editingSpecialOffer={editingSpecialOffer}
+          allProducts={allProducts}
+          productsLoading={productsLoading}
+          onSave={handleSaveSpecialOffer}
+          onCancel={() => {
+            setEditingSpecialOffer(null)
+            if (navigate) navigate('offers')
+          }}
+        />
+      )
+    }
 
-  // Show list view
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Offers Management</h1>
-          <p className="text-sm text-gray-600 mt-1">Manage carousels and special offers for user dashboard</p>
+    // Show list view
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Offers Management</h1>
+            <p className="text-sm text-gray-600 mt-1">Manage carousels and special offers for user dashboard</p>
+          </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('carousels')}
-            className={cn(
-              'py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
-              activeTab === 'carousels'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            )}
-          >
-            <Monitor className="h-4 w-4" />
-            Desktop Carousels ({carouselCount}/6)
-          </button>
-          <button
-            onClick={() => setActiveTab('smartphone-carousels')}
-            className={cn(
-              'py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
-              activeTab === 'smartphone-carousels'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            )}
-          >
-            <Smartphone className="h-4 w-4" />
-            Smartphone Carousels ({smartphoneCarouselCount}/6)
-          </button>
-          <button
-            onClick={() => setActiveTab('special-offers')}
-            className={cn(
-              'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
-              activeTab === 'special-offers'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            )}
-          >
-            Special Offers ({specialOffers.length})
-          </button>
-        </nav>
-      </div>
-
-      {/* Desktop & Smartphone Carousels List */}
-      {(activeTab === 'carousels' || activeTab === 'smartphone-carousels') && (
-        <div className="space-y-4">
-          {activeTab === 'carousels' ? (
-            carouselCount >= 6 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-800">Maximum desktop carousels reached</p>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    You have reached the maximum limit of 6 active desktop carousels.
-                  </p>
-                </div>
-              </div>
-            )
-          ) : (
-            smartphoneCarouselCount >= 6 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-800">Maximum smartphone carousels reached</p>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    You have reached the maximum limit of 6 active smartphone carousels.
-                  </p>
-                </div>
-              </div>
-            )
-          )}
-
-          <div className="flex justify-end">
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => handleCreateCarousel(activeTab === 'carousels' ? 'carousel' : 'smartphone_carousel')}
-              disabled={activeTab === 'carousels' ? carouselCount >= 6 : smartphoneCarouselCount >= 6}
+              onClick={() => setActiveTab('carousels')}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors',
-                (activeTab === 'carousels' ? carouselCount >= 6 : smartphoneCarouselCount >= 6)
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                'py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
+                activeTab === 'carousels'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}
             >
-              <Plus className="h-4 w-4" />
-              Add {activeTab === 'carousels' ? 'Desktop' : 'Smartphone'} Carousel
+              <Monitor className="h-4 w-4" />
+              Desktop Carousels ({carouselCount}/6)
             </button>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">Loading carousels...</p>
-            </div>
-          ) : (activeTab === 'carousels' ? carousels : smartphoneCarousels).length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium">No carousels yet</p>
-              <p className="text-sm text-gray-500 mt-1 text-center">Create your first carousel to display on the {activeTab === 'carousels' ? 'desktop' : 'smartphone'} view</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-500 mb-2 flex items-center gap-2">
-                <GripVertical className="h-4 w-4" />
-                Drag to reorder
-              </p>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {(activeTab === 'carousels' ? carousels : smartphoneCarousels)
-                  .sort((a, b) => (a.order || 0) - (b.order || 0))
-                  .map((carousel, index) => {
-                    const isDragging = draggedCarouselIndex === index
-                    const isDragOver = dragOverCarouselIndex === index
-                    const isVideo = carousel.mediaType === 'video'
-                    const mediaSrc = isVideo ? carousel.video : carousel.image
-                    
-                    return (
-                      <div
-                        key={carousel._id || carousel.id}
-                        draggable
-                        onDragStart={(e) => handleCarouselDragStart(e, index)}
-                        onDragEnd={handleCarouselDragEnd}
-                        onDragOver={(e) => handleCarouselDragOver(e, index)}
-                        onDragLeave={handleCarouselDragLeave}
-                        onDrop={(e) => handleCarouselDrop(e, index)}
-                        className={cn(
-                          'border rounded-2xl p-4 space-y-3 cursor-move transition-all flex flex-col',
-                          carousel.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75',
-                          isDragging && 'opacity-50 scale-95',
-                          isDragOver && 'ring-2 ring-blue-500 ring-offset-2 scale-105'
-                        )}
-                      >
-                        <div className="flex items-start gap-2 flex-grow">
-                          <GripVertical className="h-5 w-5 text-gray-300 mt-1 flex-shrink-0" />
-                          <div className="flex-1">
-                            <div className={cn(
-                              "relative rounded-xl overflow-hidden bg-gray-100 mb-3",
-                              carousel.orientation === 'vertical' ? "aspect-[9/16]" : "aspect-video"
-                            )}>
-                              {isVideo ? (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <Video className="h-8 w-8 text-gray-400" />
-                                  <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded flex items-center gap-1 font-bold">
-                                    <Video className="h-3 w-3" /> VIDEO
-                                  </div>
-                                </div>
-                              ) : (
-                                <img src={mediaSrc} alt={carousel.title} className="w-full h-full object-cover" />
-                              )}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-gray-900 truncate flex-1">{carousel.title || 'Untitled Carousel'}</h3>
-                                {isVideo && <Video className="h-3.5 w-3.5 text-blue-500" />}
-                              </div>
-                              {carousel.description && (
-                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{carousel.description}</p>
-                              )}
-                              {carousel.buttonText && (
-                                <div className="mt-2 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                                  CTA: {carousel.buttonText}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 mt-2">
-                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-bold rounded">
-                                  {carousel.orientation === 'vertical' ? 'VERTICAL' : 'HORIZONTAL'}
-                                </span>
-                                <span className="text-[9px] text-gray-400 font-medium">
-                                  {carousel.productIds?.length || 0} Products Linked
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between pt-3 border-t">
-                          <StatusBadge status={carousel.isActive ? 'active' : 'inactive'} />
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleToggleCarouselActive(carousel)
-                              }}
-                              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-green-600 transition-colors"
-                              title={carousel.isActive ? 'Deactivate' : 'Activate'}
-                            >
-                              {carousel.isActive ? (
-                                <ToggleRight className="h-5 w-5 text-green-600" />
-                              ) : (
-                                <ToggleLeft className="h-5 w-5" />
-                              )}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleEditCarousel(carousel)
-                              }}
-                              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
-                              title="Edit"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteCarousel(carousel._id || carousel.id)
-                              }}
-                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-600 transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Special Offers Tab */}
-      {activeTab === 'special-offers' && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
             <button
-              onClick={handleCreateSpecialOffer}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors"
+              onClick={() => setActiveTab('smartphone-carousels')}
+              className={cn(
+                'py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
+                activeTab === 'smartphone-carousels'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              )}
             >
-              <Plus className="h-4 w-4" />
-              Add Special Offer
+              <Smartphone className="h-4 w-4" />
+              Smartphone Carousels ({smartphoneCarouselCount}/6)
             </button>
-          </div>
+            <button
+              onClick={() => setActiveTab('special-offers')}
+              className={cn(
+                'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+                activeTab === 'special-offers'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              )}
+            >
+              Special Offers ({specialOffers.length})
+            </button>
+          </nav>
+        </div>
 
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">Loading special offers...</p>
-            </div>
-          ) : specialOffers.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium">No special offers yet</p>
-              <p className="text-sm text-gray-500 mt-1">Create special offers to display on the user dashboard</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {specialOffers.map((offer) => (
-                <div
-                  key={offer._id || offer.id}
-                  className={cn(
-                    'border rounded-lg p-4 space-y-3',
-                    offer.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75'
-                  )}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                          {offer.specialTag}
-                        </span>
-                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
-                          {offer.specialValue}
-                        </span>
-                      </div>
-                      <h3 className="font-medium text-gray-900">{offer.title}</h3>
-                      {offer.description && (
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{offer.description}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <StatusBadge status={offer.isActive ? 'active' : 'inactive'} />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleSpecialOfferActive(offer)}
-                        className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                        title={offer.isActive ? 'Deactivate' : 'Activate'}
-                      >
-                        {offer.isActive ? (
-                          <ToggleRight className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <ToggleLeft className="h-5 w-5 text-gray-400" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleEditSpecialOffer(offer)}
-                        className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                        title="Edit"
-                      >
-                        <Edit2 className="h-4 w-4 text-gray-600" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSpecialOffer(offer._id || offer.id)}
-                        className="p-1.5 hover:bg-red-50 rounded transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </button>
-                    </div>
+        {/* Desktop & Smartphone Carousels List */}
+        {(activeTab === 'carousels' || activeTab === 'smartphone-carousels') && (
+          <div className="space-y-4">
+            {activeTab === 'carousels' ? (
+              carouselCount >= 6 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">Maximum desktop carousels reached</p>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      You have reached the maximum limit of 6 active desktop carousels.
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              )
+            ) : (
+              smartphoneCarouselCount >= 6 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">Maximum smartphone carousels reached</p>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      You have reached the maximum limit of 6 active smartphone carousels.
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
 
+            <div className="flex justify-end">
+              <button
+                onClick={() => handleCreateCarousel(activeTab === 'carousels' ? 'carousel' : 'smartphone_carousel')}
+                disabled={activeTab === 'carousels' ? carouselCount >= 6 : smartphoneCarouselCount >= 6}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors',
+                  (activeTab === 'carousels' ? carouselCount >= 6 : smartphoneCarouselCount >= 6)
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                )}
+              >
+                <Plus className="h-4 w-4" />
+                Add {activeTab === 'carousels' ? 'Desktop' : 'Smartphone'} Carousel
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">Loading carousels...</p>
+              </div>
+            ) : (activeTab === 'carousels' ? carousels : smartphoneCarousels).length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium">No carousels yet</p>
+                <p className="text-sm text-gray-500 mt-1 text-center">Create your first carousel to display on the {activeTab === 'carousels' ? 'desktop' : 'smartphone'} view</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                  <GripVertical className="h-4 w-4" />
+                  Drag to reorder
+                </p>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {(activeTab === 'carousels' ? carousels : smartphoneCarousels)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
+                    .map((carousel, index) => {
+                      const isDragging = draggedCarouselIndex === index
+                      const isDragOver = dragOverCarouselIndex === index
+                      const isVideo = carousel.mediaType === 'video'
+                      const mediaSrc = isVideo ? carousel.video : carousel.image
+
+                      return (
+                        <div
+                          key={carousel._id || carousel.id}
+                          draggable
+                          onDragStart={(e) => handleCarouselDragStart(e, index)}
+                          onDragEnd={handleCarouselDragEnd}
+                          onDragOver={(e) => handleCarouselDragOver(e, index)}
+                          onDragLeave={handleCarouselDragLeave}
+                          onDrop={(e) => handleCarouselDrop(e, index)}
+                          className={cn(
+                            'border rounded-2xl p-4 space-y-3 cursor-move transition-all flex flex-col',
+                            carousel.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75',
+                            isDragging && 'opacity-50 scale-95',
+                            isDragOver && 'ring-2 ring-blue-500 ring-offset-2 scale-105'
+                          )}
+                        >
+                          <div className="flex items-start gap-2 flex-grow">
+                            <GripVertical className="h-5 w-5 text-gray-300 mt-1 flex-shrink-0" />
+                            <div className="flex-1">
+                              <div className={cn(
+                                "relative rounded-xl overflow-hidden bg-gray-100 mb-3",
+                                carousel.orientation === 'vertical' ? "aspect-[9/16]" : "aspect-video"
+                              )}>
+                                {isVideo ? (
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <Video className="h-8 w-8 text-gray-400" />
+                                    <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded flex items-center gap-1 font-bold">
+                                      <Video className="h-3 w-3" /> VIDEO
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <img src={mediaSrc} alt={carousel.title} className="w-full h-full object-cover" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-bold text-gray-900 truncate flex-1">{carousel.title || 'Untitled Carousel'}</h3>
+                                  {isVideo && <Video className="h-3.5 w-3.5 text-blue-500" />}
+                                </div>
+                                {carousel.description && (
+                                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{carousel.description}</p>
+                                )}
+                                {carousel.buttonText && (
+                                  <div className="mt-2 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                                    CTA: {carousel.buttonText}
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-bold rounded">
+                                    {carousel.orientation === 'vertical' ? 'VERTICAL' : 'HORIZONTAL'}
+                                  </span>
+                                  <span className="text-[9px] text-gray-400 font-medium">
+                                    {carousel.productIds?.length || 0} Products Linked
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-3 border-t">
+                            <StatusBadge status={carousel.isActive ? 'active' : 'inactive'} />
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleToggleCarouselActive(carousel)
+                                }}
+                                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-green-600 transition-colors"
+                                title={carousel.isActive ? 'Deactivate' : 'Activate'}
+                              >
+                                {carousel.isActive ? (
+                                  <ToggleRight className="h-5 w-5 text-green-600" />
+                                ) : (
+                                  <ToggleLeft className="h-5 w-5" />
+                                )}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditCarousel(carousel)
+                                }}
+                                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+                                title="Edit"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteCarousel(carousel._id || carousel.id)
+                                }}
+                                className="p-1.5 hover:bg-red-50 rounded-lg text-red-600 transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Special Offers Tab */}
+        {activeTab === 'special-offers' && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button
+                onClick={handleCreateSpecialOffer}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Add Special Offer
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">Loading special offers...</p>
+              </div>
+            ) : specialOffers.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium">No special offers yet</p>
+                <p className="text-sm text-gray-500 mt-1">Create special offers to display on the user dashboard</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {specialOffers.map((offer) => (
+                  <div
+                    key={offer._id || offer.id}
+                    className={cn(
+                      'border rounded-lg p-4 space-y-3',
+                      offer.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75'
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                            {offer.specialTag}
+                          </span>
+                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+                            {offer.specialValue}
+                          </span>
+                        </div>
+                        <h3 className="font-medium text-gray-900">{offer.title}</h3>
+                        {offer.description && (
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{offer.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <StatusBadge status={offer.isActive ? 'active' : 'inactive'} />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleSpecialOfferActive(offer)}
+                          className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                          title={offer.isActive ? 'Deactivate' : 'Activate'}
+                        >
+                          {offer.isActive ? (
+                            <ToggleRight className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <ToggleLeft className="h-5 w-5 text-gray-400" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleEditSpecialOffer(offer)}
+                          className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="h-4 w-4 text-gray-600" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSpecialOffer(offer._id || offer.id)}
+                          className="p-1.5 hover:bg-red-50 rounded transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {renderContent()}
       <LoadingOverlay isVisible={isProcessing} message={processingMessage} />
     </div>
   )
