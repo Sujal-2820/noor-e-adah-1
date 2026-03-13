@@ -144,7 +144,7 @@ exports.authorizeUser = async (req, res, next) => {
       const decoded = exports.verifyToken(token);
 
       // Check if user has 'user' role (previously 'vendor' or others)
-      if (decoded.role !== 'user' && decoded.role !== 'vendor') {
+      if (decoded.role !== 'user' && decoded.role !== 'vendor' && decoded.role !== 'customer') {
         return res.status(403).json({
           success: false,
           message: 'Access denied. User role required.',

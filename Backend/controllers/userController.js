@@ -14,6 +14,7 @@ const WithdrawalRequest = require('../models/WithdrawalRequest');
 const BankAccount = require('../models/BankAccount');
 const PaymentHistory = require('../models/PaymentHistory');
 const UserNotification = require('../models/UserNotification');
+const Payment = require('../models/Payment');
 const Settings = require('../models/Settings');
 const Address = require('../models/Address');
 const razorpayService = require('../services/razorpayService');
@@ -127,125 +128,70 @@ exports.register = async (req, res, next) => {
       partnerAgreement,
 
       // Terms
-      termsAccepted
+      termsAccepted,
+      
+      // User Type (Partner/Customer)
+      userType = 'partner'
     } = req.body;
 
-    // Normalize phone number early
     const normalizedPhone = normalizePhoneNumber(phone);
 
     // Backward compatibility for legacy requests
     const name = req.body.name || (firstName && lastName ? `${firstName} ${lastName}` : undefined);
-    // Map legacy card objects from new document fields if not explicitly provided
-    const aadhaarCardLegacy = req.body.aadhaarCard || aadhaarFront;
-    const panCardLegacy = req.body.panCard || partnerAgreement; // Mapping partner agreement form to legacy panCard as a placeholder if needed
 
-    if (!firstName || !lastName || !phone || !shopName || !shopAddress || !location) {
+    if (!firstName || !lastName || !phone || !location) {
       return res.status(400).json({
         success: false,
-        message: 'First name, last name, phone, shop name, shop address, and location are required',
-      });
-    }
-
-    // Validate KYC Numbers
-    if (!gstNumber || !panNumber || !aadhaarNumber) {
-      return res.status(400).json({
-        success: false,
-        message: 'GST, PAN, and Aadhaar numbers are required',
+        message: 'First name, last name, phone, and location are required',
       });
     }
 
     // Special bypass number - skip all validation and checks, proceed to OTP
     if (isSpecialBypassNumber(normalizedPhone)) {
       // Create User with minimal data, set OTP to 123456
-      let User = await User.findOne({ phone: normalizedPhone });
+      let existingUserBypass = await User.findOne({ phone: normalizedPhone });
 
-      if (!User) {
-        const UserId = await generateUniqueId(User, 'VND', 'UserId', 101);
-        User = new User({
-          UserId,
+      if (!existingUserBypass) {
+        const userIdCode = await generateUniqueId(User, 'USR', 'userId', 101);
+        existingUserBypass = new User({
+          userId: userIdCode,
           firstName,
           lastName,
           name: name || `${firstName} ${lastName}`,
           phone: normalizedPhone,
           email: email || undefined,
+          userType: 'customer',
+          role: 'customer',
           agentName,
-          shopName,
-          shopAddress,
-          gstNumber,
-          panNumber,
-          aadhaarNumber,
           location: location || {
-            address: shopAddress || '',
+            address: '',
             city: '',
             state: '',
             pincode: '',
           },
-          status: 'pending',
-          aadhaarFront: aadhaarFront || { url: '', format: 'jpg' },
-          aadhaarBack: aadhaarBack || { url: '', format: 'jpg' },
-          businessLicense: businessLicense || { url: '', format: 'jpg' },
-          identityVerification: identityVerification || { url: '', format: 'jpg' },
-          partnerAgreement: partnerAgreement || { url: '', format: 'jpg' },
-          aadhaarCard: aadhaarCardLegacy || { url: '', format: 'jpg' },
-          panCard: panCardLegacy || { url: '', format: 'jpg' },
+          status: 'approved',
+          isActive: true,
           termsAccepted: termsAccepted || false,
         });
       }
 
       // Set OTP to 123456
-      User.otp = {
+      existingUserBypass.otp = {
         code: SPECIAL_BYPASS_OTP,
         expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
       };
-      await User.save();
+      await existingUserBypass.save();
 
       return res.status(201).json({
         success: true,
         data: {
-          message: 'Registration request submitted. OTP sent to phone.',
-          requiresApproval: true,
+          message: 'Registration successful. OTP sent to phone.',
+          requiresApproval: false,
           expiresIn: OTP_EXPIRY_MINUTES * 60, // seconds
         },
       });
     }
 
-    // Validate Documents - All 5 are required
-    const requiredDocs = [
-      { key: 'aadhaarFront', label: 'Aadhaar Front', data: aadhaarFront },
-      { key: 'aadhaarBack', label: 'Aadhaar Back', data: aadhaarBack },
-      { key: 'businessLicense', label: 'Business License', data: businessLicense },
-      { key: 'identityVerification', label: 'Identity Verification', data: identityVerification },
-      { key: 'partnerAgreement', label: 'Partner Agreement', data: partnerAgreement }
-    ];
-
-    for (const doc of requiredDocs) {
-      if (!doc.data || !doc.data.url) {
-        return res.status(400).json({
-          success: false,
-          message: `${doc.label} image is required. Please upload an image file (max 2MB).`,
-        });
-      }
-    }
-
-    // Validate document formats & sizes
-    const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'pdf'];
-    const maxSize = 2000000; // 2MB
-
-    for (const doc of requiredDocs) {
-      const format = doc.data.format?.toLowerCase();
-      if (!format || !imageFormats.includes(format)) {
-        return res.status(400).json({
-          success: false,
-          message: `${doc.label} must be an image file or PDF.`,
-        });
-      }
-      if (doc.data.size && doc.data.size > maxSize) {
-        return res.status(400).json({
-          success: false,
-          message: `${doc.label} size exceeds 2MB limit.`,
-        });
-      }
-    }
 
     if (!termsAccepted) {
       return res.status(400).json({
@@ -277,22 +223,19 @@ exports.register = async (req, res, next) => {
     // Multiple Users can now register in the same area.
 
     // Generate unique User ID
-    const UserId = await generateUniqueId(User, 'VND', 'UserId', 101);
+    const userIdCode = await generateUniqueId(User, 'USR', 'userId', 101);
 
-    // Create User - Status set to pending (requires admin approval)
-    const User = new User({
-      UserId,
+    // Create User
+    const newUser = new User({
+      userId: userIdCode,
       firstName,
       lastName,
       name: name || `${firstName} ${lastName}`,
       email: email || undefined,
       phone: normalizedPhone,
+      userType: 'customer',
+      role: 'customer',
       agentName,
-      shopName,
-      shopAddress,
-      gstNumber,
-      panNumber,
-      aadhaarNumber,
       location: {
         address: location.address,
         city: location.city,
@@ -302,67 +245,16 @@ exports.register = async (req, res, next) => {
           lat: location.coordinates?.lat || 0,
           lng: location.coordinates?.lng || 0,
         },
-        coverageRadius: USER_COVERAGE_RADIUS_KM,
-      },
-      // KYC Documents
-      aadhaarFront: {
-        url: aadhaarFront?.url,
-        publicId: aadhaarFront?.publicId,
-        format: aadhaarFront?.format,
-        size: aadhaarFront?.size,
-        uploadedAt: new Date(),
-      },
-      aadhaarBack: {
-        url: aadhaarBack?.url,
-        publicId: aadhaarBack?.publicId,
-        format: aadhaarBack?.format,
-        size: aadhaarBack?.size,
-        uploadedAt: new Date(),
-      },
-      businessLicense: {
-        url: businessLicense?.url,
-        publicId: businessLicense?.publicId,
-        format: businessLicense?.format,
-        size: businessLicense?.size,
-        uploadedAt: new Date(),
-      },
-      identityVerification: {
-        url: identityVerification?.url,
-        publicId: identityVerification?.publicId,
-        format: identityVerification?.format,
-        size: identityVerification?.size,
-        uploadedAt: new Date(),
-      },
-      partnerAgreement: {
-        url: partnerAgreement?.url,
-        publicId: partnerAgreement?.publicId,
-        format: partnerAgreement?.format,
-        size: partnerAgreement?.size,
-        uploadedAt: new Date(),
-      },
-      // Legacy compatibility
-      aadhaarCard: {
-        url: aadhaarCardLegacy?.url,
-        publicId: aadhaarCardLegacy?.publicId,
-        format: aadhaarCardLegacy?.format,
-        size: aadhaarCardLegacy?.size,
-        uploadedAt: new Date(),
-      },
-      panCard: {
-        url: panCardLegacy?.url,
-        publicId: panCardLegacy?.publicId,
-        format: panCardLegacy?.format,
-        size: panCardLegacy?.size,
-        uploadedAt: new Date(),
+        coverageRadius: 0,
       },
       termsAccepted: true,
       termsAcceptedAt: new Date(),
-      status: 'pending', // Requires admin approval
-      isActive: false, // Inactive until approved
+      status: 'approved',
+      isActive: true,
     });
 
     // Clear any existing OTP before generating new one
-    User.clearOTP();
+    newUser.clearOTP();
 
     // Check if this is a test phone number - use default OTP 123456
     const testOTPInfo = getTestOTPInfo(phone);
@@ -370,15 +262,15 @@ exports.register = async (req, res, next) => {
     if (testOTPInfo.isTest) {
       // For test numbers, set OTP directly to 123456
       otpCode = testOTPInfo.defaultOTP;
-      User.otp = {
+      newUser.otp = {
         code: otpCode,
         expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
       };
     } else {
       // Generate new unique OTP for regular numbers
-      otpCode = User.generateOTP();
+      otpCode = newUser.generateOTP();
     }
-    await User.save();
+    await newUser.save();
 
     // Send OTP via SMS
     try {
@@ -390,30 +282,12 @@ exports.register = async (req, res, next) => {
       success: true,
       data: {
         message: 'Registration successful. OTP sent to phone.',
-        userId: user._id,
-        UserIdCode: user.userId,
+        userId: newUser._id,
+        UserIdCode: newUser.userId,
+        requiresApproval: false,
         expiresIn: OTP_EXPIRY_MINUTES * 60, // seconds
       },
     });
-
-    // Create Admin TODO Task
-    try {
-      await adminTaskController.createTaskInternal({
-        title: 'New User Application',
-        description: `A new User "${name}" (${phone}) has registered and is waiting for approval in ${location.city}, ${location.state}.`,
-        category: 'user',
-        priority: 'high',
-        link: '/Users',
-        relatedId: user._id,
-        metadata: {
-          UserName: name,
-          phone: normalizedPhone,
-          city: location.city
-        }
-      });
-    } catch (taskError) {
-      console.error('Failed to create admin task:', taskError);
-    }
   } catch (error) {
     next(error);
   }
@@ -521,12 +395,12 @@ exports.requestOTP = async (req, res, next) => {
     // Special bypass number - skip all checks and proceed to OTP
     if (isSpecialBypassNumber(normalizedPhone)) {
       // Find or create User
-      let User = await User.findOne({ phone: normalizedPhone });
+      let existingUserBypass = await User.findOne({ phone: normalizedPhone });
 
-      if (!User) {
-        const UserId = await generateUniqueId(User, 'VND', 'UserId', 101);
-        User = new User({
-          UserId,
+      if (!existingUserBypass) {
+        const userIdCode = await generateUniqueId(User, 'VND', 'userId', 101);
+        existingUserBypass = new User({
+          userId: userIdCode,
           phone: normalizedPhone,
           name: 'Special Bypass User',
           status: 'pending',
@@ -540,11 +414,11 @@ exports.requestOTP = async (req, res, next) => {
       }
 
       // Set OTP to 123456
-      User.otp = {
+      existingUserBypass.otp = {
         code: SPECIAL_BYPASS_OTP,
         expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
       };
-      await User.save();
+      await existingUserBypass.save();
 
       return res.status(200).json({
         success: true,
@@ -565,10 +439,10 @@ exports.requestOTP = async (req, res, next) => {
     }
 
     // Check if User exists - requestOTP is only for existing Users
-    const UserCheck = await checkPhoneInRole(normalizedPhone, 'user');
-    const User = UserCheck.data;
+    const userCheck = await checkPhoneInRole(normalizedPhone, 'user');
+    const user = userCheck.data;
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found. Please register first.',
@@ -577,7 +451,7 @@ exports.requestOTP = async (req, res, next) => {
     }
 
     // Check User status before sending OTP
-    if (User.status === 'rejected') {
+    if (user.status === 'rejected') {
       return res.status(403).json({
         success: false,
         status: 'rejected',
@@ -587,7 +461,7 @@ exports.requestOTP = async (req, res, next) => {
 
     // Allow OTP for pending and approved Users (status check will happen in verifyOTP)
     // Clear any existing OTP before generating new one
-    User.clearOTP();
+    user.clearOTP();
 
     // Check if this is a test phone number - use default OTP 123456
     const testOTPInfo = getTestOTPInfo(phone);
@@ -595,15 +469,15 @@ exports.requestOTP = async (req, res, next) => {
     if (testOTPInfo.isTest) {
       // For test numbers, set OTP directly to 123456
       otpCode = testOTPInfo.defaultOTP;
-      User.otp = {
+      user.otp = {
         code: otpCode,
         expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
       };
     } else {
       // Generate new unique OTP for regular numbers
-      otpCode = User.generateOTP();
+      otpCode = user.generateOTP();
     }
-    await User.save();
+    await user.save();
 
     // Send OTP via SMS
     try {
@@ -651,12 +525,12 @@ exports.verifyOTP = async (req, res, next) => {
       }
 
       // Find or create User
-      let User = await User.findOne({ phone: normalizedPhone });
+      let user = await User.findOne({ phone: normalizedPhone });
 
-      if (!User) {
-        const UserId = await generateUniqueId(User, 'VND', 'UserId', 101);
-        User = new User({
-          UserId,
+      if (!user) {
+        const userIdCode = await generateUniqueId(User, 'VND', 'userId', 101);
+        user = new User({
+          userId: userIdCode,
           phone: normalizedPhone,
           name: 'Special Bypass User',
           status: 'pending',
@@ -667,12 +541,12 @@ exports.verifyOTP = async (req, res, next) => {
             pincode: '',
           },
         });
-        await User.save();
-        console.log(`✅ Special bypass User created: ${normalizedPhone} with ID: ${UserId}`);
+        await user.save();
+        console.log(`✅ Special bypass User created: ${normalizedPhone} with ID: ${userIdCode}`);
       }
 
-      User.lastLogin = new Date();
-      await User.save();
+      user.lastLogin = new Date();
+      await user.save();
 
       // Generate JWT token
       const token = generateToken({
@@ -686,24 +560,25 @@ exports.verifyOTP = async (req, res, next) => {
         success: true,
         data: {
           token,
-          status: User.status,
+          status: user.status,
           User: {
             id: user._id,
             userId: user.userId,
             name: user.name,
-            firstName: User.firstName,
-            lastName: User.lastName,
+            firstName: user.firstName,
+            lastName: user.lastName,
             phone: user.phone,
             email: user.email,
-            shopName: User.shopName,
-            shopAddress: User.shopAddress,
-            gstNumber: User.gstNumber,
-            panNumber: User.panNumber,
-            aadhaarNumber: User.aadhaarNumber,
-            agentName: User.agentName,
-            status: User.status,
-            isActive: User.isActive,
-            location: User.location,
+            shopName: user.shopName,
+            shopAddress: user.shopAddress,
+            gstNumber: user.gstNumber,
+            panNumber: user.panNumber,
+            aadhaarNumber: user.aadhaarNumber,
+            agentName: user.agentName,
+            status: user.status,
+            isActive: user.isActive,
+            location: user.location,
+            userType: user.userType || 'partner'
           },
         },
       });
@@ -719,10 +594,10 @@ exports.verifyOTP = async (req, res, next) => {
     }
 
     // Check if phone exists in User role
-    const UserCheck = await checkPhoneInRole(phone, 'user');
-    const User = UserCheck.data;
+    const userCheck = await checkPhoneInRole(phone, 'user');
+    const user = userCheck.data;
 
-    if (!User) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found. Please register first.',
@@ -731,7 +606,7 @@ exports.verifyOTP = async (req, res, next) => {
     }
 
     // Verify OTP
-    const isOtpValid = User.verifyOTP(otp);
+    const isOtpValid = user.verifyOTP(otp);
 
     if (!isOtpValid) {
       return res.status(401).json({
@@ -741,21 +616,21 @@ exports.verifyOTP = async (req, res, next) => {
     }
 
     // Check if User is banned
-    if (User.banInfo?.isBanned) {
-      const banType = User.banInfo.banType || 'temporary'
-      const banReason = User.banInfo.banReason || 'Account banned by admin'
+    if (user.banInfo?.isBanned) {
+      const banType = user.banInfo.banType || 'temporary'
+      const banReason = user.banInfo.banReason || 'Account banned by admin'
       return res.status(403).json({
         success: false,
         message: `User account is ${banType === 'permanent' ? 'permanently' : 'temporarily'} banned. ${banReason}. Please contact admin.`,
-        banInfo: User.banInfo,
+        banInfo: user.banInfo,
       });
     }
 
     // Check User status - Handle pending, rejected, and approved statuses
-    if (User.status === 'pending') {
+    if (user.status === 'pending') {
       // Clear OTP after successful verification
-      User.clearOTP();
-      await User.save();
+      user.clearOTP();
+      await user.save();
 
       return res.status(200).json({
         success: true,
@@ -766,28 +641,29 @@ exports.verifyOTP = async (req, res, next) => {
             id: user._id,
             userId: user.userId,
             name: user.name,
-            firstName: User.firstName,
-            lastName: User.lastName,
+            firstName: user.firstName,
+            lastName: user.lastName,
             phone: user.phone,
             email: user.email,
-            shopName: User.shopName,
-            shopAddress: User.shopAddress,
-            gstNumber: User.gstNumber,
-            panNumber: User.panNumber,
-            aadhaarNumber: User.aadhaarNumber,
-            agentName: User.agentName,
-            status: User.status,
-            isActive: User.isActive,
-            location: User.location,
+            shopName: user.shopName,
+            shopAddress: user.shopAddress,
+            gstNumber: user.gstNumber,
+            panNumber: user.panNumber,
+            aadhaarNumber: user.aadhaarNumber,
+            agentName: user.agentName,
+            status: user.status,
+            isActive: user.isActive,
+            location: user.location,
+            userType: user.userType || 'partner'
           },
         },
       });
     }
 
-    if (User.status === 'rejected') {
+    if (user.status === 'rejected') {
       // Clear OTP after verification
-      User.clearOTP();
-      await User.save();
+      user.clearOTP();
+      await user.save();
 
       return res.status(403).json({
         success: false,
@@ -797,26 +673,27 @@ exports.verifyOTP = async (req, res, next) => {
           id: user._id,
           userId: user.userId,
           name: user.name,
-          firstName: User.firstName,
-          lastName: User.lastName,
+          firstName: user.firstName,
+          lastName: user.lastName,
           phone: user.phone,
-          status: User.status,
-          shopName: User.shopName,
-          gstNumber: User.gstNumber,
+          status: user.status,
+          shopName: user.shopName,
+          gstNumber: user.gstNumber,
+          userType: user.userType || 'partner'
         },
       });
     }
 
     // Check if User is approved and active
-    if (User.status !== 'approved') {
+    if (user.status !== 'approved') {
       return res.status(403).json({
         success: false,
-        message: `User account status is ${User.status}. Please contact admin.`,
-        status: User.status,
+        message: `User account status is ${user.status}. Please contact admin.`,
+        status: user.status,
       });
     }
 
-    if (!User.isActive) {
+    if (!user.isActive) {
       return res.status(403).json({
         success: false,
         message: 'User account is inactive. Please contact admin.',
@@ -825,9 +702,9 @@ exports.verifyOTP = async (req, res, next) => {
 
     // User is approved and active - proceed with login
     // Clear OTP after successful verification
-    User.clearOTP();
-    User.lastLogin = new Date();
-    await User.save();
+    user.clearOTP();
+    user.lastLogin = new Date();
+    await user.save();
 
     // Generate JWT token
     const token = generateToken({
@@ -842,9 +719,10 @@ exports.verifyOTP = async (req, res, next) => {
     console.log('\n' + '='.repeat(60));
     console.log('🔐 User OTP VERIFIED');
     console.log('='.repeat(60));
-    console.log(`📱 Phone: ${phone}`);
+    console.log(`📱 Phone: ${user.phone}`);
     console.log(`👤 Name: ${user.name}`);
-    console.log(`✅ Status: ${User.status}`);
+    console.log(`✅ Status: ${user.status}`);
+    console.log(`🏠 Type: ${user.userType || 'partner'}`);
     console.log(`⏰ Logged In At: ${timestamp}`);
     console.log('='.repeat(60) + '\n');
 
@@ -944,8 +822,8 @@ exports.updateProfile = async (req, res, next) => {
     const { name, firstName, lastName, email } = req.body;
 
     if (name) user.name = name;
-    if (firstName) User.firstName = firstName;
-    if (lastName) User.lastName = lastName;
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
     if (email) user.email = email;
 
     // Update name if firstName and lastName are provided
@@ -953,7 +831,7 @@ exports.updateProfile = async (req, res, next) => {
       user.name = `${firstName} ${lastName}`;
     }
 
-    await User.save();
+    await user.save();
 
     res.status(200).json({
       success: true,
@@ -962,23 +840,208 @@ exports.updateProfile = async (req, res, next) => {
           id: user._id,
           userId: user.userId,
           name: user.name,
-          firstName: User.firstName,
-          lastName: User.lastName,
+          firstName: user.firstName,
+          lastName: user.lastName,
           phone: user.phone,
           email: user.email,
-          shopName: User.shopName,
-          shopAddress: User.shopAddress,
-          gstNumber: User.gstNumber,
-          panNumber: User.panNumber,
-          aadhaarNumber: User.aadhaarNumber,
-          agentName: User.agentName,
-          location: User.location,
-          status: User.status,
-          isActive: User.isActive,
+          shopName: user.shopName,
+          shopAddress: user.shopAddress,
+          gstNumber: user.gstNumber,
+          panNumber: user.panNumber,
+          aadhaarNumber: user.aadhaarNumber,
+          agentName: user.agentName,
+          location: user.location,
+          status: user.status,
+          isActive: user.isActive,
         },
       },
       message: 'Profile updated successfully',
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get dashboard overview
+ * @route   GET /api/Users/dashboard
+ * @access  Private (User)
+ */
+
+/**
+ * @desc    Create new order (Customer)
+ * @route   POST /api/users/orders
+ * @access  Private (User/Customer)
+ */
+exports.createOrder = async (req, res, next) => {
+  try {
+    const { items, deliveryAddress, notes, orderSource = 'cart' } = req.body;
+    const user = req.user;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Order items are required' });
+    }
+
+    if (!deliveryAddress) {
+      return res.status(400).json({ success: false, message: 'Delivery address is required' });
+    }
+
+    // Process items and calculate subtotal
+    let subtotal = 0;
+    const processedItems = [];
+
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        return res.status(404).json({ success: false, message: `Product ${item.productId} not found` });
+      }
+
+      const unitPrice = product.priceToUser || product.price;
+      const totalPrice = unitPrice * item.quantity;
+      subtotal += totalPrice;
+
+      processedItems.push({
+        productId: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice,
+        totalPrice,
+        variantAttributes: item.variantAttributes || {}
+      });
+    }
+
+    // Use constants for charges
+    const deliveryCharge = subtotal >= 500 ? 0 : 100;
+
+    const order = new Order({
+      userId: user._id,
+      items: processedItems,
+      subtotal,
+      deliveryCharge,
+      totalAmount: subtotal + deliveryCharge,
+      deliveryAddress,
+      notes,
+      orderSource,
+      status: ORDER_STATUS.PENDING,
+      paymentStatus: PAYMENT_STATUS.PENDING,
+      assignedTo: 'admin'
+    });
+
+    await order.save();
+
+    res.status(201).json({
+      success: true,
+      data: {
+        order
+      },
+      message: 'Order created successfully'
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Create Razorpay Order for payment
+ * @route   POST /api/users/orders/:id/payment-intent
+ * @access  Private (User/Customer)
+ */
+exports.createPaymentIntent = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { payFull = false } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Payment is always 100% in Noor E Adah
+    const paymentAmount = order.totalAmount;
+    const paymentType = 'full';
+
+    // Create Razorpay Order
+    const rzpOrder = await razorpayService.createOrder({
+      amount: paymentAmount,
+      currency: 'INR',
+      receipt: order.orderNumber,
+      notes: {
+        orderId: order._id.toString(),
+        paymentType,
+        customerName: req.user.name
+      }
+    });
+
+    order.paymentDetails = {
+      ...order.paymentDetails,
+      razorpayOrderId: rzpOrder.id
+    };
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        razorpayOrderId: rzpOrder.id,
+        amount: paymentAmount,
+        currency: 'INR',
+        paymentType
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Confirm Razorpay Payment
+ * @route   POST /api/users/orders/:id/confirm-payment
+ * @access  Private (User/Customer)
+ */
+exports.confirmPayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { razorpayPaymentId, razorpaySignature, paymentType } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Verify signature
+    const isValid = razorpayService.verifyPaymentSignature(
+      order.paymentDetails.razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature
+    );
+
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+    }
+
+    // Update order status - Always 100% payment
+    order.paymentStatus = PAYMENT_STATUS.FULLY_PAID;
+    order.status = ORDER_STATUS.PAID;
+
+    order.paymentDetails.razorpayPaymentId = razorpayPaymentId;
+    order.paymentDetails.razorpaySignature = razorpaySignature;
+    
+    await order.save();
+
+    // Create Notification using the static method we just added
+    await UserNotification.createOrderStatusNotification(
+      order.userId,
+      order,
+      order.status
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment confirmed successfully',
+      data: order
+    });
+
   } catch (error) {
     next(error);
   }
@@ -1139,215 +1202,24 @@ async function processExpiredStatusUpdates(UserId) {
 exports.getOrders = async (req, res, next) => {
   try {
     const user = req.user;
+    const { page = 1, limit = 20, status } = req.query;
+    const query = { userId: user._id };
+    if (status) query.status = status;
 
-    // Process expired acceptances and status updates in background (non-blocking)
-    processExpiredAcceptances(user._id).catch(() => { });
-    processExpiredStatusUpdates(user._id).catch(() => { });
-    const {
-      page = 1,
-      limit = 20,
-      status,
-      paymentStatus,
-      dateFrom,
-      dateTo,
-      search,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-      escalated,
-    } = req.query;
-
-    // Build query - orders assigned to this User
-    // Primary condition: UserId must match
-    const UserIdForQuery = user._id;
-
-    // Build the query - start simple and add conditions
-    const query = {
-      userId: UserIdForQuery,
-    };
-
-    // Handle escalated filter
-    if (escalated === 'true' || escalated === true) {
-      // For escalated orders, show only orders that:
-      // 1. Are escalated (assignedTo: 'admin' OR escalation.isEscalated: true OR status: 'rejected')
-      // 2. AND (status: 'awaiting' OR (status: 'accepted' AND assignedTo: 'admin'))
-      // This includes: Escalated && Awaiting (waiting for admin acceptance)
-      //              AND Escalated && Accepted (admin accepted to fulfill from warehouse)
-      query.$and = [
-        {
-          $or: [
-            { assignedTo: 'admin' },
-            { 'escalation.isEscalated': true },
-            { status: 'rejected' }
-          ]
-        },
-        {
-          $or: [
-            // Escalated && Awaiting (not yet accepted by admin)
-            {
-              $and: [
-                { status: 'awaiting' },
-                {
-                  $or: [
-                    { assignedTo: 'admin' },
-                    { 'escalation.isEscalated': true }
-                  ]
-                }
-              ]
-            },
-            // Escalated && Accepted (admin accepted to fulfill from warehouse)
-            {
-              $and: [
-                { status: 'accepted' },
-                { assignedTo: 'admin' }
-              ]
-            }
-          ]
-        }
-      ];
-    } else {
-      // For normal orders (including "All Orders"), include:
-      // 1. Orders assigned to User (or not set for compatibility)
-      // 2. Escalated orders (so they appear in "All Orders" view as well)
-      query.$or = [
-        { assignedTo: 'user' },
-        { assignedTo: { $exists: false } },
-        { assignedTo: null },
-        // Include escalated orders in "All Orders"
-        { assignedTo: 'admin' },
-        { 'escalation.isEscalated': true },
-        { status: 'rejected' }
-      ];
-    }
-
-    // Debug logging
-    console.log(`🔍 User ${user.name} fetching orders`);
-    console.log(`   User ID: ${UserIdForQuery}`);
-    console.log(`   User ID (string): ${UserIdForQuery.toString()}`);
-    console.log(`📍 User location: ${User.location?.city || 'No city'}, ${User.location?.state || 'No state'}`);
-    console.log(`📋 Base Query structure:`, {
-      userId: UserIdForQuery.toString(),
-      $or: query.$or
-    });
-
-    // Apply status filter if provided (but ignore if it's the string "undefined")
-    if (status && status !== 'undefined' && status !== 'null') {
-      // Special handling for "delivered" filter: include both delivered and fully_paid orders
-      if (status === 'delivered') {
-        // Use $in operator to match either 'delivered' or 'fully_paid' status
-        query.status = { $in: ['delivered', 'fully_paid'] };
-      } else {
-        query.status = status;
-      }
-      console.log(`📋 Query with status filter '${status}':`, {
-        userId: query.userId.toString(),
-        $or: query.$or,
-        status: query.status
-      });
-    } else if (status === 'undefined' || status === 'null') {
-      console.log(`⚠️ Ignoring invalid status filter: '${status}'`);
-    }
-
-    if (paymentStatus) {
-      query.paymentStatus = paymentStatus;
-    }
-
-    // Date range filter
-    if (dateFrom || dateTo) {
-      query.createdAt = {};
-      if (dateFrom) {
-        query.createdAt.$gte = new Date(dateFrom);
-      }
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = toDate;
-      }
-    }
-
-    // Search by order number
-    if (search) {
-      query.orderNumber = { $regex: search, $options: 'i' };
-    }
-
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Sort
-    const sort = {};
-    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-
-    // Execute query
     const orders = await Order.find(query)
-      .sort(sort)
-      .skip(skip)
-      .limit(limitNum)
-      .populate('userId', 'name phone email location')
-      .populate('seller', 'sellerId name')
-      .populate('items.productId', 'name sku category')
-      .select('-__v')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .populate('items.productId', 'name images')
       .lean();
 
     const total = await Order.countDocuments(query);
 
-    // Debug logging - Always log for troubleshooting
-    console.log(`📦 User ${user.name} (${user._id}) orders query result: ${orders.length} orders found (total: ${total})`);
-    console.log(`📋 Final Query:`, JSON.stringify(query, null, 2));
-
-    // Check if there are any orders with this UserId at all (regardless of assignedTo)
-    const allOrdersForUser = await Order.find({ assignedassigneduserId: user._id }).countDocuments();
-    console.log(`   Total orders with UserId ${user._id.toString()}: ${allOrdersForUser}`);
-
-    if (allOrdersForUser > 0 && orders.length === 0) {
-      // There are orders for this User but they don't match the query
-      // Get sample orders to see what's in the database
-      const sampleOrders = await Order.find({ assignedassigneduserId: user._id })
-        .limit(5)
-        .select('orderNumber UserId assignedTo status createdAt')
-        .lean();
-      console.log(`   ⚠️ Found ${allOrdersForUser} orders with UserId, but none match query. Sample orders:`);
-      sampleOrders.forEach((o, idx) => {
-        console.log(`      [${idx + 1}] Order ${o.orderNumber}:`);
-        console.log(`          - userId: ${o.userId?.toString() || 'null'} (type: ${o.userId?.constructor?.name || 'unknown'})`);
-        console.log(`          - assignedTo: ${o.assignedTo || 'NOT SET'} (type: ${typeof o.assignedTo})`);
-        console.log(`          - status: ${o.status || 'NOT SET'}`);
-        console.log(`          - createdAt: ${o.createdAt || 'NOT SET'}`);
-        console.log(`          - UserId match: ${o.userId?.toString() === user._id.toString() ? 'YES' : 'NO'}`);
-      });
-
-      // Check if any orders have assignedTo set to something other than 'user'
-      const ordersWithDifferentAssignedTo = await Order.find({
-        assignedassigneduserId: user._id,
-        assignedTo: { $ne: 'user', $exists: true }
-      }).countDocuments();
-      console.log(`   Orders with UserId but assignedTo != 'user': ${ordersWithDifferentAssignedTo}`);
-
-      const ordersWithoutAssignedTo = await Order.find({
-        assignedassigneduserId: user._id,
-        assignedTo: { $exists: false }
-      }).countDocuments();
-      console.log(`   Orders with UserId but assignedTo not set: ${ordersWithoutAssignedTo}`);
-
-      // Try a simpler query to see if we can find the orders
-      const simpleQueryOrders = await Order.find({ assignedassigneduserId: user._id })
-        .limit(3)
-        .select('orderNumber UserId assignedTo status')
-        .lean();
-      console.log(`   Simple query (UserId only) found ${simpleQueryOrders.length} orders`);
-    }
-
     res.status(200).json({
       success: true,
-      data: {
-        orders,
-        pagination: {
-          currentPage: pageNum,
-          totalPages: Math.ceil(total / limitNum),
-          totalItems: total,
-          itemsPerPage: limitNum,
-        },
-      },
+      count: orders.length,
+      total,
+      data: orders
     });
   } catch (error) {
     next(error);
@@ -1364,68 +1236,19 @@ exports.getOrderDetails = async (req, res, next) => {
     const user = req.user;
     const { orderId } = req.params;
 
-    // Process expired acceptances in background (non-blocking)
-    processExpiredAcceptances(user._id).catch(() => { });
-
     const order = await Order.findOne({
       _id: orderId,
-      assigneduserId: user._id,
+      userId: user._id,
     })
-      .populate('userId', 'name phone email location')
-      .populate('seller', 'sellerId name')
-      .populate('items.productId', 'name sku category priceToUser imageUrl')
+      .populate('items.productId', 'name sku category priceToUser images')
       .select('-__v');
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found or not assigned to you',
+        message: 'Order not found',
       });
     }
-
-    // Enrich order items with User stock info
-    const orderObject = order.toObject({ virtuals: true });
-    const productIds = orderObject.items
-      .map((item) => {
-        if (!item.productId) return null;
-        return item.productId._id ? item.productId._id.toString() : item.productId.toString();
-      })
-      .filter(Boolean);
-
-    let assignmentMap = {};
-    if (productIds.length > 0) {
-      const assignments = await ProductAssignment.find({
-        userId: user._id,
-        productId: { $in: productIds },
-      })
-        .select('productId stock updatedAt lastRestockedAt')
-        .lean();
-
-      assignmentMap = assignments.reduce((acc, assignment) => {
-        acc[assignment.productId.toString()] = assignment;
-        return acc;
-      }, {});
-    }
-
-    orderObject.items = orderObject.items.map((item) => {
-      const productId = item.productId?._id
-        ? item.productId._id.toString()
-        : item.productId?.toString();
-      const assignment = productId ? assignmentMap[productId] : null;
-      const UserStock = assignment?.stock ?? assignment?.UserStock ?? 0;
-
-      // Convert variantAttributes Map to object for JSON response
-      const variantAttrs = item.variantAttributes instanceof Map
-        ? Object.fromEntries(item.variantAttributes)
-        : item.variantAttributes || {}
-
-      return {
-        ...item,
-        UserStock,
-        UserStockUpdatedAt: assignment?.updatedAt || assignment?.lastRestockedAt || null,
-        variantAttributes: Object.keys(variantAttrs).length > 0 ? variantAttrs : undefined,
-      };
-    });
 
     // Get order payments
     const Payment = require('../models/Payment');
@@ -1434,27 +1257,12 @@ exports.getOrderDetails = async (req, res, next) => {
       .select('-__v')
       .lean();
 
-    // Calculate payment summary
-    const totalPaid = payments
-      .filter(p => p.status === 'fully_paid' || p.status === 'partial_paid')
-      .reduce((sum, p) => sum + p.amount, 0);
-
-    const totalPending = payments
-      .filter(p => p.status === 'pending')
-      .reduce((sum, p) => sum + p.amount, 0);
-
     res.status(200).json({
       success: true,
       data: {
-        order: orderObject,
-        payments,
-        paymentSummary: {
-          totalAmount: order.totalAmount,
-          totalPaid,
-          totalPending,
-          remaining: order.totalAmount - totalPaid,
-        },
-      },
+        order,
+        payments
+      }
     });
   } catch (error) {
     next(error);

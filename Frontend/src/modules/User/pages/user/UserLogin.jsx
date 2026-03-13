@@ -89,7 +89,10 @@ export function UserLogin({ onSuccess, onSwitchToRegister }) {
         }
 
         if (result.data?.token || result.data?.data?.token) {
-          localStorage.setItem('user_token', result.data?.token || result.data?.data?.token)
+          const token = result.data?.token || result.data?.data?.token
+          localStorage.setItem('user_token', token)
+          // Set 7-day expiry
+          localStorage.setItem('user_token_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString())
           // Register FCM token
           registerFCMTokenWithBackend(true)
         }

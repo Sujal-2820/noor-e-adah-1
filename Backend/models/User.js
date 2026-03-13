@@ -13,6 +13,16 @@ const userSchema = new mongoose.Schema({
     uppercase: true,
     // Format: USR-101, USR-102, etc. (Previously USR-101)
   },
+  userType: {
+    type: String,
+    enum: ['partner', 'customer'],
+    default: 'partner',
+  },
+  role: {
+    type: String,
+    enum: ['user', 'customer'],
+    default: 'user',
+  },
   name: {
     type: String,
     trim: true,

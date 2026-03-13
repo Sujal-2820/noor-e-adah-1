@@ -162,6 +162,26 @@ userNotificationSchema.statics.createNotification = async function (data) {
     return notification;
 };
 
+// Static method: Create order status notification
+userNotificationSchema.statics.createOrderStatusNotification = async function (userId, order, status) {
+    const title = `Order Status: ${status.toUpperCase()}`;
+    const message = `Your order ${order.orderNumber} is now ${status}.`;
+
+    return this.createNotification({
+        userId,
+        type: 'order_status_changed',
+        title,
+        message,
+        relatedEntityType: 'order',
+        relatedEntityId: order._id,
+        priority: 'normal',
+        metadata: {
+            orderNumber: order.orderNumber,
+            status: status
+        }
+    });
+};
+
 // Instance method: Mark as read
 userNotificationSchema.methods.markAsRead = async function () {
     this.read = true;

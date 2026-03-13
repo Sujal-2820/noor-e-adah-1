@@ -148,7 +148,7 @@ export function MobileShell({ title, subtitle, children, navigation, menuContent
         <div className="user-shell-header__glow" />
         <div className="user-shell-header__first-row user-shell-header__controls relative z-10 flex items-center justify-between">
           <div className="user-shell-header__brand">
-            <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="h-8 w-auto object-contain rounded" />
+            <img src="/assets/NoorEAdahLogo.png" alt="Noor E Adah" className="h-11 w-auto object-contain rounded" />
           </div>
 
           {/* Search Bar - Between Logo and Navigation (Laptop Only) */}

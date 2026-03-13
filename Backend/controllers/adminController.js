@@ -4515,19 +4515,13 @@ exports.updateOrderStatus = async (req, res, next) => {
       return normalized;
     };
 
-    const paymentPreference = order.paymentPreference || 'partial';
     const normalizedCurrentStatus = normalizeStatusValue(order.status);
-    const normalizedNewStatus = status === ORDER_STATUS.FULLY_PAID
-      ? ORDER_STATUS.FULLY_PAID
-      : normalizeStatusValue(status);
+    const normalizedNewStatus = normalizeStatusValue(status);
 
-    const statusFlow = paymentPreference === 'partial'
-      ? [ORDER_STATUS.AWAITING, ORDER_STATUS.ACCEPTED, ORDER_STATUS.DISPATCHED, ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID]
-      : [ORDER_STATUS.AWAITING, ORDER_STATUS.ACCEPTED, ORDER_STATUS.DISPATCHED, ORDER_STATUS.DELIVERED];
+    // Simplified flow for Noor E Adah (Full Payment only)
+    const statusFlow = [ORDER_STATUS.AWAITING, ORDER_STATUS.PAID, ORDER_STATUS.ACCEPTED, ORDER_STATUS.PROCESSING, ORDER_STATUS.DISPATCHED, ORDER_STATUS.DELIVERED];
 
-    const finalStageStatus = paymentPreference === 'partial'
-      ? ORDER_STATUS.FULLY_PAID
-      : ORDER_STATUS.DELIVERED;
+    const finalStageStatus = ORDER_STATUS.DELIVERED;
 
     // Check if there's an active status update grace period that hasn't expired
     const now = new Date();
@@ -4579,20 +4573,6 @@ exports.updateOrderStatus = async (req, res, next) => {
       });
     }
 
-    if (normalizedNewStatus === ORDER_STATUS.FULLY_PAID) {
-      if (paymentPreference !== 'partial') {
-        return res.status(400).json({
-          success: false,
-          message: 'Fully paid status is only applicable for partial payment orders.',
-        });
-      }
-      if (normalizedCurrentStatus !== ORDER_STATUS.DELIVERED) {
-        return res.status(400).json({
-          success: false,
-          message: 'Order must be delivered before marking as fully paid.',
-        });
-      }
-    }
 
     // If reverting to previous status during grace period, allow it
     // Also check if isRevert flag is explicitly set
@@ -4603,14 +4583,14 @@ exports.updateOrderStatus = async (req, res, next) => {
     const currentIndex = statusFlow.indexOf(normalizedCurrentStatus);
     const newIndex = statusFlow.indexOf(normalizedNewStatus);
 
-    if (newIndex === -1 && normalizedNewStatus !== ORDER_STATUS.FULLY_PAID && !isReverting) {
+    if (newIndex === -1 && !isReverting) {
       return res.status(400).json({
         success: false,
-        message: `Cannot change status. ${status} is not part of the workflow for this payment preference.`,
+        message: `Cannot change status. ${status} is not part of the standard workflow.`,
       });
     }
 
-    if (!isReverting && normalizedNewStatus !== ORDER_STATUS.FULLY_PAID && newIndex !== -1 && newIndex <= currentIndex) {
+    if (!isReverting && newIndex !== -1 && newIndex <= currentIndex) {
       return res.status(400).json({
         success: false,
         message: `Cannot change status from ${order.status} to ${status}. Invalid transition.`,
@@ -4640,47 +4620,13 @@ exports.updateOrderStatus = async (req, res, next) => {
       order.statusUpdateGracePeriod.finalizedAt = now;
     };
 
-    if (normalizedNewStatus === ORDER_STATUS.FULLY_PAID) {
-      const previousPaymentStatus = order.paymentStatus;
-      const previousRemainingAmount = order.remainingAmount;
-
-      order.status = ORDER_STATUS.FULLY_PAID;
-      order.paymentStatus = PAYMENT_STATUS.FULLY_PAID;
-      order.remainingAmount = 0;
-
-      // For fully_paid status, no grace period - finalize immediately
-      if (!isReverting && isStatusChange) {
-        // Finalize any existing grace period if present
-        if (order.statusUpdateGracePeriod?.isActive) {
-          finalizeStatusUpdateGracePeriod();
-        }
-        // Don't start a new grace period for fully_paid
-        // Status is immediately finalized
-      } else if (isReverting && order.statusUpdateGracePeriod?.isActive) {
-        order.paymentStatus = order.statusUpdateGracePeriod.previousPaymentStatus || previousPaymentStatus;
-        if (typeof order.statusUpdateGracePeriod.previousRemainingAmount === 'number') {
-          order.remainingAmount = order.statusUpdateGracePeriod.previousRemainingAmount;
-        }
-        finalizeStatusUpdateGracePeriod();
-      } else if (order.statusUpdateGracePeriod?.isActive) {
-        // If there's an active grace period, finalize it
-        finalizeStatusUpdateGracePeriod();
-      }
-    } else {
       order.status = normalizedNewStatus;
 
       if (isStatusChange && !isReverting) {
         startGracePeriod();
       } else if (isReverting && order.statusUpdateGracePeriod?.isActive) {
-        if (order.statusUpdateGracePeriod.previousPaymentStatus) {
-          order.paymentStatus = order.statusUpdateGracePeriod.previousPaymentStatus;
-        }
-        if (typeof order.statusUpdateGracePeriod.previousRemainingAmount === 'number') {
-          order.remainingAmount = order.statusUpdateGracePeriod.previousRemainingAmount;
-        }
         finalizeStatusUpdateGracePeriod();
       }
-    }
 
     // Update delivery date if delivered
     if (normalizedNewStatus === ORDER_STATUS.DELIVERED && !order.deliveredAt) {

@@ -359,6 +359,9 @@ export function UserProvider({ children }) {
         localStorage.removeItem('user_token_expiry')
         setIsInitialized(true)
         return
+      } else if (token && !expiry) {
+        // Migration: If token exists but no expiry, set a 7-day default
+        localStorage.setItem('user_token_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString())
       }
 
       if (token && !state.authenticated) {

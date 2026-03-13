@@ -235,7 +235,7 @@ orderSchema.methods.isDelivered = function () {
 };
 
 orderSchema.methods.isPaymentComplete = function () {
-  return this.paymentStatus === PAYMENT_STATUS.COMPLETED;
+  return this.paymentStatus === PAYMENT_STATUS.FULLY_PAID;
 };
 
 const Order = mongoose.model('Order', orderSchema);
