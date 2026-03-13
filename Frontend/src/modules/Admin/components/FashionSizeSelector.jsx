@@ -1,4 +1,5 @@
-import { IndianRupee, Percent } from 'lucide-react'
+import { useState } from 'react'
+import { IndianRupee, Percent, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import { cn } from '../../../lib/cn'
 
 // Standard fashion sizes in industry order
@@ -9,10 +10,10 @@ export const FASHION_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'FREE SIZ
  *
  * Lets the admin:
  *  1. Toggle which sizes are available (click pills to enable)
- *  2. Enter actual stock + display stock per size
- *  3. Optionally enter a per-size price override
- *     → When ANY size has a price set, `onPriceOverrideActive(true)` is called
- *       so the parent can collapse/disable its global pricing section
+ *  2. Add custom sizes (unlimited)
+ *  3. Reorder sizes (affects how they appear to users)
+ *  4. Enter actual stock + display stock per size
+ *  5. Optionally enter a per-size price override
  *
  * Props:
  *  sizes                  — array of { label, actualStock, displayStock, isAvailable, price? }
@@ -28,6 +29,8 @@ export function FashionSizeSelector({
     errors = {},
     disabled = false,
 }) {
+    const [customLabel, setCustomLabel] = useState('')
+
     // Build a lookup map
     const sizeMap = {}
     sizes.forEach(s => { sizeMap[s.label] = s })
@@ -52,6 +55,13 @@ export function FashionSizeSelector({
         }
     }
 
+    const addCustomSize = () => {
+        const label = customLabel.trim().toUpperCase()
+        if (!label || isEnabled(label)) return
+        toggleSize(label)
+        setCustomLabel('')
+    }
+
     const updateField = (label, field, value) => {
         const isNumericStock = field === 'actualStock' || field === 'displayStock'
         const parsed = isNumericStock
@@ -61,16 +71,32 @@ export function FashionSizeSelector({
         notify(sizes.map(s => s.label === label ? { ...s, [field]: parsed } : s))
     }
 
+    const moveSize = (index, direction) => {
+        if (disabled) return
+        const newSizes = [...sizes]
+        const targetIndex = index + direction
+        if (targetIndex < 0 || targetIndex >= newSizes.length) return
+        
+        const temp = newSizes[index]
+        newSizes[index] = newSizes[targetIndex]
+        newSizes[targetIndex] = temp
+        notify(newSizes)
+    }
+
+    // Combine standard sizes and any custom sizes currently in the list
+    const allAvailableLabels = [...new Set([...FASHION_SIZES, ...sizes.map(s => s.label)])]
+
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             {/* ── Size Toggle Pills ─────────────────────────────────────────────── */}
-            <div>
-                <label className="mb-2 block text-sm font-bold text-gray-900">
-                    Available Sizes <span className="text-red-500">*</span>
-                    <span className="ml-2 text-xs font-normal text-gray-500">Click to enable/disable</span>
+            <div className="space-y-3">
+                <label className="flex items-center justify-between text-sm font-bold text-gray-900">
+                    <span>Available Sizes <span className="text-red-500">*</span></span>
+                    <span className="text-[10px] font-normal text-gray-400 uppercase tracking-widest italic">Click pills to toggle</span>
                 </label>
-                <div className="flex flex-wrap gap-2">
-                    {FASHION_SIZES.map(label => {
+                
+                <div className="flex flex-wrap gap-2 rounded-xl border border-gray-100 bg-gray-50/50 p-3">
+                    {allAvailableLabels.map(label => {
                         const active = isEnabled(label)
                         return (
                             <button
@@ -90,134 +116,157 @@ export function FashionSizeSelector({
                             </button>
                         )
                     })}
+                    
+                    {/* Add Custom Size Inline */}
+                    <div className="flex items-center gap-1 ml-2">
+                        <input
+                            type="text"
+                            value={customLabel}
+                            onChange={(e) => setCustomLabel(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomSize())}
+                            placeholder="Add Custom..."
+                            className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                            disabled={disabled}
+                        />
+                        <button
+                            type="button"
+                            onClick={addCustomSize}
+                            disabled={disabled || !customLabel.trim()}
+                            className="rounded-lg bg-gray-100 p-2 text-gray-500 hover:bg-purple-100 hover:text-purple-600 transition-colors"
+                        >
+                            <Plus className="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
+                
                 {errors.sizes && (
-                    <p className="mt-1 text-xs text-red-600">{errors.sizes}</p>
+                    <p className="mt-1 text-xs text-red-600 font-bold">{errors.sizes}</p>
                 )}
             </div>
 
             {/* ── Per-size cards ──────────────────────────────────────────────────── */}
             {sizes.length > 0 && (
-                <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-4 space-y-3">
+                <div className="rounded-2xl border border-purple-100 bg-purple-50/30 p-5 space-y-4">
                     <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">
-                            Stock & Price per Size
-                        </p>
+                        <div>
+                            <p className="text-xs font-bold text-gray-900 uppercase tracking-widest">
+                                Variants Configuration
+                            </p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">Define stock, price and display order (uses this order on product page)</p>
+                        </div>
                         {anyPriceSet && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 uppercase tracking-wide">
-                                ⚡ Per-size pricing active — global price overridden
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold text-amber-700 uppercase tracking-wide border border-amber-200">
+                                ⚡ Override Active
                             </span>
                         )}
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                        {sizes.map(({ label, actualStock, displayStock, price, discountPublic }) => (
-                            <div key={label} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm space-y-2.5">
-                                {/* Size badge */}
-                                <div className="inline-flex items-center rounded-md bg-purple-600 px-2.5 py-0.5">
-                                    <span className="text-xs font-bold text-white">{label}</span>
+                    <div className="flex flex-col gap-3">
+                        {sizes.map((s, index) => (
+                            <div key={s.label} className="group relative flex flex-col md:flex-row items-start md:items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-purple-300 hover:shadow-md">
+                                
+                                {/* Order Controls */}
+                                <div className="flex flex-row md:flex-col gap-1 order-last md:order-first">
+                                    <button
+                                        type="button"
+                                        onClick={() => moveSize(index, -1)}
+                                        disabled={disabled || index === 0}
+                                        className="p-1.5 rounded-lg border border-gray-100 text-gray-400 hover:bg-purple-50 hover:text-purple-600 disabled:opacity-30 transition-colors"
+                                        title="Move Up"
+                                    >
+                                        <ChevronUp className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => moveSize(index, 1)}
+                                        disabled={disabled || index === sizes.length - 1}
+                                        className="p-1.5 rounded-lg border border-gray-100 text-gray-400 hover:bg-purple-50 hover:text-purple-600 disabled:opacity-30 transition-colors"
+                                        title="Move Down"
+                                    >
+                                        <ChevronDown className="h-3.5 w-3.5" />
+                                    </button>
                                 </div>
 
-                                {/* Price override */}
-                                <div>
-                                    <label className="mb-0.5 flex items-center gap-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                                        <IndianRupee className="h-3 w-3" />
-                                        Price Override
-                                        <span className="font-normal text-gray-400">(optional)</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={price ?? ''}
-                                        onChange={e => updateField(label, 'price', e.target.value)}
-                                        placeholder="Same as global"
-                                        disabled={disabled}
-                                        className={cn(
-                                            'w-full rounded-lg border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2',
-                                            price && parseFloat(price) > 0
-                                                ? 'border-amber-400 bg-amber-50 focus:ring-amber-400/40'
-                                                : 'border-gray-300 focus:border-purple-500 focus:ring-purple-500/30',
-                                            '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
-                                        )}
-                                    />
-                                    {price && parseFloat(price) > 0 && (
-                                        <p className="mt-0.5 text-[10px] font-semibold text-amber-600">
-                                            ₹{parseFloat(price).toLocaleString('en-IN')} — overrides global
-                                        </p>
-                                    )}
+                                {/* Size Label */}
+                                <div className="flex items-center gap-3 min-w-[100px]">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-600 text-white shadow-lg shadow-purple-200">
+                                        <span className="text-xs font-black">{s.label}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleSize(s.label)}
+                                        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                        title="Remove variant"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
                                 </div>
 
-                                {/* Discount % override */}
-                                <div>
-                                    <label className="mb-0.5 flex items-center gap-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                                        <Percent className="h-3 w-3" />
-                                        Discount %
-                                        <span className="font-normal text-gray-400">(optional)</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        step="0.1"
-                                        value={discountPublic ?? ''}
-                                        onChange={e => updateField(label, 'discountPublic', e.target.value)}
-                                        placeholder="Same as global"
-                                        disabled={disabled}
-                                        className={cn(
-                                            'w-full rounded-lg border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2',
-                                            discountPublic && parseFloat(discountPublic) > 0
-                                                ? 'border-green-400 bg-green-50 focus:ring-green-400/40'
-                                                : 'border-gray-300 focus:border-purple-500 focus:ring-purple-500/30',
-                                            '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
-                                        )}
-                                    />
-                                    {discountPublic && parseFloat(discountPublic) > 0 && price && parseFloat(price) > 0 && (
-                                        <p className="mt-0.5 text-[10px] font-semibold text-green-600">
-                                            Final: ₹{(parseFloat(price) * (1 - parseFloat(discountPublic) / 100)).toFixed(2)}
-                                        </p>
-                                    )}
-                                </div>
+                                {/* Fields Grid */}
+                                <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                                    {/* Price Override */}
+                                    <div>
+                                        <label className="mb-1 flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                            <IndianRupee className="h-3 w-3" /> price
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={s.price ?? ''}
+                                            onChange={e => updateField(s.label, 'price', e.target.value)}
+                                            placeholder="Global"
+                                            className={cn(
+                                                "w-full rounded-lg border px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2",
+                                                s.price && parseFloat(s.price) > 0 
+                                                    ? "border-amber-300 bg-amber-50 focus:ring-amber-200" 
+                                                    : "border-gray-200 focus:border-purple-500"
+                                            )}
+                                        />
+                                    </div>
 
-                                {/* Actual stock */}
-                                <div>
-                                    <label className="mb-0.5 block text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                                        Actual Stock
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={actualStock === 0 ? '' : actualStock}
-                                        onChange={e => updateField(label, 'actualStock', e.target.value)}
-                                        placeholder="0"
-                                        disabled={disabled}
-                                        className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                    />
-                                </div>
+                                    {/* Discount */}
+                                    <div>
+                                        <label className="mb-1 flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                            <Percent className="h-3 w-3" /> discount
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={s.discountPublic ?? ''}
+                                            onChange={e => updateField(s.label, 'discountPublic', e.target.value)}
+                                            placeholder="Global"
+                                            className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold focus:border-purple-500 focus:outline-none"
+                                        />
+                                    </div>
 
-                                {/* Display stock */}
-                                <div>
-                                    <label className="mb-0.5 block text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                                        Show to Users
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={displayStock === 0 ? '' : displayStock}
-                                        onChange={e => updateField(label, 'displayStock', e.target.value)}
-                                        placeholder="0"
-                                        disabled={disabled}
-                                        className={cn(
-                                            'w-full rounded-lg border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2',
-                                            displayStock > actualStock
-                                                ? 'border-red-300 bg-red-50 focus:ring-red-500/30'
-                                                : 'border-gray-300 focus:border-purple-500 focus:ring-purple-500/30',
-                                            '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
-                                        )}
-                                    />
-                                    {displayStock > actualStock && (
-                                        <p className="mt-0.5 text-[10px] text-red-500">Exceeds actual stock</p>
-                                    )}
+                                    {/* Actual Stock */}
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                            Actual Stock
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={s.actualStock || ''}
+                                            onChange={e => updateField(s.label, 'actualStock', e.target.value)}
+                                            placeholder="0"
+                                            className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold focus:border-purple-500 focus:outline-none"
+                                        />
+                                    </div>
+
+                                    {/* User Stock */}
+                                    <div>
+                                        <label className="mb-1 block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                            Show to Users
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={s.displayStock || ''}
+                                            onChange={e => updateField(s.label, 'displayStock', e.target.value)}
+                                            placeholder="0"
+                                            className={cn(
+                                                "w-full rounded-lg border px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2",
+                                                s.displayStock > s.actualStock ? "border-red-300 bg-red-50 focus:ring-red-200" : "border-gray-200 focus:border-purple-500"
+                                            )}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         ))}
