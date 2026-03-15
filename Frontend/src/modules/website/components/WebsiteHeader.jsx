@@ -196,9 +196,9 @@ export function WebsiteHeader() {
       "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
       (isScrolled || !isHome) ? "bg-white shadow-md shadow-black/5" : "bg-transparent"
     )}>
-      <div className="bg-brand text-brand-foreground py-1 text-[7px] sm:text-[9px] font-semibold tracking-[0.2em] border-b border-white/5 overflow-hidden whitespace-nowrap">
-        <div className="flex animate-marquee">
-          {[...Array(3)].map((_, i) => (
+      <div className="bg-brand text-brand-foreground py-1 text-[7px] sm:text-[9px] font-semibold tracking-[0.2em] border-b border-white/5 overflow-hidden">
+        <div className="animate-marquee">
+          {[...Array(2)].map((_, i) => (
             <div key={i} className="flex items-center shrink-0">
               <span className="mx-24 text-gold-light animate-blink font-bold uppercase">10% off on First Order</span>
               <span className="mx-24 opacity-60 uppercase">FESTIVE EDIT | LIVE NOW</span>

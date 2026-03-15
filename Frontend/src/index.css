@@ -148,7 +148,7 @@
 
 /* Marquee and Attention-grabbing Animations */
 @keyframes marquee {
-  0% { transform: translateX(0); }
+  0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
 
@@ -159,13 +159,15 @@
 
 .animate-marquee {
   display: flex;
+  width: max-content;
   white-space: nowrap;
-  animation: marquee 12s linear infinite;
+  will-change: transform;
+  animation: marquee 22s linear infinite;
 }
 
 @media (max-width: 640px) {
   .animate-marquee {
-    animation-duration: 8s;
+    animation-duration: 15s;
   }
 }
 
