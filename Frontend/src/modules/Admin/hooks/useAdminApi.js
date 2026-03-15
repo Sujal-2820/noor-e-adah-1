@@ -135,7 +135,7 @@ export function useAdminApi() {
     (params) => {
       return callApi(adminApi.getUsers, params).then((result) => {
         if (result.data) {
-          dispatch({ type: 'SET_VENDORS_DATA', payload: result.data })
+          dispatch({ type: 'SET_USERS_DATA', payload: result.data })
         }
         return result
       })
@@ -149,7 +149,7 @@ export function useAdminApi() {
     (userId, approvalData) => {
       return callApi(adminApi.approveUser, userId, approvalData).then((result) => {
         if (result.data) {
-          dispatch({ type: 'SET_VENDORS_UPDATED', payload: true })
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
         }
         return result
       })
@@ -161,7 +161,7 @@ export function useAdminApi() {
     (userId, rejectionData) => {
       return callApi(adminApi.rejectUser, userId, rejectionData).then((result) => {
         if (result.data) {
-          dispatch({ type: 'SET_VENDORS_UPDATED', payload: true })
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
         }
         return result
       })
@@ -174,7 +174,7 @@ export function useAdminApi() {
     (userId, userData) => {
       return callApi(adminApi.updateUser, userId, userData).then((result) => {
         if (result.data) {
-          dispatch({ type: 'SET_VENDORS_UPDATED', payload: true })
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
         }
         return result
       })
@@ -187,7 +187,7 @@ export function useAdminApi() {
     (userId, banData) => {
       return callApi(adminApi.banUser, userId, banData).then((result) => {
         if (result.data) {
-          dispatch({ type: 'SET_VENDORS_UPDATED', payload: true })
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
         }
         return result
       })
@@ -199,7 +199,7 @@ export function useAdminApi() {
     (userId, unbanData) => {
       return callApi(adminApi.unbanUser, userId, unbanData).then((result) => {
         if (result.data) {
-          dispatch({ type: 'SET_VENDORS_UPDATED', payload: true })
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
         }
         return result
       })
@@ -211,7 +211,7 @@ export function useAdminApi() {
     (userId, deleteData) => {
       return callApi(adminApi.deleteUser, userId, deleteData).then((result) => {
         if (result.data) {
-          dispatch({ type: 'SET_VENDORS_UPDATED', payload: true })
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
         }
         return result
       })

@@ -40,6 +40,7 @@ export function CategoriesPage({ subRoute, navigate }) {
     const [activeTab, setActiveTab] = useState('category')
     const [searchTerm, setSearchTerm] = useState('')
     const [dragOverIndex, setDragOverIndex] = useState(null)
+    const [draggedIndex, setDraggedIndex] = useState(null)
     const [isSavingOrder, setIsSavingOrder] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
     const [processingMessage, setProcessingMessage] = useState('')

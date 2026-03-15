@@ -414,7 +414,6 @@ exports.getDashboard = async (req, res, next) => {
       totalPayments,
       pendingPayments,
       completedPayments,
-      pendingWithdrawals,
     ] = await Promise.all([
       // User counts (formerly Vendors)
       User.countDocuments(),
@@ -438,9 +437,6 @@ exports.getDashboard = async (req, res, next) => {
       Payment.countDocuments(),
       Payment.countDocuments({ status: 'pending' }),
       Payment.countDocuments({ status: 'fully_paid' }),
-
-      // Withdrawal Requests
-      WithdrawalRequest.countDocuments({ status: 'pending' }),
     ]);
 
     // Calculate revenue (from completed orders)
@@ -3044,38 +3040,6 @@ exports.getPaymentHistoryStats = async (req, res, next) => {
               ],
             },
           },
-          totalUserEarnings: {
-            $sum: {
-              $cond: [{ $eq: ['$activityType', 'User_earning_credited'] }, '$amount', 0],
-            },
-          },
-          totalSellerCommissions: {
-            $sum: {
-              $cond: [
-                { $eq: ['$activityType', 'seller_commission_credited'] },
-                '$amount',
-                0,
-              ],
-            },
-          },
-          totalUserWithdrawals: {
-            $sum: {
-              $cond: [
-                { $in: ['$activityType', ['User_withdrawal_approved', 'User_withdrawal_completed']] },
-                '$amount',
-                0,
-              ],
-            },
-          },
-          totalSellerWithdrawals: {
-            $sum: {
-              $cond: [
-                { $in: ['$activityType', ['seller_withdrawal_approved', 'seller_withdrawal_completed']] },
-                '$amount',
-                0,
-              ],
-            },
-          },
         },
       },
     ]);
@@ -5090,10 +5054,7 @@ exports.getAnalytics = async (req, res, next) => {
           count: { $sum: 1 },
           delivered: {
             $sum: {
-              $cond: [
-                // BROKEN_KEY_REMOVED: { $in: ['$status', [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID]] },
-                0,
-              ],
+              $cond: [{ $in: ['$status', [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID]] }, 1, 0]
             },
           },
           cancelled: {
@@ -5118,7 +5079,7 @@ exports.getAnalytics = async (req, res, next) => {
       },
       {
         $group: {
-          _id: '$UserId',
+          _id: '$userId',
           revenue: { $sum: '$totalAmount' },
           orderCount: { $sum: 1 },
         },
@@ -5131,56 +5092,23 @@ exports.getAnalytics = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: 'Users',
+          from: 'users',
           localField: '_id',
           foreignField: '_id',
-          as: 'User',
+          as: 'user',
         },
       },
       {
-        $unwind: '$User',
+        $unwind: '$user',
       },
       {
         $project: {
-          userId: '$user._id',
-          UserName: '$user.name',
-          UserPhone: '$user.phone',
+          userId: '$_id',
+          userName: '$user.name',
+          userPhone: '$user.phone',
           revenue: 1,
           orderCount: 1,
         },
-      },
-    ]);
-
-    // Top sellers by referrals/revenue
-    const topSellers = await Order.aggregate([
-      {
-        $match: {
-          status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.FULLY_PAID] },
-          paymentStatus: PAYMENT_STATUS.FULLY_PAID,
-          createdAt: { $gte: daysAgo },
-          // BROKEN_KEY_REMOVED: userId: { $ne: null },
-        },
-      },
-      {
-        $group: {
-          _id: '$sellerId',
-          revenue: { $sum: '$totalAmount' },
-          orderCount: { $sum: 1 },
-          uniqueUsers: { $addToSet: '$userId' },
-        },
-      },
-      {
-        $project: {
-          revenue: 1,
-          orderCount: 1,
-          referralCount: { $size: '$uniqueUsers' },
-        },
-      },
-      {
-        $sort: { revenue: -1 },
-      },
-      {
-        $limit: 10,
       },
     ]);
 
@@ -5242,7 +5170,7 @@ exports.getAnalytics = async (req, res, next) => {
           revenueTrends,
           orderTrends,
           topUsers,
-          topSellers,
+          topAdmins: [],
           topProducts,
         },
       },

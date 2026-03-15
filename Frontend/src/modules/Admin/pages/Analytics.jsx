@@ -364,7 +364,7 @@ export function AnalyticsPage({ subRoute = null, navigate }) {
               <div className="rounded-3xl border border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/50 p-6">
                 <p className="text-xs uppercase tracking-wide text-yellow-700 font-bold">Avg Orders/User</p>
                 <p className="mt-2 text-2xl font-bold text-gray-900">{userData.summary?.averageOrdersPerUser?.toFixed(1) || '0.0'}</p>
-                <p className="mt-1 text-xs text-yellow-600">{userData.summary?.usersWithAdminId || 0} with Partner ID</p>
+                <p className="mt-1 text-xs text-yellow-600">{userData.summary?.usersWithAdminId || 0} with Assigned Admin</p>
               </div>
             </section>
 

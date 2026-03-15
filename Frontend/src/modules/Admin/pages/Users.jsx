@@ -12,63 +12,11 @@ import { LoadingOverlay } from '../components/LoadingOverlay'
 
 import { cn } from '../../../lib/cn'
 
-const EARTH_RADIUS_KM = 6371
-const COVERAGE_RADIUS_KM = 20
-
-const calculateDistanceKm = (pointA, pointB) => {
-  if (!pointA?.lat || !pointA?.lng || !pointB?.lat || !pointB?.lng) {
-    return Infinity
-  }
-  const toRad = (value) => (value * Math.PI) / 180
-  const dLat = toRad(pointB.lat - pointA.lat)
-  const dLng = toRad(pointB.lng - pointA.lng)
-  const lat1 = toRad(pointA.lat)
-  const lat2 = toRad(pointB.lat)
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return EARTH_RADIUS_KM * c
-}
-
-const computeCoverageReport = (users = []) => {
-  const geoUsers = users.filter((user) => user.location?.lat && user.location?.lng)
-  const conflicts = []
-  const flagged = new Set()
-
-  for (let i = 0; i < geoUsers.length; i += 1) {
-    for (let j = i + 1; j < geoUsers.length; j += 1) {
-      const userA = geoUsers[i]
-      const userB = geoUsers[j]
-      const distanceKm = calculateDistanceKm(userA.location, userB.location)
-      if (distanceKm < COVERAGE_RADIUS_KM) {
-        flagged.add(userA.id)
-        flagged.add(userB.id)
-        conflicts.push({
-          id: `${userA.id}-${userB.id}`,
-          userA,
-          userB,
-          distanceKm: Number(distanceKm.toFixed(2)),
-          overlapKm: Number(Math.max(COVERAGE_RADIUS_KM - distanceKm, 0).toFixed(2)),
-        })
-      }
-    }
-  }
-
-  return {
-    total: geoUsers.length,
-    coverageRadius: COVERAGE_RADIUS_KM,
-    conflicts,
-    flaggedUsers: Array.from(flagged),
-    compliantCount: Math.max(geoUsers.length - flagged.size, 0),
-  }
-}
+// Coverage calculation logic removed per project requirements (no 20 KM compliance needed)
 
 const columns = [
   { Header: 'User', accessor: 'name' },
-  { Header: 'Region', accessor: 'region' },
-  { Header: 'Coverage', accessor: 'coverageRadius' },
+  { Header: 'Phone', accessor: 'phone' },
   { Header: 'Status', accessor: 'status' },
   { Header: 'Actions', accessor: 'actions' },
 ]
@@ -95,7 +43,6 @@ export function UsersPage({ subRoute = null, navigate }) {
   const [allUsersList, setAllUsersList] = useState([])
   const [rawUsers, setRawUsers] = useState([])
   const [purchaseRequests, setPurchaseRequests] = useState([])
-  const [coverageReport, setCoverageReport] = useState(null)
 
   // View states (replacing modals with full-screen views)
   const [currentView, setCurrentView] = useState(null) // 'userDetail', 'userMap', 'purchaseRequest', 'approveUser', 'rejectUser', 'banUser', 'unbanUser', 'editUser'
@@ -126,26 +73,14 @@ export function UsersPage({ subRoute = null, navigate }) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingMessage, setProcessingMessage] = useState('')
 
-  // Format user data for display
-  const formatUserForDisplay = (user, flaggedUserIds = new Set()) => {
-    const isFlagged = flaggedUserIds.has(user.id)
-    return {
-      ...user,
-      coverageRadius: user.coverageRadius ? `${user.coverageRadius} km` : 'N/A',
-      coverageCompliance: isFlagged ? 'Conflict' : 'Compliant',
-    }
-  }
+
 
   // Fetch users
   const fetchUsers = useCallback(async () => {
     const result = await getUsers()
     const sourceUsers = result.data?.users || []
     setRawUsers(sourceUsers)
-    const coverageInfo = computeCoverageReport(sourceUsers)
-    setCoverageReport(coverageInfo)
-    const flaggedSet = new Set(coverageInfo.flaggedUsers || [])
-    const formatted = sourceUsers.map((user) => formatUserForDisplay(user, flaggedSet))
-    setAllUsersList(formatted)
+    setAllUsersList(sourceUsers)
   }, [getUsers])
 
   // Filter users based on subRoute and search
@@ -219,7 +154,7 @@ export function UsersPage({ subRoute = null, navigate }) {
   }, [getUserRankings, rankingsSort, rankingsOrder])
 
   const handleViewDetails = (user) => {
-    const originalUser = withCoverageMeta(getRawUserById(user.id) || user)
+    const originalUser = getRawUserById(user.id || user._id) || user
     setSelectedUserForDetail(originalUser)
     setCurrentView('userDetail')
   }
@@ -271,28 +206,10 @@ export function UsersPage({ subRoute = null, navigate }) {
     }
   }, [subRoute, allUsersList, rawUsers])
 
-  const getUserCoverageConflicts = (userId) => {
-    if (!coverageReport?.conflicts) {
-      return []
-    }
-    return coverageReport.conflicts.filter(
-      (conflict) => conflict.userA.id === userId || conflict.userB.id === userId,
-    )
-  }
 
   const getRawUserById = (userId) =>
-    rawUsers.find((user) => user.id === userId) ||
-    usersState.data?.users?.find((user) => user.id === userId)
-
-  const withCoverageMeta = (user) => {
-    if (!user) return user
-    return {
-      ...user,
-      coverageRadius: user.coverageRadius || COVERAGE_RADIUS_KM,
-      coverageConflicts: getUserCoverageConflicts(user.id),
-    }
-  }
-
+    rawUsers.find((user) => user.id === userId || user._id === userId) ||
+    usersState.data?.users?.find((user) => user.id === userId || user._id === userId)
   const handleBanUser = async (userId, banData) => {
     try {
       setIsProcessing(true)
@@ -335,58 +252,7 @@ export function UsersPage({ subRoute = null, navigate }) {
   }
 
 
-  const handleApproveUser = async (userId) => {
-    try {
-      setIsProcessing(true)
-      setProcessingMessage('Approving User...')
-      const result = await approveUser(userId)
-      if (result.success || result.data) {
-        setCurrentView(null)
-        setSelectedUserForAction(null)
-        success('User approved successfully!', 3000)
-        // Refresh users list
-        const usersResult = await getUsers({})
-        if (usersResult.data) {
-          setRawUsers(usersResult.data.users || [])
-        }
-        fetchUsers()
-      } else {
-        const errorMessage = result.error?.message || 'Failed to approve user'
-        showError(errorMessage, 5000)
-      }
-    } catch (error) {
-      showError(error.message || 'Failed to approve user', 5000)
-    } finally {
-      setIsProcessing(false)
-    }
-  }
 
-  const handleRejectUser = async (userId, rejectionData) => {
-    try {
-      setIsProcessing(true)
-      setProcessingMessage('Rejecting Application...')
-      const result = await rejectUser(userId, rejectionData)
-      if (result.success || result.data) {
-        setCurrentView(null)
-        setSelectedUserForAction(null)
-        setActionData(null)
-        success('User application rejected.', 3000)
-        // Refresh users list
-        const usersResult = await getUsers({})
-        if (usersResult.data) {
-          setRawUsers(usersResult.data.users || [])
-        }
-        fetchUsers()
-      } else {
-        const errorMessage = result.error?.message || 'Failed to reject user'
-        showError(errorMessage, 5000)
-      }
-    } catch (error) {
-      showError(error.message || 'Failed to reject user', 5000)
-    } finally {
-      setIsProcessing(false)
-    }
-  }
 
   const handleDeletePurchaseRequest = async (requestId) => {
     if (window.confirm('Are you sure you want to permanently delete this purchase invoice? This action cannot be undone.')) {
@@ -487,13 +353,13 @@ export function UsersPage({ subRoute = null, navigate }) {
   }
 
   const handleViewUserDetails = (user) => {
-    const originalUser = withCoverageMeta(getRawUserById(user.id) || user)
+    const originalUser = getRawUserById(user.id || user._id) || user
     setSelectedUserForDetail(originalUser)
     setCurrentView('userDetail')
   }
 
   const handleViewUserMap = (user) => {
-    const originalUser = withCoverageMeta(getRawUserById(user.id) || user)
+    const originalUser = getRawUserById(user.id || user._id) || user
     setSelectedUserForMap(originalUser)
     setCurrentView('userMap')
   }
@@ -514,7 +380,7 @@ export function UsersPage({ subRoute = null, navigate }) {
   }
 
   const handleEditUser = (user) => {
-    const originalUser = getRawUserById(user.id) || user
+    const originalUser = getRawUserById(user.id || user._id) || user
     setSelectedUserForEdit(originalUser)
     setCurrentView('editUser')
   }
@@ -547,47 +413,24 @@ export function UsersPage({ subRoute = null, navigate }) {
       return {
         ...column,
         Cell: (row) => {
-          const originalUser = usersState.data?.users?.find((v) => v.id === row.id) || row
+          const originalUser = usersState.data?.users?.find((v) => (v.id === row.id || v._id === row.id)) || row
           const isBanned = originalUser.banInfo?.isBanned || originalUser.status === 'temporarily_banned' || originalUser.status === 'permanently_banned'
-          const banType = originalUser.banInfo?.banType || (originalUser.status === 'permanently_banned' ? 'permanent' : 'temporary')
-          const status = isBanned ? (banType === 'permanent' ? 'Permanently Banned' : 'Temporarily Banned') : (row.status || 'Active')
-          let tone = 'neutral'
+          
           if (isBanned) {
-            tone = 'error'
-          } else if (status === 'approved' || status === 'active' || status === 'On Track' || status === 'on_track') {
-            tone = 'success'
-          } else if (status === 'Delayed' || status === 'delayed') {
-            tone = 'warning'
-          } else if (status === 'inactive' || status === 'blocked') {
-            tone = 'error'
+            const banType = originalUser.banInfo?.banType || (originalUser.status === 'permanently_banned' ? 'permanent' : 'temporary')
+            const statusLabel = banType === 'permanent' ? 'Permanently Banned' : 'Temporarily Banned'
+            return <StatusBadge tone="error">{statusLabel}</StatusBadge>
           }
-          // Capitalize first letter for display
-          const displayStatus = status.charAt(0).toUpperCase() + status.slice(1)
-          return <StatusBadge tone={tone}>{displayStatus}</StatusBadge>
+          
+          return null
         },
       }
     }
-    if (column.accessor === 'region') {
+    if (column.accessor === 'phone') {
       return {
         ...column,
         Cell: (row) => (
-          <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 px-3 py-1 text-xs text-blue-700 font-bold shadow-[0_2px_8px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.8)]">
-            <MapPin className="h-3.5 w-3.5" />
-            {row.region}
-          </span>
-        ),
-      }
-    }
-    if (column.accessor === 'coverageRadius') {
-      return {
-        ...column,
-        Cell: (row) => (
-          <div className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold text-gray-900">{row.coverageRadius || 'N/A'}</span>
-            <StatusBadge tone={row.coverageCompliance === 'Conflict' ? 'warning' : 'success'}>
-              {row.coverageCompliance || 'Unknown'}
-            </StatusBadge>
-          </div>
+          <span className="text-sm font-medium text-gray-600">{row.phone}</span>
         ),
       }
     }
@@ -596,9 +439,6 @@ export function UsersPage({ subRoute = null, navigate }) {
         ...column,
         Cell: (row) => {
           const originalUser = usersState.data?.users?.find((v) => v.id === row.id) || row
-          const userStatus = originalUser.status?.toLowerCase() || 'active'
-          const isPending = userStatus === 'pending'
-          const isRejected = userStatus === 'rejected'
           const isBanned = originalUser.banInfo?.isBanned || originalUser.status === 'temporarily_banned' || originalUser.status === 'permanently_banned'
           const banType = originalUser.banInfo?.banType || (originalUser.status === 'permanently_banned' ? 'permanent' : 'temporary')
           const isDropdownOpen = openActionsDropdown === row.id
@@ -630,43 +470,10 @@ export function UsersPage({ subRoute = null, navigate }) {
                 setOpenActionsDropdown(null)
               },
               className: 'text-gray-700 hover:bg-gray-50'
-            },
-            {
-              label: 'Manage Logistics',
-              icon: Truck,
-              onClick: () => {
-                navigate('users/logistics')
-                setOpenActionsDropdown(null)
-              },
-              className: 'text-blue-700 hover:bg-blue-50 font-bold'
             }
           ]
 
-          if (isPending) {
-            actionItems.push({
-              label: 'Approve User',
-              icon: CheckCircle,
-              onClick: () => {
-                setSelectedUserForAction(originalUser)
-                setCurrentView('approveUser')
-                setOpenActionsDropdown(null)
-              },
-              className: 'text-green-700 hover:bg-green-50'
-            })
-            actionItems.push({
-              label: 'Reject User',
-              icon: XCircle,
-              onClick: () => {
-                setSelectedUserForAction(originalUser)
-                setRejectReason('')
-                setCurrentView('rejectUser')
-                setOpenActionsDropdown(null)
-              },
-              className: 'text-red-700 hover:bg-red-50'
-            })
-          }
-
-          if (!isBanned && !isPending && !isRejected) {
+          if (!isBanned) {
             actionItems.push({
               label: 'Ban User',
               icon: Ban,
@@ -679,9 +486,7 @@ export function UsersPage({ subRoute = null, navigate }) {
               },
               className: 'text-red-700 hover:bg-red-50'
             })
-          }
-
-          if (isBanned && banType === 'temporary') {
+          } else {
             actionItems.push({
               label: 'Unban User',
               icon: Unlock,
@@ -763,14 +568,10 @@ export function UsersPage({ subRoute = null, navigate }) {
     )
   }
 
-
   if (currentView === 'userDetail' && selectedUserForDetail) {
     const user = selectedUserForDetail
-    const formatCurrency = (value) => {
-      if (typeof value === 'string') return value
-      if (value >= 100000) return `₹${(value / 100000).toFixed(1)} L`
-      return `₹${value.toLocaleString('en-IN')}`
-    }
+    const isBanned = user.banInfo?.isBanned || user.status === 'temporarily_banned' || user.status === 'permanently_banned'
+    const currentBanType = user.banInfo?.banType || (user.status === 'permanently_banned' ? 'permanent' : 'temporary')
 
     return (
       <div className="space-y-6">
@@ -785,9 +586,9 @@ export function UsersPage({ subRoute = null, navigate }) {
           </button>
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Step 3 • User Management</p>
-            <h2 className="text-2xl font-bold text-gray-900">User Details & Performance</h2>
+            <h2 className="text-2xl font-bold text-gray-900">User Profile Details</h2>
             <p className="text-sm text-gray-600">
-              Comprehensive view of user information, business status, and performance metrics.
+              Detailed breakdown of user account, contact information, and purchase history.
             </p>
           </div>
         </div>
@@ -798,78 +599,37 @@ export function UsersPage({ subRoute = null, navigate }) {
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg">
-                    <Building2 className="h-6 w-6" />
+                    <User className="h-6 w-6" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">{user.name}</h3>
-                    <p className="text-sm text-gray-600">User ID: {user.id}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{user.region}</span>
-                    </div>
+                    <p className="text-sm text-gray-600">User ID: {user.id || user._id}</p>
+                    {user.location?.address && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-600">{user.location.address}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <StatusBadge tone={user.status === 'On Track' || user.status === 'on_track' ? 'success' : user.status === 'Delayed' || user.status === 'delayed' ? 'warning' : 'neutral'}>
-                    {user.status || 'Unknown'}
-                  </StatusBadge>
-                  <button
-                    onClick={() => navigate('users/logistics')}
-                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-lg transition-all hover:bg-blue-700"
-                  >
-                    <Truck className="h-4 w-4" />
-                    Manage Logistics
-                  </button>
+                  {isBanned && (
+                    <StatusBadge tone="error">
+                      {currentBanType === 'permanent' ? 'Permanently Banned' : 'Temporarily Banned'}
+                    </StatusBadge>
+                  )}
                 </div>
               </div>
             </div>
 
 
-            {/* Coverage & Policy */}
-            <div className="grid gap-4 lg:grid-cols-2">
+            {/* Account Status */}
+            <div className="grid gap-4">
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-bold text-blue-900">Coverage Radius</h4>
-                    <p className="mt-2 text-2xl font-bold text-blue-900">
-                      {user.coverageRadius ? `${user.coverageRadius} km` : 'N/A'}
-                    </p>
-                    {user.serviceArea && <p className="text-xs text-blue-700">{user.serviceArea}</p>}
-                  </div>
-                  <StatusBadge tone={user.coverageConflicts?.length ? 'warning' : 'success'}>
-                    {user.coverageConflicts?.length ? 'Conflict' : 'Compliant'}
-                  </StatusBadge>
-                </div>
-                {user.coverageConflicts?.length ? (
-                  <ul className="mt-4 space-y-2 text-xs text-blue-900">
-                    {user.coverageConflicts.map((conflict) => {
-                      const otherUser = conflict.userA.id === user.id ? conflict.userB : conflict.userA
-                      return (
-                        <li key={`${user.id}-${otherUser.id}`} className="rounded-lg border border-blue-200 bg-white/80 px-3 py-2">
-                          <p className="font-semibold">{otherUser.name}</p>
-                          <p className="text-[0.7rem] text-blue-700">
-                            Distance: {conflict.distanceKm} km • Overlap: {conflict.overlapKm} km
-                          </p>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                ) : (
-                  <p className="mt-4 text-xs text-blue-800">
-                    No overlapping users detected. Exclusivity rule has been retired.
-                  </p>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-green-200 bg-green-50 p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-green-900">Partner Status</h4>
-                    <div className="mt-2 grid gap-2 text-xs text-green-800">
-                      <div>
-                        <span className="font-semibold">Account Level: </span>
-                        <span className="capitalize">{user.tier || 'Standard'}</span>
-                      </div>
+                    <h4 className="text-sm font-bold text-blue-900">Account Status</h4>
+                    <div className="mt-2 grid gap-2 text-xs text-blue-800">
                       <div>
                         <span className="font-semibold">Joined On: </span>
                         <span>{new Date(user.createdAt).toLocaleDateString('en-IN')}</span>
@@ -914,130 +674,25 @@ export function UsersPage({ subRoute = null, navigate }) {
                 </div>
               </div>
 
-              {/* Shop & Business Details */}
+              {/* Address Details */}
               <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
                 <div className="flex items-center gap-2 border-b border-gray-50 pb-3">
-                  <Store className="h-5 w-5 text-orange-600" />
-                  <h4 className="text-sm font-bold text-gray-900">Shop Details</h4>
+                  <MapPin className="h-5 w-5 text-orange-600" />
+                  <h4 className="text-sm font-bold text-gray-900">Address Details</h4>
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-gray-500">Shop Name</p>
-                    <p className="text-sm font-semibold text-gray-800">{user.shopName || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase font-bold text-gray-500">Complete Shop Address</p>
-                    <p className="text-sm font-medium text-gray-700 leading-relaxed">{user.shopAddress || user.location?.address || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase font-bold text-gray-500">Referring Agent</p>
-                    <p className="text-sm font-semibold text-gray-800">{user.agentName || 'No Agent'}</p>
+                    <p className="text-[10px] uppercase font-bold text-gray-500">Complete Address</p>
+                    <p className="text-sm font-medium text-gray-700 leading-relaxed">{user.location?.address || user.shopAddress || 'N/A'}</p>
                   </div>
                 </div>
               </div>
 
-              {/* KYC Numbers */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 lg:col-span-2">
-                <div className="flex items-center gap-2 border-b border-gray-50 pb-3 mb-4">
-                  <Info className="h-5 w-5 text-blue-600" />
-                  <h4 className="text-sm font-bold text-gray-900">KYC Identifiers</h4>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div className="rounded-xl bg-gray-50 p-3 border border-gray-100">
-                    <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">GST Number</p>
-                    <p className="text-sm font-black text-gray-900 tracking-wider">
-                      {user.gstNumber || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-gray-50 p-3 border border-gray-100">
-                    <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">PAN Number</p>
-                    <p className="text-sm font-black text-gray-900 tracking-wider">
-                      {user.panNumber || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-gray-50 p-3 border border-gray-100">
-                    <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Aadhaar Number</p>
-                    <p className="text-sm font-black text-gray-900 tracking-wider">
-                      {user.aadhaarNumber ? (user.aadhaarNumber.match(/.{1,4}/g)?.join(' ') || user.aadhaarNumber) : 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Verification Documents */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold text-gray-900">Verification Documents</h4>
-
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  { key: 'aadhaarFront', label: 'Aadhaar Front' },
-                  { key: 'aadhaarBack', label: 'Aadhaar Back' },
-                  { key: 'pesticideLicense', label: 'Pesticide License' },
-                  { key: 'securityChecks', label: 'Security Checks' },
-                  { key: 'dealershipForm', label: 'Dealership Form' }
-                ].map((doc) => {
-                  const docData = user[doc.key] || (doc.key === 'aadhaarFront' ? user.aadhaarCard : (doc.key === 'dealershipForm' ? user.panCard : null));
-                  const hasDoc = docData?.url;
-
-                  return (
-                    <div key={doc.key} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-gray-400" />
-                          <p className="text-xs font-semibold text-gray-700">{doc.label}</p>
-                        </div>
-                        {hasDoc ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-600" />
-                        )}
-                      </div>
-                      {hasDoc ? (
-                        <div className="space-y-2">
-                          {docData.format === 'pdf' ? (
-                            <div className="flex h-20 items-center justify-center rounded-lg border border-gray-300 bg-white">
-                              <div className="flex flex-col items-center gap-1">
-                                <FileText className="h-8 w-8 text-red-600" />
-                                <span className="text-[10px] font-bold text-gray-400 uppercase">PDF File</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="rounded-lg overflow-hidden border border-gray-300 bg-white shadow-sm">
-                              <img
-                                src={docData.url}
-                                alt={doc.label}
-                                className="w-full h-auto max-h-32 object-contain bg-gray-50"
-                                onError={(e) => {
-                                  e.target.style.display = 'none'
-                                }}
-                              />
-                            </div>
-                          )}
-                          <a
-                            href={docData.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-1 rounded-lg bg-white border border-gray-200 px-3 py-1.5 text-[0.7rem] text-blue-600 hover:text-blue-800 font-bold shadow-sm transition-all hover:border-blue-300"
-                          >
-                            <Eye className="h-3 w-3" />
-                            View Full Document
-                            <ExternalLink className="h-2 w-2" />
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-100/50">
-                          <p className="text-[0.7rem] font-bold text-gray-400 uppercase">Not Provided</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {/* KYC and Verification sections removed per project requirements (no sellers/vendors) */}
           </div>
         </div>
       </div>
+    </div>
     )
   }
 
@@ -1334,137 +989,9 @@ export function UsersPage({ subRoute = null, navigate }) {
   }
 
   // Action views (Approve, Reject, Ban, Unban)
-  if (currentView === 'approveUser' && selectedUserForAction) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <button
-            type="button"
-            onClick={handleBackToList}
-            className="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-[0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 hover:bg-gray-50 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Users
-          </button>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Step 3 • User Management</p>
-            <h2 className="text-2xl font-bold text-gray-900">Approve User</h2>
-            <p className="text-sm text-gray-600">
-              Approve user application for {selectedUserForAction.name}.
-            </p>
-          </div>
-        </div>
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_4px_15px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg">
-                  <CheckCircle className="h-8 w-8" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">{selectedUserForAction.name}</h3>
-                  <p className="text-sm text-gray-600">User ID: {selectedUserForAction.id}</p>
-                  <p className="text-sm text-gray-600">Region: {selectedUserForAction.region}</p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-6">
-              <p className="text-sm font-bold text-gray-900 mb-4">Are you sure you want to approve this user?</p>
-              <p className="text-sm text-gray-600 mb-6">
-                Once approved, the user will be able to access their dashboard and start receiving orders.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleBackToList}
-                  className="flex-1 rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-700 transition-all hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApproveUser(selectedUserForAction.id)}
-                  disabled={loading}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-6 py-3 text-sm font-bold text-white shadow-[0_4px_15px_rgba(34,197,94,0.3),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all hover:shadow-[0_6px_20px_rgba(34,197,94,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] disabled:opacity-50"
-                >
-                  {loading ? 'Approving...' : 'Approve User'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
-  if (currentView === 'rejectUser' && selectedUserForAction) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <button
-            type="button"
-            onClick={handleBackToList}
-            className="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-[0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 hover:bg-gray-50 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Users
-          </button>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Step 3 • User Management</p>
-            <h2 className="text-2xl font-bold text-gray-900">Reject User</h2>
-            <p className="text-sm text-gray-600">
-              Reject user application for {selectedUserForAction.name}.
-            </p>
-          </div>
-        </div>
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_4px_15px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg">
-                  <XCircle className="h-8 w-8" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">{selectedUserForAction.name}</h3>
-                  <p className="text-sm text-gray-600">User ID: {selectedUserForAction.id}</p>
-                  <p className="text-sm text-gray-600">Region: {selectedUserForAction.region}</p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-6">
-              <label className="mb-2 block text-sm font-bold text-gray-900">
-                Rejection Reason <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Enter reason for rejection (optional)"
-                rows={4}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm transition-all focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-              />
-              <div className="mt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleBackToList}
-                  className="flex-1 rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-700 transition-all hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRejectUser(selectedUserForAction.id, { reason: rejectReason || 'Application rejected by admin' })}
-                  disabled={loading}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 text-sm font-bold text-white shadow-[0_4px_15px_rgba(239,68,68,0.3),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all hover:shadow-[0_6px_20px_rgba(239,68,68,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] disabled:opacity-50"
-                >
-                  {loading ? 'Rejecting...' : 'Reject User'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+
+
 
   if (currentView === 'banUser' && selectedUserForAction) {
     return (
@@ -1496,7 +1023,6 @@ export function UsersPage({ subRoute = null, navigate }) {
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">{selectedUserForAction.name}</h3>
                   <p className="text-sm text-gray-600">User ID: {selectedUserForAction.id}</p>
-                  <p className="text-sm text-gray-600">Region: {selectedUserForAction.region}</p>
                 </div>
               </div>
             </div>
@@ -1594,7 +1120,6 @@ export function UsersPage({ subRoute = null, navigate }) {
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">{selectedUserForAction.name}</h3>
                   <p className="text-sm text-gray-600">User ID: {selectedUserForAction.id}</p>
-                  <p className="text-sm text-gray-600">Region: {selectedUserForAction.region}</p>
                 </div>
               </div>
             </div>
@@ -1799,7 +1324,6 @@ export function UsersPage({ subRoute = null, navigate }) {
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">{user.name}</div>
-                        <div className="text-xs text-gray-500">{user.shopName}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">{user.orderCount || 0}</div>
@@ -1826,9 +1350,9 @@ export function UsersPage({ subRoute = null, navigate }) {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Step 3 • User Management</p>
-          <h2 className="text-2xl font-bold text-gray-900">User Performance Dashboard</h2>
+          <h2 className="text-2xl font-bold text-gray-900">User Management Dashboard</h2>
           <p className="text-sm text-gray-600">
-            Control approvals, logistics, and user activities in real time with proactive alerts.
+            Manage user accounts, monitor status, and review purchase requests.
           </p>
         </div>
         <div className="flex gap-2">
@@ -1886,119 +1410,9 @@ export function UsersPage({ subRoute = null, navigate }) {
         emptyState={searchQuery ? `No users found matching "${searchQuery}"` : "No user records found"}
       />
 
-      {coverageReport && (
-        <section className="space-y-5 rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/30 p-6 shadow-[0_4px_15px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-lg font-bold text-blue-900">Coverage Compliance (20 km rule)</h3>
-              <p className="text-sm text-blue-700">
-                Ensure exclusive user coverage per 20 km radius. Automated monitoring across all mapped users.
-              </p>
-            </div>
-            <StatusBadge tone={coverageReport.conflicts.length ? 'warning' : 'success'}>
-              {coverageReport.conflicts.length ? `${coverageReport.conflicts.length} conflict(s)` : 'All zones compliant'}
-            </StatusBadge>
-          </div>
+      {/* Logistics Overview section removed per project requirements (no sellers/vendors) */}
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-blue-200 bg-white p-4">
-              <p className="text-xs text-blue-500">Users with Geo Coverage</p>
-              <p className="mt-1 text-2xl font-bold text-blue-900">{coverageReport.total}</p>
-              <p className="text-[0.7rem] text-blue-700">Mapped with latitude & longitude</p>
-            </div>
-            <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
-              <p className="text-xs text-yellow-600">Conflict Zones</p>
-              <p className="mt-1 text-2xl font-bold text-yellow-800">{coverageReport.flaggedUsers?.length || 0}</p>
-              <p className="text-[0.7rem] text-yellow-700">Users requiring reassignment</p>
-            </div>
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
-              <p className="text-xs text-green-600">Compliant Zones</p>
-              <p className="mt-1 text-2xl font-bold text-green-800">{coverageReport.compliantCount}</p>
-              <p className="text-[0.7rem] text-green-700">Operating within exclusive radius</p>
-            </div>
-          </div>
-
-          {coverageReport.conflicts.length > 0 ? (
-            <div className="space-y-3">
-              {coverageReport.conflicts.map((conflict) => (
-                <div
-                  key={conflict.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-4"
-                >
-                  <div>
-                    <p className="text-sm font-bold text-red-900">
-                      {conflict.userA.name} ↔ {conflict.userB.name}
-                    </p>
-                    <p className="text-xs text-red-700">
-                      Distance: {conflict.distanceKm} km • Overlap risk: {conflict.overlapKm} km inside 20 km rule
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleViewUserMap(conflict.userA)}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-500 hover:text-blue-700"
-                    >
-                      View {conflict.userA.name}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleViewUserMap(conflict.userB)}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-500 hover:text-blue-700"
-                    >
-                      View {conflict.userB.name}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-green-200 bg-white p-4 text-xs text-green-700">
-              All user coverage areas comply with the 20 km exclusivity policy.
-            </div>
-          )}
-        </section>
-      )}
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4 rounded-3xl border border-blue-200 bg-white p-6 shadow-[0_4px_15px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <h3 className="text-lg font-bold text-blue-700">User Logistics Playbook</h3>
-          <p className="text-sm text-gray-600">
-            Configure region-wise logistics strategies, delivery cycles, and stock protocols.
-          </p>
-          <div className="space-y-4">
-            {[
-              {
-                title: 'Stock Request Review',
-                description:
-                  'Identify users nearing low inventory levels. Initiate auto alerts and suggest restock orders.',
-                meta: 'Updated daily at 09:00',
-              },
-              {
-                title: 'Delivery Monitoring',
-                description:
-                  'Flag deliveries that exceed threshold by >2 days. Auto-calculate TAT and generate delivery reminders.',
-                meta: 'SLA: 24h resolution',
-              },
-              {
-                title: 'Purchase Approval Protocols',
-                description:
-                  'Streamline manual approvals for stock requests. Auto populate user performance insights before approval.',
-                meta: `Pending approvals: ${purchaseRequests.length}`,
-              },
-            ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-gray-200 bg-white p-4 transition hover:-translate-y-1 hover:shadow-[0_6px_20px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <div className="flex items-center justify-between text-sm font-bold text-gray-900">
-                  <span>{item.title}</span>
-                  <Package className="h-4 w-4 text-blue-600" />
-                </div>
-                <p className="mt-2 text-xs text-gray-600">{item.description}</p>
-                <p className="mt-3 text-xs font-bold text-blue-700">{item.meta}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Logistics playbook removed per project requirements */}
 
 
       <LoadingOverlay isVisible={isProcessing} message={processingMessage} />

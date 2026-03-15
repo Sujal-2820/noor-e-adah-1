@@ -5,7 +5,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { FilterBar } from '../components/FilterBar'
 import { ProductForm } from '../components/ProductForm'
 import { ProductAttributesModal } from '../components/ProductAttributesModal'
-import { useAdminState } from '../context/AdminContext'
+import { useAdminState, useAdminDispatch } from '../context/AdminContext'
 import { useAdminApi } from '../hooks/useAdminApi'
 import { useToast } from '../components/ToastNotification'
 import { LoadingOverlay } from '../components/LoadingOverlay'
@@ -25,6 +25,7 @@ const columns = [
 
 export function ProductsPage({ subRoute = null, navigate }) {
   const { products } = useAdminState()
+  const dispatch = useAdminDispatch()
   const { getProducts, createProduct, updateProduct, deleteProduct, toggleProductVisibility, loading } = useAdminApi()
   const { success, error: showError, warning: showWarning } = useToast()
 

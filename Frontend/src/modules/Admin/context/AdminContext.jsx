@@ -108,7 +108,7 @@ function reducer(state, action) {
           updated: action.payload,
         },
       }
-    case 'SET_VENDORS_DATA':
+    case 'SET_USERS_DATA':
       return {
         ...state,
         users: {
@@ -116,7 +116,7 @@ function reducer(state, action) {
           data: action.payload,
         },
       }
-    case 'SET_VENDORS_UPDATED':
+    case 'SET_USERS_UPDATED':
       return {
         ...state,
         users: {

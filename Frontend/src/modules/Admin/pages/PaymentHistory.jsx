@@ -21,18 +21,7 @@ const ACTIVITY_TYPES = [
   // User Payments
   { value: 'user_payment_advance', label: 'User Advance Payments' },
   { value: 'user_payment_remaining', label: 'User Remaining Payments' },
-  // User Payments
-  { value: 'user_earning_credited', label: 'Earnings Earned' },
-  { value: 'user_withdrawal_requested', label: 'User Withdrawal Requests' },
-  { value: 'user_withdrawal_approved', label: 'User Withdrawals Approved' },
-  { value: 'user_withdrawal_rejected', label: 'User Withdrawals Rejected' },
-  { value: 'user_withdrawal_completed', label: 'User Withdrawals Completed' },
-  // Admin Payments
-  { value: 'admin_commission_credited', label: 'Admin Commission' },
-  { value: 'admin_withdrawal_requested', label: 'Admin Withdrawal Requests' },
-  { value: 'admin_withdrawal_approved', label: 'Admin Withdrawals Approved' },
-  { value: 'admin_withdrawal_rejected', label: 'Admin Withdrawals Rejected' },
-  { value: 'admin_withdrawal_completed', label: 'Admin Withdrawals Completed' },
+  // Admin Payments removed per project requirements 
   // Bank Account Operations
   { value: 'bank_account_added', label: 'Bank Account Added' },
   { value: 'bank_account_updated', label: 'Bank Account Updated' },
@@ -57,10 +46,6 @@ export function PaymentHistoryPage() {
   const [history, setHistory] = useState([])
   const [stats, setStats] = useState({
     totalUserPayments: 0,
-    totalUserEarnings: 0,
-    totalAdminCommissions: 0,
-    totalUserWithdrawals: 0,
-    totalAdminWithdrawals: 0,
     totalActivities: 0,
   })
   const [pagination, setPagination] = useState({
@@ -406,42 +391,7 @@ export function PaymentHistoryPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
-        <div className="rounded-3xl border border-blue-200 bg-white p-4 shadow-[0_4px_15px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="h-4 w-4 text-blue-600" />
-            <p className="text-xs text-gray-600">User Payments</p>
-          </div>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalUserPayments || 0)}</p>
-        </div>
-        <div className="rounded-3xl border border-green-200 bg-white p-4 shadow-[0_4px_15px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center gap-2 mb-2">
-            <Factory className="h-4 w-4 text-green-600" />
-            <p className="text-xs text-gray-600">User Earnings</p>
-          </div>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalUserEarnings || 0)}</p>
-        </div>
-        <div className="rounded-3xl border border-yellow-200 bg-white p-4 shadow-[0_4px_15px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="h-4 w-4 text-yellow-600" />
-            <p className="text-xs text-gray-600">Admin Commissions</p>
-          </div>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalAdminCommissions || 0)}</p>
-        </div>
-        <div className="rounded-3xl border border-orange-200 bg-white p-4 shadow-[0_4px_15px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="h-4 w-4 text-orange-600" />
-            <p className="text-xs text-gray-600">User Withdrawals</p>
-          </div>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalUserWithdrawals || 0)}</p>
-        </div>
-        <div className="rounded-3xl border border-orange-200 bg-white p-4 shadow-[0_4px_15px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="h-4 w-4 text-orange-600" />
-            <p className="text-xs text-gray-600">Admin Withdrawals</p>
-          </div>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalAdminWithdrawals || 0)}</p>
-        </div>
-        <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-[0_4px_15px_rgba(0,0,0,0.08)]">
+        <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-[0_4px_15px_rgba(0,0,0,0.08)] col-span-2">
           <div className="flex items-center gap-2 mb-2">
             <History className="h-4 w-4 text-gray-600" />
             <p className="text-xs text-gray-600">Total Activities</p>
