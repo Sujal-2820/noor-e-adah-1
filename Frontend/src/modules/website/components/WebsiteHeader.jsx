@@ -7,12 +7,6 @@ import * as websiteApi from '../services/websiteApi'
 import { auth } from '../../../firebase'
 import { signOut, signInWithEmailAndPassword } from 'firebase/auth'
 
-const ANNOUNCEMENTS = [
-  "FREE SHIPPING ON ORDERS OVER ₹5000",
-  "NEW ARRIVALS: FESTIVE EDIT '24",
-  "SHOP ANY 2 PRODUCTS AND GET 10% OFF",
-  "TRADITIONAL ARTISANSHIP | MADE IN INDIA"
-]
 
 function AuthDropdown({ onClose }) {
   const navigate = useNavigate()
@@ -114,7 +108,6 @@ export function WebsiteHeader() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [announcementIndex, setAnnouncementIndex] = useState(0)
   const [showAuthDropdown, setShowAuthDropdown] = useState(false)
   const authTimeoutRef = useRef(null)
 
@@ -168,13 +161,6 @@ export function WebsiteHeader() {
     fetchTaxonomies()
   }, [])
 
-  // Rotate announcements
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAnnouncementIndex((prev) => (prev + 1) % ANNOUNCEMENTS.length)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [])
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
   const favouritesCount = favourites.length
@@ -195,19 +181,23 @@ export function WebsiteHeader() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white group/header transition-all duration-300">
-      {/* Announcement Bar - 3 Column Layout from Image */}
-      <div className="bg-brand text-brand-foreground py-2 text-[7px] sm:text-[9px] font-semibold tracking-[0.2em] border-b border-white/5">
-        <Container className="flex justify-between items-center uppercase">
-          <div className="hidden sm:block flex-1 text-left opacity-60">FESTIVE EDIT | LIVE NOW</div>
-          <div className="flex-1 text-center">FREE SHIPPING ON ORDERS OVER ₹5000</div>
-          <div className="hidden sm:block flex-1 text-right opacity-60">SHIPPING WORLDWIDE</div>
-        </Container>
+      <div className="bg-brand text-brand-foreground py-1 text-[7px] sm:text-[9px] font-semibold tracking-[0.2em] border-b border-white/5 overflow-hidden whitespace-nowrap">
+        <div className="flex animate-marquee">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center shrink-0">
+              <span className="mx-24 text-gold-light animate-blink font-bold uppercase">10% off on First Order</span>
+              <span className="mx-24 opacity-60 uppercase">FESTIVE EDIT | LIVE NOW</span>
+              <span className="mx-24 uppercase">FREE SHIPPING ON ORDERS OVER ₹5000</span>
+              <span className="mx-24 opacity-60 uppercase">SHIPPING WORLDWIDE</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Main Navigation */}
       <div className="border-b border-brand/20 bg-white/95 backdrop-blur-md relative">
-        <Container className="flex items-center justify-between py-4 h-24 lg:h-28">
-          {/* Center: Desktop Nav Links (Shifted left in image) */}
+        <Container className="flex items-center justify-between h-24 lg:h-36">
+          {/* Center: Desktop Nav Links */}
           <div className="hidden lg:flex items-center gap-12 flex-1">
             <Link to="/" className="text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors">
               Home
@@ -257,14 +247,13 @@ export function WebsiteHeader() {
             </Link>
           </div>
 
-          {/* Left: Logo (Centered in image, but actually left-ish depending on view) */}
-          {/* In the image, Logo is on the far left, then Nav links start */}
-          <div className="absolute left-1/2 -translate-x-1/2 lg:relative lg:left-0 lg:translate-x-0 order-first lg:mr-16">
+          {/* Logo - Fixed to left on mobile and significantly larger */}
+          <div className="relative order-first mr-8 lg:mr-16">
             <Link to="/" className="block group/logo">
               <img 
                 src="/assets/NoorEAdahLogo.png" 
                 alt="Noor E Adah" 
-                className="h-12 lg:h-16 w-auto object-contain transition-transform duration-300 group-hover:scale-105" 
+                className="h-24 lg:h-36 w-auto object-contain transition-all duration-300 group-hover:scale-105" 
               />
             </Link>
           </div>

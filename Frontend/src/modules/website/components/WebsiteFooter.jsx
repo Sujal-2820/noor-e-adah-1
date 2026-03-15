@@ -49,11 +49,10 @@ export function WebsiteFooter() {
           <div className="flex flex-col gap-8">
             <h3 className="text-[11px] lg:text-[15px] font-bold tracking-[0.25em] uppercase text-brand">Shop By Category</h3>
             <ul className="flex flex-col gap-4">
-              <li><Link to="/products?category=sarees" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Sarees</Link></li>
+              <li><Link to="/products?category=festive-wear" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Festive wear</Link></li>
               <li><Link to="/products?category=anarkali" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Anarkali</Link></li>
-              <li><Link to="/products?category=lehengas" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Lehengas</Link></li>
               <li><Link to="/products?category=cordsets" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Cordsets</Link></li>
-              <li><Link to="/products?category=wavesets" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Wavesets</Link></li>
+              <li><Link to="/products?category=printed-suits" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Printed suits</Link></li>
               <li><Link to="/products?category=dhotisets" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Dhotisets</Link></li>
             </ul>
           </div>

@@ -145,3 +145,34 @@
 .animate-calm-entry {
   animation: fadeInSlideUp 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+
+/* Marquee and Attention-grabbing Animations */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-marquee {
+  display: flex;
+  white-space: nowrap;
+  animation: marquee 12s linear infinite;
+}
+
+@media (max-width: 640px) {
+  .animate-marquee {
+    animation-duration: 8s;
+  }
+}
+
+.animate-blink {
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+.text-gold-light {
+  color: #D4AF37; /* A vibrant light golden color */
+}
