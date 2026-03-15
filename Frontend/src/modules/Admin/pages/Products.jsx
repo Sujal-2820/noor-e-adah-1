@@ -11,6 +11,7 @@ import { useToast } from '../components/ToastNotification'
 import { LoadingOverlay } from '../components/LoadingOverlay'
 import { uploadProductVideo } from '../services/adminApi'
 import { cn } from '../../../lib/cn'
+import { NewArrivalsManager } from '../components/NewArrivalsManager'
 
 const columns = [
   { Header: 'Product', accessor: 'name' },
@@ -411,6 +412,10 @@ export function ProductsPage({ subRoute = null, navigate }) {
   })
 
   // Show full-screen form view when subRoute is 'add' or when editing
+  if (subRoute === 'new-arrivals') {
+    return <NewArrivalsManager onBack={() => navigate('products')} />
+  }
+
   if (subRoute === 'add' || selectedProduct) {
     return (
       <div className="space-y-6">

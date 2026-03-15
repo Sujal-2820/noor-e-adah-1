@@ -53,12 +53,18 @@ export function OfferMediaUpload({
       return
     }
 
-    setUploading(true)
-    setError(null)
-
-    // Determine cropping and dimensions based on mediaType and orientation
     const isVideo = mediaType === 'video'
     const isVertical = orientation === 'vertical'
+    const uploadPreset = isVideo ? CLOUDINARY_CONFIG.videoPreset : CLOUDINARY_CONFIG.uploadPreset
+
+    if (!uploadPreset || uploadPreset === '') {
+      setError(`Cloudinary ${isVideo ? 'video' : 'image'} upload preset is not configured.`)
+      setUploading(false)
+      return
+    }
+
+    setUploading(true)
+    setError(null)
 
     // Ideal ratios:
     // Desktop Carousel: 2.67:1 (1600x600)
@@ -75,11 +81,11 @@ export function OfferMediaUpload({
 
     const options = {
       cloudName: CLOUDINARY_CONFIG.cloudName,
-      uploadPreset: isVideo ? CLOUDINARY_CONFIG.videoPreset : CLOUDINARY_CONFIG.uploadPreset,
+      uploadPreset: uploadPreset,
       resourceType: isVideo ? 'video' : 'image',
       sources: ['local', 'camera', 'url'],
       multiple: false,
-      maxFileSize: isVideo ? 50000000 : 5000000, // 50MB for video, 5MB for image
+      maxFileSize: isVideo ? 100000000 : 5000000, // 100MB for video, 5MB for image
       cropping: !isVideo, // Cloudinary widget doesn't support cropping for videos in the same way
       croppingAspectRatio: !isVideo ? croppingAspectRatio : undefined,
       folder: `noor-e-adah/offers/${mediaType}s`,

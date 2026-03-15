@@ -569,6 +569,17 @@ export function OffersPage({ subRoute = null, navigate }) {
                       const isVideo = carousel.mediaType === 'video'
                       const mediaSrc = isVideo ? carousel.video : carousel.image
 
+                      const getVideoThumbnail = (url) => {
+                        if (!url) return null
+                        if (url.includes('cloudinary.com')) {
+                          return url
+                            .replace('/video/upload/', '/video/upload/so_auto,c_fill,w_600,h_400,q_auto,f_jpg/')
+                            .replace(/\.[^.]+$/, '.jpg')
+                        }
+                        return null
+                      }
+                      const videoThumbnail = isVideo ? getVideoThumbnail(carousel.video) : null
+
                       return (
                         <div
                           key={carousel._id || carousel.id}
@@ -593,8 +604,19 @@ export function OffersPage({ subRoute = null, navigate }) {
                                 carousel.orientation === 'vertical' ? "aspect-[9/16]" : "aspect-video"
                               )}>
                                 {isVideo ? (
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                    <Video className="h-8 w-8 text-gray-400" />
+                                  <div className="absolute inset-0">
+                                    {videoThumbnail ? (
+                                      <img src={videoThumbnail} alt={carousel.title} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <Video className="h-8 w-8 text-gray-400" />
+                                      </div>
+                                    )}
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                      <div className="p-2 rounded-full bg-white/30 backdrop-blur-sm">
+                                        <Play className="h-6 w-6 text-white fill-white" />
+                                      </div>
+                                    </div>
                                     <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded flex items-center gap-1 font-bold">
                                       <Video className="h-3 w-3" /> VIDEO
                                     </div>

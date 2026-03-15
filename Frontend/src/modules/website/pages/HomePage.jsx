@@ -27,6 +27,7 @@ export function HomePage() {
   const [smartphoneCarousels, setSmartphoneCarousels] = useState([])
   const [carousels, setCarousels] = useState([]) // Current active carousels based on screen
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const newArrivalsRef = useRef(null)
 
   // Fetch data on mount
   useEffect(() => {
@@ -60,6 +61,12 @@ export function HomePage() {
           const mobile = (offersResult.data.smartphoneCarousels || [])
             .filter(c => c.isActive !== false)
             .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+          // Use curated new arrivals from the backend if available
+          const curatedNewArrivals = offersResult.data.newArrivals || []
+          if (curatedNewArrivals.length > 0) {
+            setPopularProducts(curatedNewArrivals)
+          }
 
           setDesktopCarousels(desk)
           setSmartphoneCarousels(mobile)
@@ -126,7 +133,7 @@ export function HomePage() {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative h-[85vh] overflow-hidden bg-surface-muted pt-28">
+      <section className="relative h-[85vh] overflow-hidden bg-surface-muted">
         {carousels.length > 0 ? (
           carousels.map((banner, index) => {
             const isVideo = banner.mediaType === 'video'
@@ -157,19 +164,25 @@ export function HomePage() {
                   />
                 )}
                 <div className="absolute inset-0 bg-black/20" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white p-6 animate-calm-entry">
-                  <p className="text-xs sm:text-sm tracking-[0.3em] uppercase mb-4 drop-shadow-md">
-                    {banner.description || "The New Collection"}
-                  </p>
-                  <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif mb-8 max-w-4xl drop-shadow-lg leading-tight">
-                    {banner.title}
-                  </h1>
-                  <Link
-                    to={banner.buttonLink || "/products"}
-                    className="px-10 py-3.5 bg-white text-brand text-xs font-semibold tracking-widest uppercase hover:bg-brand hover:text-white transition-all duration-500 shadow-premium"
-                  >
-                    {banner.buttonText || "Shop Now"}
-                  </Link>
+                <div className="absolute inset-0 flex flex-col items-start justify-end text-left p-8 sm:p-16 lg:p-24 text-white animate-calm-entry">
+                  {banner.description && (
+                    <p className="text-xs sm:text-sm tracking-[0.3em] uppercase mb-4 drop-shadow-md opacity-90">
+                      {banner.description}
+                    </p>
+                  )}
+                  {banner.title && (
+                    <h1 className="text-3xl sm:text-5xl md:text-6xl font-serif mb-8 max-w-4xl drop-shadow-lg leading-tight">
+                      {banner.title}
+                    </h1>
+                  )}
+                  {banner.buttonText && (
+                    <Link
+                      to={banner.buttonLink || "/products"}
+                      className="px-10 py-3.5 bg-white text-brand text-xs font-semibold tracking-widest uppercase hover:bg-brand hover:text-white transition-all duration-500 shadow-premium"
+                    >
+                      {banner.buttonText}
+                    </Link>
+                  )}
                 </div>
               </div>
             )
@@ -200,21 +213,149 @@ export function HomePage() {
         )}
       </section>
 
-      {/* Categories - Magazine Style Grid */}
+      {/* New Arrivals Section - Now below Hero */}
       <Section className="bg-white">
         <Container>
+          <div className="text-center mb-12 sm:mb-20 animate-calm-entry">
+            <p className="text-[9px] lg:text-[11px] font-semibold tracking-[0.15em] text-brand/40 uppercase mb-3 text-center">
+              The Latest Pieces
+            </p>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl storefront-heading text-brand text-center uppercase tracking-widest">New Arrivals</h2>
+          </div>
+
+          <div className="relative group/arrivals">
+            {/* Desktop Grid / Mobile Carousel Container */}
+            <div 
+              ref={newArrivalsRef}
+              className={cn(
+                "flex lg:grid lg:grid-cols-4 gap-6 lg:gap-8 overflow-x-auto lg:overflow-visible pb-10 lg:pb-0 no-scrollbar snap-x snap-mandatory scroll-smooth",
+              )}
+            >
+              {popularProducts.slice(0, isMobile ? 12 : 4).map((product, idx) => {
+                const productId = product._id || product.id
+                const productImage = getPrimaryImageUrl(product)
+                const isWishlisted = favourites.includes(productId)
+                const outOfStock = (product.displayStock || product.stock || 0) === 0
+
+                return (
+                  <div
+                    key={productId}
+                    className="flex-shrink-0 w-[calc(50%-12px)] lg:w-full group cursor-pointer animate-calm-entry snap-start"
+                    style={{ animationDelay: `${idx * 100}ms` }}
+                    onClick={() => handleProductClick(productId)}
+                  >
+                    <div className={cn(
+                      "relative aspect-[3/4] overflow-hidden bg-[#F9F9F9] mb-6 border border-brand/10 group-hover:border-brand/30 transition-all duration-500 product-card-container",
+                      outOfStock && "grayscale"
+                    )}>
+                      <img
+                        src={productImage}
+                        alt={product.name}
+                        className={cn("w-full h-full object-cover product-image-primary transition-transform duration-1000 group-hover:scale-110", outOfStock && "opacity-60")}
+                      />
+
+                      {/* Secondary Image for Hover */}
+                      {!outOfStock && (
+                        <img
+                          src={getImageUrlAt(product, 1)}
+                          alt={`${product.name} alternate view`}
+                          className="product-image-secondary"
+                        />
+                      )}
+
+                      {outOfStock && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
+                          <div className="bg-white/90 px-4 py-1.5 shadow-xl border border-red-50 transform -rotate-2">
+                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-600">
+                                Sold Out
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {!outOfStock && <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />}
+
+                      <button
+                        onClick={(e) => handleToggleFavourite(e, productId)}
+                        className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white border border-brand/5 rounded-full transition-all opacity-0 group-hover:opacity-100 shadow-sm z-20"
+                      >
+                        <svg className="w-3 h-3 text-brand" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" strokeWidth="1.5" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="text-center flex flex-col items-center px-2">
+                      <h3 className="text-[10px] sm:text-[11px] lg:text-[13px] font-bold tracking-[0.1em] text-brand/90 uppercase mb-1 transition-all">
+                        {product.name}
+                      </h3>
+                      <p className="text-[8px] lg:text-[9px] text-muted-foreground/50 tracking-[0.05em] font-medium mb-1.5 uppercase">
+                        {product.category?.name || "Ready to wear"}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[11px] lg:text-[14px] font-bold tracking-[0.02em] text-brand">
+                          ₹{(() => {
+                            const basePrice = product.publicPrice || product.priceToUser || product.price || 0
+                            const discount = product.discountPublic || 0
+                            const effectivePrice = discount > 0 ? Math.round(basePrice * (1 - discount / 100)) : basePrice
+                            return effectivePrice.toLocaleString('en-IN')
+                          })()}
+                        </p>
+                        {(product.discountPublic > 0) && (
+                          <p className="text-[9px] lg:text-[11px] text-muted-foreground/30 line-through">
+                            ₹{(product.publicPrice || product.priceToUser || product.price || 0).toLocaleString('en-IN')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Carousel Arrows (Mobile Only) */}
+            <div className="flex lg:hidden items-center justify-center gap-4 mt-8">
+              <button 
+                onClick={() => newArrivalsRef.current?.scrollBy({ left: -(window.innerWidth / 2), behavior: 'smooth' })}
+                className="w-10 h-10 border border-brand/10 rounded-full flex items-center justify-center hover:bg-brand hover:text-white transition-all shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button 
+                onClick={() => newArrivalsRef.current?.scrollBy({ left: window.innerWidth / 2, behavior: 'smooth' })}
+                className="w-10 h-10 border border-brand/10 rounded-full flex items-center justify-center hover:bg-brand hover:text-white transition-all shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-16 lg:mt-24 flex justify-center">
+            <Link
+              to="/products"
+              className="inline-block px-12 py-4 bg-brand text-white text-[10px] lg:text-[13px] font-bold tracking-[0.3em] uppercase hover:bg-accent transition-all duration-300"
+            >
+              View All Products
+            </Link>
+          </div>
+        </Container>
+      </Section>
+
+      {/* Categories - Now below New Arrivals */}
+      <Section className="bg-surface-muted/30">
+        <Container>
           <div className="text-center mb-16 animate-calm-entry">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-widest text-brand uppercase">Categories</h2>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-[0.1em] text-brand uppercase text-center">Categories</h2>
             <div className="mt-4 w-12 h-1 bg-accent mx-auto"></div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {categories.map((category, idx) => (
               <Link
                 key={category._id || category.id}
                 to={`/products?category=${category._id || category.id}`}
-                className="relative group overflow-hidden block h-[500px] animate-calm-entry"
-                style={{ animationDelay: `${idx * 150}ms` }}
+                className="relative group overflow-hidden block aspect-[4/5] sm:h-[500px] animate-calm-entry border border-brand/5"
+                style={{ animationDelay: `${idx * 100}ms` }}
               >
                 {category.image?.url || category.image || category.icon
                   ? <img
@@ -225,12 +366,12 @@ export function HomePage() {
                   : <div className="w-full h-full bg-surface-secondary flex items-center justify-center text-4xl">👜</div>
                 }
                 <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-all duration-500" />
-                <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center">
-                  <span className="text-white text-xs lg:text-[16px] font-bold tracking-[0.2em] uppercase mb-4 drop-shadow-md">
+                <div className="absolute bottom-6 sm:bottom-10 left-0 right-0 flex flex-col items-center">
+                  <span className="text-white text-[12px] sm:text-[16px] font-bold tracking-[0.15em] uppercase mb-4 drop-shadow-md">
                     {category.name}
                   </span>
-                  <div className="h-[50px] overflow-hidden">
-                    <span className="inline-block px-8 py-3.5 bg-white text-brand text-[10px] lg:text-[13px] font-bold tracking-widest uppercase transform translate-y-20 group-hover:translate-y-0 transition-transform duration-500">
+                  <div className="h-[40px] sm:h-[50px] overflow-hidden">
+                    <span className="inline-block px-6 sm:px-8 py-2.5 sm:py-3.5 bg-white text-brand text-[9px] sm:text-[12px] font-bold tracking-widest uppercase transform translate-y-20 group-hover:translate-y-0 transition-transform duration-500">
                       Shop Now
                     </span>
                   </div>
@@ -355,119 +496,6 @@ export function HomePage() {
           </Container>
         </Section>
       )}
-
-      {/* New Arrivals Section - Image 3 Style */}
-      <Section className="bg-white">
-        <Container>
-          <div className="text-center mb-20 animate-calm-entry">
-            <p className="text-[9px] lg:text-[11px] font-semibold tracking-[0.15em] text-brand/40 uppercase mb-3">
-              The Latest Pieces
-            </p>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl storefront-heading text-brand">New Arrivals</h2>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-16 lg:gap-x-8 lg:gap-y-20">
-            {popularProducts.slice(0, 4).map((product, idx) => {
-              const productId = product._id || product.id
-              const productImage = getPrimaryImageUrl(product)
-              const isWishlisted = favourites.includes(productId)
-              const outOfStock = (product.displayStock || product.stock || 0) === 0
-
-              return (
-                <div
-                  key={productId}
-                  className="group cursor-pointer animate-calm-entry"
-                  style={{ animationDelay: `${idx * 100}ms` }}
-                  onClick={() => handleProductClick(productId)}
-                >
-                  <div className={cn(
-                    "relative aspect-[3/4] overflow-hidden bg-[#F9F9F9] mb-8 border border-brand/20 group-hover:border-brand/50 transition-colors product-card-container",
-                    outOfStock && "grayscale"
-                  )}>
-                    <img
-                      src={productImage}
-                      alt={product.name}
-                      className={cn("w-full h-full object-cover product-image-primary", outOfStock && "opacity-60")}
-                    />
-
-                    {/* Secondary Image for Hover (Smooth Transition) */}
-                    {!outOfStock && (
-                      <img
-                        src={getImageUrlAt(product, 1)}
-                        alt={`${product.name} alternate view`}
-                        className="product-image-secondary"
-                      />
-                    )}
-
-                    {outOfStock && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
-                        <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
-                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
-                              Sold Out
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Minimalist Hover Overlay */}
-                    {!outOfStock && <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />}
-
-                    {/* Quick Add / Wishlist Button (Subtle) */}
-                    <button
-                      onClick={(e) => handleToggleFavourite(e, productId)}
-                      className="absolute top-4 right-4 p-2.5 bg-white/80 hover:bg-white border border-brand/30 rounded-full transition-all opacity-0 group-hover:opacity-100 shadow-sm z-20"
-                    >
-                      <svg className="w-3.5 h-3.5 text-brand" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" strokeWidth="1.5" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="text-center flex flex-col items-center">
-                    <h3 className="text-[10px] sm:text-[12px] lg:text-[14px] font-semibold tracking-[0.1em] text-brand/90 uppercase mb-1.5 group-hover:text-accent transition-all px-2 text-center">
-                      {product.name}
-                    </h3>
-                    <p className="text-[8px] lg:text-[10px] text-muted-foreground/50 tracking-[0.05em] font-medium mb-2 text-center">
-                      {product.category?.name || "Ready to wear"}
-                    </p>
-                    <div className="flex flex-col items-center">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs lg:text-base font-bold tracking-[0.02em] text-brand">
-                          ₹{(() => {
-                            const basePrice = product.publicPrice || product.priceToUser || product.price || 0
-                            const discount = product.discountPublic || 0
-                            const effectivePrice = discount > 0 ? Math.round(basePrice * (1 - discount / 100)) : basePrice
-                            return effectivePrice.toLocaleString('en-IN')
-                          })()}
-                        </p>
-                        {(product.discountPublic > 0) && (
-                          <p className="text-[9px] lg:text-[11px] text-muted-foreground/40 line-through">
-                            ₹{(product.publicPrice || product.priceToUser || product.price || 0).toLocaleString('en-IN')}
-                          </p>
-                        )}
-                      </div>
-                      {(product.discountPublic > 0) && (
-                        <p className="text-[9px] lg:text-[10px] font-bold text-green-600 mt-0.5">
-                          {Math.round(product.discountPublic)}% OFF
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="mt-20 flex justify-center">
-            <Link
-              to="/products"
-              className="inline-block px-12 py-5 bg-[#D4AF37]/80 hover:bg-[#D4AF37] text-white text-[11px] lg:text-[15px] font-bold tracking-[0.3em] uppercase transition-all duration-300"
-            >
-              View All Products
-            </Link>
-          </div>
-        </Container>
-      </Section>
 
       {/* Brand Pillars Section - Image 4 Style */}
       <Section className="bg-white border-t border-muted/5 py-32">

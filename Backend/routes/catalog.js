@@ -130,12 +130,21 @@ router.get('/offers', async (req, res, next) => {
     try {
         const Offer = require('../models/Offer');
 
-        const offers = await Offer.find({ isActive: true }).sort({ order: 1 });
+        const offers = await Offer.find({ isActive: true })
+            .populate({
+                path: 'productIds',
+                match: { isActive: true },
+                select: 'name publicPrice discountPublic images sizes stock displayStock actualStock category',
+                populate: { path: 'category', select: 'name type' }
+            })
+            .sort({ order: 1 });
 
         // Group by type
         const carousels = offers.filter(o => o.type === 'carousel' || o.type === 'banner');
         const smartphoneCarousels = offers.filter(o => o.type === 'smartphone_carousel');
         const specialOffers = offers.filter(o => (o.type === 'special' || o.type === 'special_offer'));
+        const newArrivalsOffer = offers.find(o => o.type === 'new_arrivals');
+        const newArrivals = newArrivalsOffer ? (newArrivalsOffer.productIds || []) : [];
 
         res.status(200).json({
             success: true,
@@ -143,6 +152,7 @@ router.get('/offers', async (req, res, next) => {
                 carousels,
                 smartphoneCarousels,
                 specialOffers,
+                newArrivals,
                 offers
             }
         });

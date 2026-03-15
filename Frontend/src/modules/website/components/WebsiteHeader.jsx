@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import { Container } from './Layout'
 import { cn } from '../../../lib/cn'
@@ -106,9 +106,12 @@ export function WebsiteHeader() {
   const { authenticated, profile, cart, favourites } = useWebsiteState()
   const dispatch = useWebsiteDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
+  const isHome = location.pathname === '/'
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showAuthDropdown, setShowAuthDropdown] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
   const authTimeoutRef = useRef(null)
 
   const [taxonomies, setTaxonomies] = useState({
@@ -161,6 +164,15 @@ export function WebsiteHeader() {
     fetchTaxonomies()
   }, [])
 
+  // Handle Scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
   const favouritesCount = favourites.length
@@ -180,7 +192,10 @@ export function WebsiteHeader() {
   ]
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white group/header transition-all duration-300">
+    <header className={cn(
+      "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
+      (isScrolled || !isHome) ? "bg-white shadow-md shadow-black/5" : "bg-transparent"
+    )}>
       <div className="bg-brand text-brand-foreground py-1 text-[7px] sm:text-[9px] font-semibold tracking-[0.2em] border-b border-white/5 overflow-hidden whitespace-nowrap">
         <div className="flex animate-marquee">
           {[...Array(3)].map((_, i) => (
@@ -195,16 +210,25 @@ export function WebsiteHeader() {
       </div>
 
       {/* Main Navigation */}
-      <div className="border-b border-brand/20 bg-white/95 backdrop-blur-md relative">
-        <Container className="flex items-center justify-between h-24 lg:h-36">
+      <div className={cn(
+        "transition-all duration-500 relative pt-0.5 sm:pt-1",
+        (isScrolled || !isHome) ? "bg-white/95 backdrop-blur-md" : "bg-transparent"
+      )}>
+        <div className="max-w-full mx-auto px-4 sm:px-8 lg:px-16 flex items-center justify-between h-24 lg:h-36">
           {/* Center: Desktop Nav Links */}
-          <div className="hidden lg:flex items-center gap-12 flex-1">
-            <Link to="/" className="text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors">
+          <div className="hidden lg:flex items-center gap-16 flex-1">
+            <Link to="/" className={cn(
+              "text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors",
+              (isScrolled || !isHome) ? "text-brand" : "text-white"
+            )}>
               Home
             </Link>
 
             <div className="group/shop h-full flex items-center">
-              <Link to="/home/shop" className="text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors flex items-center gap-1.5 py-8 cursor-pointer">
+              <Link to="/home/shop" className={cn(
+                "text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors flex items-center gap-1.5 py-8 cursor-pointer",
+                (isScrolled || !isHome) ? "text-brand" : "text-white"
+              )}>
                 Shop
                 <svg className="w-2.5 h-2.5 group-hover/shop:rotate-180 transition-transform opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path d="m6 9 6 6 6-6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -239,10 +263,16 @@ export function WebsiteHeader() {
               </div>
             </div>
 
-            <Link to="/about" className="text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors">
+            <Link to="/about" className={cn(
+              "text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors",
+              (isScrolled || !isHome) ? "text-brand" : "text-white"
+            )}>
               About us
             </Link>
-            <Link to="/products?tag=new" className="text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors">
+            <Link to="/products?tag=new" className={cn(
+              "text-[10px] lg:text-[13px] font-semibold tracking-[0.15em] uppercase hover:text-accent transition-colors",
+              (isScrolled || !isHome) ? "text-brand" : "text-white"
+            )}>
               New In
             </Link>
           </div>
@@ -253,23 +283,37 @@ export function WebsiteHeader() {
               <img 
                 src="/assets/NoorEAdahLogo.png" 
                 alt="Noor E Adah" 
-                className="h-24 lg:h-36 w-auto object-contain transition-all duration-300 group-hover:scale-105" 
+                className={cn(
+                  "h-24 lg:h-36 w-auto object-contain transition-all duration-300 group-hover:scale-105",
+                  (!isScrolled && isHome) && "brightness-0 invert"
+                )} 
               />
             </Link>
           </div>
 
           {/* Right: Actions */}
           <div className="flex items-center gap-6 justify-end flex-1">
-            {/* Search Pill - Exactly like image */}
-            <form onSubmit={handleSearch} className="hidden md:flex items-center bg-muted/5 hover:bg-muted/10 border border-brand/30 rounded-full px-5 py-2 transition-all w-64 focus-within:w-80 group/search">
+            {/* Search Pill */}
+            <form onSubmit={handleSearch} className={cn(
+              "hidden md:flex items-center border rounded-full px-5 py-2 transition-all w-64 focus-within:w-80 group/search",
+              (isScrolled || !isHome) 
+                ? "bg-muted/5 hover:bg-muted/10 border-brand/30" 
+                : "bg-white/10 hover:bg-white/20 border-white/30"
+            )}>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search for products"
-                className="bg-transparent border-none outline-none text-xs lg:text-[14px] w-full placeholder:text-muted-foreground/60"
+                className={cn(
+                  "bg-transparent border-none outline-none text-xs lg:text-[14px] w-full placeholder:text-muted-foreground/60",
+                  (isScrolled || !isHome) ? "text-brand" : "text-white"
+                )}
               />
-              <button type="submit" className="text-muted-foreground/40 group-focus-within/search:text-brand transition-colors">
+              <button type="submit" className={cn(
+                "transition-colors",
+                (isScrolled || !isHome) ? "text-muted-foreground/40" : "text-white/40"
+              )}>
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.35-4.35" />
@@ -286,7 +330,10 @@ export function WebsiteHeader() {
                 {authenticated ? (
                   <div className="flex items-center gap-2 group/auth relative">
                     <Link to="/account" className="flex items-center gap-2 hover:text-accent transition-colors py-2">
-                      <span className="text-[10px] lg:text-[13px] font-bold tracking-[0.2em] text-brand/80 uppercase">
+                      <span className={cn(
+                        "text-[10px] lg:text-[13px] font-bold tracking-[0.2em] uppercase",
+                        (isScrolled || !isHome) ? "text-brand/80" : "text-white"
+                      )}>
                         {profile.name}
                       </span>
                     </Link>
@@ -300,7 +347,10 @@ export function WebsiteHeader() {
                 ) : (
                   <>
                     <Link to="/login" className="hidden sm:flex items-center gap-2 hover:text-accent transition-colors py-2" aria-label="Account">
-                      <span className="text-[10px] lg:text-[13px] font-bold tracking-[0.2em] text-brand/80 uppercase">
+                      <span className={cn(
+                        "text-[10px] lg:text-[13px] font-bold tracking-[0.2em] uppercase",
+                        (isScrolled || !isHome) ? "text-brand/80" : "text-white"
+                      )}>
                         Login / Register
                       </span>
                     </Link>
@@ -309,7 +359,10 @@ export function WebsiteHeader() {
                 )}
               </div>
 
-              <Link to="/favourites" className="relative hover:text-accent transition-colors" aria-label="Wishlist">
+              <Link to="/favourites" className={cn(
+                "relative hover:text-accent transition-colors",
+                (isScrolled || !isHome) ? "text-brand" : "text-white"
+              )} aria-label="Wishlist">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
@@ -322,14 +375,20 @@ export function WebsiteHeader() {
 
               <button
                 onClick={() => dispatch({ type: 'SET_CART_OPEN', payload: true })}
-                className="relative hover:text-accent transition-colors group/cart"
+                className={cn(
+                  "relative hover:text-accent transition-colors group/cart",
+                  (isScrolled || !isHome) ? "text-brand" : "text-white"
+                )}
                 aria-label="Cart"
               >
                 <svg className="w-5 h-5 group-hover/cart:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" />
                 </svg>
                 {cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-brand text-brand-foreground text-[8px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                  <span className={cn(
+                    "absolute -top-1.5 -right-1.5 text-[8px] rounded-full w-4 h-4 flex items-center justify-center font-bold",
+                    (isScrolled || !isHome) ? "bg-brand text-brand-foreground" : "bg-white text-brand"
+                  )}>
                     {cartCount}
                   </span>
                 )}
@@ -338,7 +397,10 @@ export function WebsiteHeader() {
               {/* Hamburger - Mobile */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden hover:text-accent transition-colors"
+                className={cn(
+                  "lg:hidden hover:text-accent transition-colors",
+                  (isScrolled || !isHome) ? "text-brand" : "text-white"
+                )}
                 aria-label="Menu"
               >
                 <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -351,7 +413,7 @@ export function WebsiteHeader() {
               </button>
             </div>
           </div>
-        </Container>
+        </div>
       </div>
 
       {/* Mobile Menu Drawer */}

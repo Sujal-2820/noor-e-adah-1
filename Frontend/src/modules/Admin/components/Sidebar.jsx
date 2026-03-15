@@ -30,6 +30,7 @@ const links = [
       { id: 'products/add', label: 'Add Products' },
       { id: 'products/active', label: 'Active Products' },
       { id: 'products/inactive', label: 'Inactive Products' },
+      { id: 'products/new-arrivals', label: 'New Arrivals' },
     ]
   },
   {

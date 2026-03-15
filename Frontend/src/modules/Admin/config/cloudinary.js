@@ -10,6 +10,7 @@ export const CLOUDINARY_CONFIG = {
   apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY || '841232994941198',
   uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'noor_images', // Unsigned upload preset name (must be created in Cloudinary Dashboard)
   uploadPresetDocuments: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET_DOCUMENTS || 'noor_images',
+  videoPreset: import.meta.env.VITE_CLOUDINARY_VIDEO_PRESET || 'noor_images',
   // To create the unsigned upload preset:
   // 1. Go to Cloudinary Dashboard > Settings > Upload
   // 2. Click "Add upload preset"

@@ -13,7 +13,7 @@ const offerSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ['carousel', 'special_offer', 'smartphone_carousel'],
+      enum: ['carousel', 'special_offer', 'smartphone_carousel', 'new_arrivals'],
     },
 
     // Common fields
@@ -34,13 +34,13 @@ const offerSchema = new mongoose.Schema(
     image: {
       type: String, // Cloudinary image URL
       required: function () {
-        return (this.type === 'carousel' || this.type === 'smartphone_carousel') && this.mediaType === 'image';
+        return (this.type === 'carousel' || this.type === 'smartphone_carousel') && this.mediaType === 'image' && this.type !== 'new_arrivals';
       },
     },
     video: {
       type: String, // Cloudinary video URL
       required: function () {
-        return (this.type === 'carousel' || this.type === 'smartphone_carousel') && this.mediaType === 'video';
+        return (this.type === 'carousel' || this.type === 'smartphone_carousel') && this.mediaType === 'video' && this.type !== 'new_arrivals';
       },
     },
     orientation: {

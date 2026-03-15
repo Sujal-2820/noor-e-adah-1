@@ -1,14 +1,22 @@
+import { useLocation } from 'react-router-dom'
+import { cn } from '../../../lib/cn'
 import { WebsiteHeader } from './WebsiteHeader'
 import { WebsiteFooter } from './WebsiteFooter'
 import { CartSidebar } from './CartSidebar'
 import '../styles/website.css'
 
 export function Layout({ children }) {
+  const location = useLocation()
+  const isHome = location.pathname === '/'
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <WebsiteHeader />
       <CartSidebar />
-      <main className="flex-grow pt-[90px] lg:pt-[100px]">
+      <main className={cn(
+        "flex-grow transition-all duration-300",
+        isHome ? "pt-0" : "pt-[90px] lg:pt-[100px]"
+      )}>
         {children}
       </main>
       <WebsiteFooter />
