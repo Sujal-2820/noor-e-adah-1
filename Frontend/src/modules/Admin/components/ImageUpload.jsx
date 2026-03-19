@@ -17,7 +17,7 @@ import { cn } from '../../../lib/cn'
 export function ImageUpload({
   images = [],
   onChange,
-  maxImages = 4,
+  maxImages = 20,
   disabled = false,
   aspectRatio = null,
   folder = 'noor-e-adah/products'
@@ -78,8 +78,8 @@ export function ImageUpload({
       uploadPreset: CLOUDINARY_CONFIG.uploadPreset, // Use unsigned preset
       sources: ['local', 'camera', 'url'],
       multiple: false,
-      clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
-      maxFileSize: 5000000, // 5MB
+      clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      maxFileSize: 10000000, // 10MB to accommodate PDFs
       cropping: true,
       croppingAspectRatio: aspectRatio,
       croppingShowDimensions: true,
@@ -125,21 +125,33 @@ export function ImageUpload({
         }
 
         if (result && result.event === 'success') {
-          const newImage = {
-            url: result.info.secure_url,
-            publicId: result.info.public_id,
-            isPrimary: images.length === 0 && index === 0, // First image is primary
-            order: index !== null ? index : images.length,
+          const isPdf = result.info.format === 'pdf'
+          const numPages = result.info.pages || 1
+          
+          let newImages = []
+
+          // If PDF, explode into multiple images (one per page)
+          if (isPdf && numPages > 1) {
+            for (let i = 1; i <= numPages; i++) {
+              newImages.push({
+                url: result.info.secure_url.replace(/\.pdf$/, '.jpg').replace(/\/upload\//, `/upload/pg_${i}/`),
+                publicId: result.info.public_id,
+                isPrimary: images.length === 0 && i === 1,
+                order: images.length + i - 1,
+                page: i // store page number for reference
+              })
+            }
+          } else {
+            // Normal image or single page PDF
+            newImages.push({
+              url: isPdf ? result.info.secure_url.replace(/\.pdf$/, '.jpg') : result.info.secure_url,
+              publicId: result.info.public_id,
+              isPrimary: images.length === 0,
+              order: images.length,
+            })
           }
 
-          const updatedImages = [...images]
-          if (index !== null && index < images.length) {
-            // Replace existing image
-            updatedImages[index] = newImage
-          } else {
-            // Add new image
-            updatedImages.push(newImage)
-          }
+          const updatedImages = [...images, ...newImages]
 
           // Ensure only one primary image
           const finalImages = updatedImages.map((img, idx) => ({
@@ -242,7 +254,7 @@ export function ImageUpload({
         <ImageIcon className="mr-1 inline h-4 w-4" />
         Product Images
         <span className="text-xs font-normal text-gray-500 ml-2">
-          (Max {maxImages} images. First image will be the primary image. Drag images to reorder)
+          (Max 20 images. First image will be the primary image. Drag to reorder. PDF pages will expand automatically.)
         </span>
       </label>
 

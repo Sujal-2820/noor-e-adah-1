@@ -32,9 +32,9 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
     showStock: false,
     images: [],
     additionalInformation: '',
-    shippingPolicy: `<h2>DOMESTIC SHIPPING POLICY</h2><p>Thankyou for visiting and shopping at Talara Edit. Following are the terms and condition that constitute our shipping policy.</p><h3>Shipment processing time</h3><p>All orders are processed within 1-2 business Days.orders not shipping or delivered on weekends or holidays.</p><h3>Shipping rates & delivery estimates</h3><table><thead><tr><th>Shipment method</th><th>Estimated delivery time</th><th>Shipment cost</th></tr></thead><tbody><tr><td>Standard Shipping</td><td>5-12 business days</td><td>300/-</td></tr><tr><td>Express Shipping</td><td>2-6 business days</td><td>800/-</td></tr></tbody></table>`,
+    shippingPolicy: `<h2>DOMESTIC SHIPPING POLICY</h2><p>Thankyou for visiting and shopping at Noor E Adah. Following are the terms and condition that constitute our shipping policy.</p><h3>Shipment processing time</h3><p>All orders are processed within 1-2 business Days.orders not shipping or delivered on weekends or holidays.</p><h3>Shipping rates & delivery estimates</h3><table><thead><tr><th>Shipment method</th><th>Estimated delivery time</th><th>Shipment cost</th></tr></thead><tbody><tr><td>Standard Shipping</td><td>5-12 business days</td><td>300/-</td></tr><tr><td>Express Shipping</td><td>2-6 business days</td><td>800/-</td></tr></tbody></table>`,
     faqs: [
-      { question: "HOW DO I PLACE AN ORDER?", answer: "You can log on to our website: www.Talaraedit.com to place a direct order. In case of any assistance required, please contact us on +91 8851800094." },
+      { question: "HOW DO I PLACE AN ORDER?", answer: "You can log on to our website: www.nooreadah.com to place a direct order. In case of any assistance required, please contact us on +91 8851800094." },
       { question: "DO I NEED TO SET UP AN ACCOUNT TO PLACE AN ORDER?", answer: "No, you can guest checkout, but an account helps track orders." },
       { question: "HOW DO I MAKE THE PAYMENT?", answer: "We accept all major credit/debit cards, UPI, and net banking." },
       { question: "HOW DO I TRACK MY ORDER?", answer: "You will receive a tracking link via SMS/Email once it ships." },
@@ -370,7 +370,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
         <input
           type="text" id="name" name="name"
           value={formData.name} onChange={handleChange}
-          placeholder="e.g., Talara Royal Blue Velvet Embroidered Kurta Set"
+          placeholder="e.g., Noor E Adah Royal Blue Velvet Embroidered Kurta Set"
           className={inputCls('name')}
         />
         {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
@@ -525,7 +525,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
           <ImageUpload
             images={formData.images}
             onChange={(images) => setFormData(prev => ({ ...prev, images }))}
-            maxImages={10}
+            maxImages={20}
             disabled={loading}
           />
 

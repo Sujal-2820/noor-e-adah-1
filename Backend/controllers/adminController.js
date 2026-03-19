@@ -838,10 +838,10 @@ exports.createProduct = async (req, res, next) => {
     finalPublicPrice = Math.max(0, finalPublicPrice || 0);
 
     // Handle enhanced details - Provide professional defaults for Noor E Adah
-    const defaultShippingPolicy = `<h2>DOMESTIC SHIPPING POLICY</h2><p>Thankyou for visiting and shopping at Talara Edit. Following are the terms and condition that constitute our shipping policy.</p><h3>Shipment processing time</h3><p>All orders are processed within 1-2 business Days.orders not shipping or delivered on weekends or holidays.</p><h3>Shipping rates & delivery estimates</h3><table><thead><tr><th>Shipment method</th><th>Estimated delivery time</th><th>Shipment cost</th></tr></thead><tbody><tr><td>Standard Shipping</td><td>5-12 business days</td><td>300/-</td></tr><tr><td>Express Shipping</td><td>2-6 business days</td><td>800/-</td></tr></tbody></table>`;
+    const defaultShippingPolicy = `<h2>DOMESTIC SHIPPING POLICY</h2><p>Thankyou for visiting and shopping at Noor E Adah. Following are the terms and condition that constitute our shipping policy.</p><h3>Shipment processing time</h3><p>All orders are processed within 1-2 business Days.orders not shipping or delivered on weekends or holidays.</p><h3>Shipping rates & delivery estimates</h3><table><thead><tr><th>Shipment method</th><th>Estimated delivery time</th><th>Shipment cost</th></tr></thead><tbody><tr><td>Standard Shipping</td><td>5-12 business days</td><td>300/-</td></tr><tr><td>Express Shipping</td><td>2-6 business days</td><td>800/-</td></tr></tbody></table>`;
 
     const defaultFaqs = [
-      { question: "HOW DO I PLACE AN ORDER?", answer: "You can log on to our website: www.Talaraedit.com to place a direct order. In case of any assistance required, please contact us on +91 8851800094." },
+      { question: "HOW DO I PLACE AN ORDER?", answer: "You can log on to our website: www.nooreadah.com to place a direct order. In case of any assistance required, please contact us on +91 8851800094." },
       { question: "DO I NEED TO SET UP AN ACCOUNT TO PLACE AN ORDER?", answer: "No, you can guest checkout, but an account helps track orders." },
       { question: "HOW DO I MAKE THE PAYMENT?", answer: "We accept all major credit/debit cards, UPI, and net banking." },
       { question: "HOW DO I TRACK MY ORDER?", answer: "You will receive a tracking link via SMS/Email once it ships." },
@@ -885,7 +885,7 @@ exports.createProduct = async (req, res, next) => {
           isPrimary: index === 0, // First image is primary
           order: index,
         }))
-        .slice(0, 4); // Max 4 images
+        .slice(0, 20); // Increased limit to 20 to support multi-page PDF extraction and richer product galleries
 
       if (validImages.length > 0) {
         productData.images = validImages;
@@ -1175,7 +1175,7 @@ exports.updateProduct = async (req, res, next) => {
             isPrimary: index === 0,
             order: index,
           }))
-          .slice(0, 10); // increased limit
+          .slice(0, 20); // increased limit to 20 for consistency with createProduct
 
         product.images = validImages;
       } else {

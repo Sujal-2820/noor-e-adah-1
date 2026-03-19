@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import logo from '../../../assets/NoorEAdahLogo.png'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import { Container } from './Layout'
@@ -281,7 +282,7 @@ export function WebsiteHeader() {
           <div className="relative order-first mr-8 lg:mr-16">
             <Link to="/" className="block group/logo">
               <img 
-                src="/assets/NoorEAdahLogo.png" 
+                src={logo} 
                 alt="Noor E Adah" 
                 className={cn(
                   "h-24 lg:h-36 w-auto object-contain transition-all duration-300 group-hover:scale-105",

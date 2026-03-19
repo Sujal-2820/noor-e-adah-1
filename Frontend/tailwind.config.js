@@ -22,7 +22,7 @@ export default {
           foreground: '#737373',
         },
         accent: {
-          DEFAULT: '#CFAE5C', // Gold/Tan accent from Talara Edit
+          DEFAULT: '#CFAE5C', // Gold/Tan accent from Noor E Adah
           foreground: '#FFFFFF',
           soft: '#B0954F',
         },
