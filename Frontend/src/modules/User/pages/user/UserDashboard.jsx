@@ -72,7 +72,7 @@ const NAV_ITEMS = [
 ]
 
 export function UserDashboard({ onLogout }) {
-  const { profile, dashboard, notifications, cart, favourites } = useUserState()
+  const { profile, dashboard, notifications, cart, favourites, authLoading } = useUserState()
   const dispatch = useUserDispatch()
   const navigate = useNavigate()
   const location = useLocation()
@@ -263,7 +263,7 @@ export function UserDashboard({ onLogout }) {
   // Fetch user profile and dashboard data on mount (only if authenticated or has token)
   useEffect(() => {
     const token = localStorage.getItem('user_token')
-    if (!token) {
+    if (!authLoading && !token) {
       // No token, redirect to login only if not already on login page
       dispatch({ type: 'AUTH_LOGOUT' })
       if (location.pathname !== '/user/login') {
@@ -273,6 +273,7 @@ export function UserDashboard({ onLogout }) {
     }
 
     const loadUserData = async () => {
+      if (authLoading) return;
       try {
         setLoadingProgress(10)
         setLoadingMessage("Connecting to server")
@@ -392,7 +393,7 @@ export function UserDashboard({ onLogout }) {
     }
 
     loadUserData()
-  }, []) // Only run once on mount
+  }, [authLoading, profile?.id]) // Run when context loading state or profile changes
   const tabLabels = useMemo(() => {
     return NAV_ITEMS.reduce((acc, item) => {
       acc[item.id] = item.label

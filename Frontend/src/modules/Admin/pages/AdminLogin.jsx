@@ -58,6 +58,8 @@ export function AdminLogin({ onSubmit }) {
         // Store token
         if (result.data?.token) {
           localStorage.setItem('admin_token', result.data.token)
+          // Store 30-day expiry timestamp
+          localStorage.setItem('admin_token_expiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString())
           // Register FCM token
           registerFCMTokenWithBackend(true)
         }

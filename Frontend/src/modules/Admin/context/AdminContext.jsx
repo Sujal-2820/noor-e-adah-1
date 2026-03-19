@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useReducer, useEffect } from 'react'
-import { initializeRealtimeConnection, handleRealtimeNotification } from '../services/adminApi'
+import { initializeRealtimeConnection, handleRealtimeNotification, getAdminProfile } from '../services/adminApi'
 
 const AdminStateContext = createContext(null)
 const AdminDispatchContext = createContext(() => { })
@@ -211,6 +211,41 @@ function reducer(state, action) {
 
 export function AdminProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
+
+  // Initialize admin profile from token on mount
+  useEffect(() => {
+    const initializeAdmin = async () => {
+      const token = localStorage.getItem('admin_token')
+      const expiry = localStorage.getItem('admin_token_expiry')
+
+      // Clear token if the 30-day client-side expiry has passed (if expiry exists)
+      if (token && expiry && Date.now() > parseInt(expiry, 10)) {
+        localStorage.removeItem('admin_token')
+        localStorage.removeItem('admin_token_expiry')
+        return
+      }
+
+      if (token && !state.authenticated) {
+        try {
+          const result = await getAdminProfile()
+          if (result.success && result.data?.admin) {
+            dispatch({
+              type: 'AUTH_LOGIN',
+              payload: result.data.admin,
+            })
+          } else {
+            // Token might be invalid or expired
+            localStorage.removeItem('admin_token')
+            localStorage.removeItem('admin_token_expiry')
+          }
+        } catch (error) {
+          console.error('Failed to initialize admin:', error)
+        }
+      }
+    }
+
+    initializeAdmin()
+  }, [state.authenticated])
 
   // Get toast functions from context (if available)
   let showToast = (message, type) => {

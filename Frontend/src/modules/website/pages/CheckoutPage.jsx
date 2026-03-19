@@ -16,15 +16,56 @@ const STEPS = [
   { id: 3, label: 'Payment' },
 ]
 
+const MAJOR_COUNTRIES = [
+  'India',
+  'United Arab Emirates',
+  'Saudi Arabia',
+  'Kuwait',
+  'Qatar',
+  'Oman',
+  'Bahrain',
+  'United Kingdom',
+  'United States',
+  'Canada',
+  'Australia',
+  'Singapore',
+  'Germany',
+  'France',
+  'Italy',
+  'Japan',
+  'Netherlands',
+  'Spain',
+  'Switzerland',
+  'Sweden',
+  'Norway',
+  'Denmark',
+  'Hong Kong',
+  'Malaysia',
+  'New Zealand',
+  'South Africa'
+]
+
+const INDIA_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+]
+
 export function CheckoutPage() {
   const navigate = useNavigate()
   const dispatch = useWebsiteDispatch()
-  const { cart, profile } = useWebsiteState()
-  const { createOrder, createPaymentIntent, confirmPayment } = useWebsiteApi()
+   const { cart, profile, checkoutAddress, addresses, authenticated } = useWebsiteState()
+   const { createOrder, createPaymentIntent, confirmPayment, addAddress, updateAddress, setDefaultAddress } = useWebsiteApi()
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [couponOpen, setCouponOpen] = useState(false)
+  const [deliveryConfig, setDeliveryConfig] = useState(null)
   const [shippingMethod, setShippingMethod] = useState('standard')
   const [paymentMethod, setPaymentMethod] = useState('razorpay')
 
@@ -44,6 +85,19 @@ export function CheckoutPage() {
     note: ''
   })
 
+  // Sync with checkoutAddress from context (Cart-to-Checkout transfer)
+  useEffect(() => {
+    if (checkoutAddress) {
+      setFormData(prev => ({
+        ...prev,
+        ...checkoutAddress,
+        // Ensure email and phone from profile are used if not provided in cart
+        email: prev.email || checkoutAddress.email || profile?.email || '',
+        phone: prev.phone || checkoutAddress.phone || profile?.phone || '',
+      }))
+    }
+  }, [checkoutAddress, profile])
+
   // Redirect if cart is empty
   useEffect(() => {
     if (cart.length === 0) {
@@ -51,20 +105,99 @@ export function CheckoutPage() {
     }
   }, [cart, navigate])
 
+  // Fetch delivery config
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const result = await websiteApi.getDeliveryConfig()
+        if (result?.success) {
+          const config = result.data
+          setDeliveryConfig(config)
+          
+          // Ensure shipping method is valid based on new config
+          const zone = formData.country.toLowerCase() === 'india' ? 'domestic' : 'international'
+          if (shippingMethod === 'express' && config[zone]?.isExpressEnabled === false) {
+            setShippingMethod('standard')
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch delivery config:', err)
+      }
+    }
+    fetchConfig()
+  }, [formData.country])
+
   const totals = useMemo(() => {
     const subtotal = cart.reduce((sum, item) => sum + (item.unitPrice || item.price || 0) * item.quantity, 0)
     const discount = subtotal > 10000 ? subtotal * 0.1 : 0
-    const delivery = shippingMethod === 'express' ? 500 : 300
+    
+    // Calculate delivery dynamically
+    let delivery = 0
+    if (deliveryConfig) {
+      const zone = formData.country.toLowerCase() === 'india' ? 'domestic' : 'international'
+      const zoneConfig = deliveryConfig[zone] || {}
+      
+      // Handle free delivery threshold
+      if (deliveryConfig.mode === 'free' || (zoneConfig.minFreeDelivery && subtotal >= zoneConfig.minFreeDelivery)) {
+        delivery = 0
+      } else {
+        if (shippingMethod === 'express') {
+          delivery = zoneConfig.expressCharge || (zoneConfig.charge * 2) || 800
+        } else {
+          delivery = zoneConfig.charge || 300
+        }
+      }
+    } else {
+      // Fallback
+      delivery = shippingMethod === 'express' ? 800 : 300
+    }
+    
     const total = subtotal - discount + delivery
     return { subtotal, discount, delivery, total }
-  }, [cart, shippingMethod])
+  }, [cart, shippingMethod, deliveryConfig, formData.country])
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }
+      
+      // Update global context for cross-page persistence
+      dispatch({ 
+        type: 'UPDATE_CHECKOUT_ADDRESS', 
+        payload: { [name]: type === 'checkbox' ? checked : value } 
+      })
+
+      if (name === 'country' && value === 'India') {
+        newData.state = 'Haryana'
+        dispatch({ type: 'UPDATE_CHECKOUT_ADDRESS', payload: { state: 'Haryana' } })
+      }
+      return newData
+    })
+  }
+
+  const handleSelectSavedAddress = (addr) => {
+    const [firstName, ...lastNameParts] = (addr.name || '').split(' ')
+    const lastName = lastNameParts.join(' ')
+    
+    const addressData = {
+      firstName,
+      lastName,
+      address: addr.address,
+      city: addr.city,
+      state: addr.state,
+      pincode: addr.pincode,
+      phone: addr.phone,
+      country: addr.country || 'India',
+    }
+    
+    setFormData(prev => ({ ...prev, ...addressData }))
+    dispatch({
+      type: 'UPDATE_CHECKOUT_ADDRESS',
+      payload: addressData
+    })
   }
 
   const handlePlaceOrder = async () => {
@@ -78,6 +211,11 @@ export function CheckoutPage() {
 
     try {
       const orderData = {
+        items: cart.map(item => ({
+          productId: item.productId || item.id,
+          quantity: item.quantity,
+          variantAttributes: item.variantAttributes || {}
+        })),
         email: formData.email,
         shippingAddress: {
           firstName: formData.firstName,
@@ -93,7 +231,8 @@ export function CheckoutPage() {
         shippingMethod,
         paymentMethod,
         orderNote: formData.note,
-        paymentPreference: 'full'
+        paymentPreference: 'full',
+        orderSource: 'cart'
       }
 
       const orderResult = await createOrder(orderData)
@@ -103,8 +242,33 @@ export function CheckoutPage() {
 
       const order = orderResult.data.order
 
+      // Save address to profile if it's new and user is authenticated
+      if (authenticated) {
+        const isExisting = addresses.some(a => 
+          a.address === formData.address && 
+          a.pincode === formData.pincode &&
+          a.city === formData.city
+        )
+        if (!isExisting) {
+          try {
+            await addAddress({
+              name: `${formData.firstName} ${formData.lastName}`.trim(),
+              address: formData.address,
+              city: formData.city,
+              state: formData.state,
+              pincode: formData.pincode,
+              phone: formData.phone,
+              country: formData.country,
+              isDefault: addresses.length === 0
+            })
+          } catch (addrErr) {
+            console.error('Failed to save address to profile after order creation:', addrErr)
+          }
+        }
+      }
+
       const paymentIntentResult = await createPaymentIntent({
-        orderId: order.id,
+        orderId: order._id || order.id,
         paymentMethod: 'razorpay'
       })
 
@@ -129,7 +293,7 @@ export function CheckoutPage() {
       })
 
       const confirmResult = await confirmPayment({
-        orderId: order.id,
+        orderId: order._id || order.id,
         paymentIntentId: paymentIntentResult.data.paymentIntent.id,
         gatewayPaymentId: razorpayResponse.paymentId,
         gatewayOrderId: razorpayResponse.orderId,
@@ -141,9 +305,18 @@ export function CheckoutPage() {
         throw new Error(confirmResult.error.message || 'Payment confirmation failed')
       }
 
+      const completedOrder = {
+        ...order,
+        id: order._id || order.id,
+        total: order.totalAmount,
+        date: order.createdAt || new Date().toISOString()
+      }
+
+      dispatch({ type: 'ADD_ORDER', payload: completedOrder })
       dispatch({ type: 'CLEAR_CART' })
+
       navigate('/order-confirmation', {
-        state: { orderId: order.id, orderNumber: order.orderNumber }
+        state: { order: completedOrder }
       })
     } catch (err) {
       console.error('Order placement error:', err)
@@ -197,12 +370,42 @@ export function CheckoutPage() {
             <div className="checkout-section">
               <h2 className="checkout-section-title">Shipping address</h2>
               <p className="checkout-section-subtitle">Enter the address where you want your order delivered.</p>
+              
+              {/* Saved Addresses Selector */}
+              {authenticated && addresses.length > 0 && (
+                <div className="mb-12">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-brand/60 mb-4">Select from saved addresses</p>
+                  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                    {addresses.map((addr) => (
+                      <div 
+                        key={addr.id || addr._id}
+                        onClick={() => handleSelectSavedAddress(addr)}
+                        className={`min-w-[220px] p-4 border transition-all cursor-pointer ${
+                          formData.address === addr.address ? 'border-brand bg-brand/5' : 'border-black/5 hover:border-brand/30'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest">{addr.name}</p>
+                          {addr.isDefault && (
+                            <span className="text-[8px] font-bold text-accent uppercase tracking-tighter bg-accent/10 px-1.5 py-0.5 rounded">Default</span>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-brand/60 leading-relaxed line-clamp-2">{addr.address}, {addr.city}, {addr.state} - {addr.pincode}</p>
+                        <p className="text-[9px] text-brand/40 mt-1">{addr.phone}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="checkout-form-group">
                 <div className="space-y-4">
                   <div className="checkout-field">
                     <label className="checkout-label">Country/Region</label>
                     <select name="country" value={formData.country} onChange={handleInputChange} className="checkout-select">
-                      <option>India</option>
+                      {MAJOR_COUNTRIES.map(country => (
+                        <option key={country} value={country}>{country}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -213,17 +416,36 @@ export function CheckoutPage() {
 
                   <input type="text" name="address" value={formData.address} onChange={handleInputChange} placeholder="Address" className="checkout-input" />
 
-                  <button className="text-[11px] font-bold text-brand/60 uppercase tracking-widest flex items-center gap-2">
-                    <span className="text-lg">+</span> Add apartment, suite, etc.
+                  <button className="text-[11px] font-bold text-brand/60 tracking-widest flex items-center gap-2 text-left">
+                    <span className="text-lg">+</span> Add base country, state, city etc.
                   </button>
 
                   <div className="checkout-input-row">
                     <input type="text" name="city" value={formData.city} onChange={handleInputChange} placeholder="City" className="checkout-input" />
-                    <select name="state" value={formData.state} onChange={handleInputChange} className="checkout-select">
-                      <option>Haryana</option>
-                      <option>Delhi</option>
-                      <option>Punjab</option>
-                    </select>
+                    <div className="flex-1">
+                      {formData.country === 'India' ? (
+                        <select 
+                          name="state" 
+                          value={formData.state} 
+                          onChange={handleInputChange} 
+                          className="checkout-select"
+                        >
+                          <option value="">Select State</option>
+                          {INDIA_STATES.map(state => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input 
+                          type="text" 
+                          name="state" 
+                          value={formData.state} 
+                          onChange={handleInputChange} 
+                          placeholder="State / Region" 
+                          className="checkout-input" 
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <div className="checkout-input-row">
@@ -243,6 +465,7 @@ export function CheckoutPage() {
             <div className="checkout-section">
               <h2 className="checkout-section-title">Shipping options</h2>
               <div className="space-y-4">
+                {/* Standard Shipping */}
                 <div
                   className={`checkout-option-box ${shippingMethod === 'standard' ? 'active' : ''}`}
                   onClick={() => setShippingMethod('standard')}
@@ -251,23 +474,44 @@ export function CheckoutPage() {
                     <div className="checkout-option-radio">
                       <div className="checkout-option-radio-inner" />
                     </div>
-                    <span className="checkout-option-name">Standard Shipping</span>
+                    <div className="flex flex-col">
+                      <span className="checkout-option-name uppercase tracking-widest text-[11px] font-black">Standard Shipping</span>
+                      <span className="text-[9px] text-brand/40 italic font-bold tracking-tighter">
+                        ({deliveryConfig?.[formData.country.toLowerCase() === 'india' ? 'domestic' : 'international']?.timeLabel || '7-8 days'})
+                      </span>
+                    </div>
                   </div>
-                  <span className="checkout-option-price">₹300.00</span>
+                  <span className="checkout-option-price text-[13px] font-black">
+                    {deliveryConfig ? (
+                      (deliveryConfig.mode === 'free' || (deliveryConfig[formData.country.toLowerCase() === 'india' ? 'domestic' : 'international']?.minFreeDelivery && totals.subtotal >= deliveryConfig[formData.country.toLowerCase() === 'india' ? 'domestic' : 'international'].minFreeDelivery)) ? 'Free' : `₹${(deliveryConfig[formData.country.toLowerCase() === 'india' ? 'domestic' : 'international']?.charge || 300).toLocaleString('en-IN')}`
+                    ) : '₹300.00'}
+                  </span>
                 </div>
 
-                <div
-                  className={`checkout-option-box ${shippingMethod === 'express' ? 'active' : ''}`}
-                  onClick={() => setShippingMethod('express')}
-                >
-                  <div className="checkout-option-main">
-                    <div className="checkout-option-radio">
-                      <div className="checkout-option-radio-inner" />
+                {/* Express Shipping - Only show if enabled in admin */}
+                {(!deliveryConfig || (deliveryConfig[formData.country.toLowerCase() === 'india' ? 'domestic' : 'international']?.isExpressEnabled !== false)) && (
+                  <div
+                    className={`checkout-option-box ${shippingMethod === 'express' ? 'active' : ''}`}
+                    onClick={() => setShippingMethod('express')}
+                  >
+                    <div className="checkout-option-main">
+                      <div className="checkout-option-radio">
+                        <div className="checkout-option-radio-inner" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="checkout-option-name uppercase tracking-widest text-[11px] font-black">Express Shipping</span>
+                        <span className="text-[9px] text-brand/40 italic font-bold tracking-tighter">
+                          ({deliveryConfig?.[formData.country.toLowerCase() === 'india' ? 'domestic' : 'international']?.expressTimeLabel || '1-2 days'})
+                        </span>
+                      </div>
                     </div>
-                    <span className="checkout-option-name">Express Shipping</span>
+                    <span className="checkout-option-price text-[13px] font-black">
+                      {deliveryConfig ? (
+                        `₹${(deliveryConfig[formData.country.toLowerCase() === 'india' ? 'domestic' : 'international']?.expressCharge || (deliveryConfig[formData.country.toLowerCase() === 'india' ? 'domestic' : 'international']?.charge * 2) || 800).toLocaleString('en-IN')}`
+                      ) : '₹800.00'}
+                    </span>
                   </div>
-                  <span className="checkout-option-price">₹800.00</span>
-                </div>
+                )}
               </div>
             </div>
 

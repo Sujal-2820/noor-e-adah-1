@@ -38,6 +38,7 @@ const initialState = {
     domestic: { charge: 150, minFreeDelivery: null, timeLabel: '7-8 days', isEnabled: true },
     international: { charge: null, timeLabel: 'Coming Soon', isEnabled: false },
   },
+  authLoading: true,
 }
 
 // Use a symbol to detect if context is actually provided
@@ -74,6 +75,12 @@ function reducer(state, action) {
           ...state.profile,
           ...action.payload,
         },
+        authLoading: false,
+      }
+    case 'SET_AUTH_LOADING':
+      return {
+        ...state,
+        authLoading: action.payload,
       }
     case 'AUTH_LOGOUT':
       return {
@@ -84,6 +91,7 @@ function reducer(state, action) {
         dashboard: initialState.dashboard,
         ordersUpdated: false,
         inventoryUpdated: false,
+        authLoading: false,
       }
     case 'UPDATE_PROFILE':
       return {
@@ -353,15 +361,23 @@ export function UserProvider({ children }) {
       const token = localStorage.getItem('user_token')
       const expiry = localStorage.getItem('user_token_expiry')
 
-      // Clear token if the 7-day client-side expiry has passed
+      // Clear token if the 30-day client-side expiry has passed
       if (token && expiry && Date.now() > parseInt(expiry, 10)) {
         localStorage.removeItem('user_token')
         localStorage.removeItem('user_token_expiry')
+        dispatch({ type: 'SET_AUTH_LOADING', payload: false })
         setIsInitialized(true)
         return
       } else if (token && !expiry) {
-        // Migration: If token exists but no expiry, set a 7-day default
-        localStorage.setItem('user_token_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString())
+        // Migration: If token exists but no expiry, set a 30-day default
+        localStorage.setItem('user_token_expiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString())
+      }
+
+      if (!token) {
+        console.log('[DEBUG] UserContext: No token found. Stopping init.')
+        dispatch({ type: 'SET_AUTH_LOADING', payload: false })
+        setIsInitialized(true)
+        return
       }
 
       if (token && !state.authenticated) {
@@ -381,12 +397,13 @@ export function UserProvider({ children }) {
             // Token is invalid, remove it
             localStorage.removeItem('user_token')
             localStorage.removeItem('user_token_expiry')
+            dispatch({ type: 'SET_AUTH_LOADING', payload: false })
           }
         } catch (error) {
-          console.error('Failed to initialize user:', error)
           // Token might be invalid, remove it
           localStorage.removeItem('user_token')
           localStorage.removeItem('user_token_expiry')
+          dispatch({ type: 'SET_AUTH_LOADING', payload: false })
         }
       }
       setIsInitialized(true)

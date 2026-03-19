@@ -26,6 +26,16 @@ const initialState = {
   favourites: [],
   notifications: [],
   assignedUser: null, // User assigned to this user
+  checkoutAddress: {
+    firstName: '',
+    lastName: '',
+    country: 'India',
+    state: 'Haryana',
+    city: '',
+    pincode: '',
+    address: '',
+    phone: '',
+  },
   userAvailability: {
     userAvailable: true, // Rule removed
     canPlaceOrder: true,
@@ -33,6 +43,7 @@ const initialState = {
   },
   realtimeConnected: false,
   cartOpen: false,
+  authLoading: true, // Initial state is loading until token check completes
 }
 
 function reducer(state, action) {
@@ -51,6 +62,7 @@ function reducer(state, action) {
           ...action.payload,
           adminId: action.payload.adminId || state.profile.adminId, // Preserve adminId if not provided
         },
+        authLoading: false,
       }
     case 'UPDATE_SELLER_ID':
       return {
@@ -83,6 +95,12 @@ function reducer(state, action) {
         cart: [],
         userAvailability: initialState.userAvailability,
         assignedUser: null,
+        authLoading: false,
+      }
+    case 'SET_AUTH_LOADING':
+      return {
+        ...state,
+        authLoading: action.payload,
       }
     case 'ADD_TO_CART': {
       const existingItem = state.cart.find((item) => item.productId === action.payload.productId)
@@ -133,13 +151,15 @@ function reducer(state, action) {
         orders: [...state.orders, action.payload],
         // cart: [] - Removed: Cart should only be cleared after payment is confirmed
       }
-    case 'UPDATE_ORDER':
+    case 'UPDATE_CHECKOUT_ADDRESS':
       return {
         ...state,
-        orders: state.orders.map((order) =>
-          order.id === action.payload.id ? { ...order, ...action.payload } : order,
-        ),
+        checkoutAddress: {
+          ...state.checkoutAddress,
+          ...action.payload,
+        },
       }
+    case 'UPDATE_ORDER':
     case 'ADD_ADDRESS':
       return {
         ...state,
@@ -291,14 +311,21 @@ export function WebsiteProvider({ children }) {
     const token = localStorage.getItem('user_token')
     const expiry = localStorage.getItem('user_token_expiry')
 
-    // Clear token if the 7-day client-side expiry has passed
+    // Clear token if the 30-day client-side expiry has passed
     if (token && expiry && Date.now() > parseInt(expiry, 10)) {
       localStorage.removeItem('user_token')
       localStorage.removeItem('user_token_expiry')
+      dispatch({ type: 'SET_AUTH_LOADING', payload: false })
       return // session expired, don't fetch profile
+    } else if (token && !expiry) {
+      // Migration: If token exists but no expiry, set a 30-day default
+      localStorage.setItem('user_token_expiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString())
     }
 
-    if (token) {
+    if (!token) {
+      dispatch({ type: 'SET_AUTH_LOADING', payload: false })
+      return
+    }
       const fetchProfile = async () => {
         try {
           const result = await getUserProfile()
@@ -338,10 +365,10 @@ export function WebsiteProvider({ children }) {
             localStorage.removeItem('user_token')
             localStorage.removeItem('user_token_expiry')
           }
+          dispatch({ type: 'SET_AUTH_LOADING', payload: false })
         }
       }
       fetchProfile()
-    }
   }, [dispatch])
 
   // Fetch orders, cart, and addresses from API on mount (when authenticated)
@@ -389,24 +416,45 @@ export function WebsiteProvider({ children }) {
         if (addressesResult.success && addressesResult.data?.addresses) {
           // Clear existing addresses first
           dispatch({ type: 'CLEAR_ADDRESSES' })
+          
+          let defaultAddr = null
           // Add addresses from API
           addressesResult.data.addresses.forEach((address) => {
-            dispatch({
-              type: 'ADD_ADDRESS',
-              payload: {
-                id: address.id || address._id,
-                name: address.name || address.label,
-                label: address.label || address.name,
-                address: address.address || address.street,
-                street: address.street || address.address,
-                city: address.city,
-                state: address.state,
-                pincode: address.pincode,
-                phone: address.phone,
-                isDefault: address.isDefault || false,
-              },
-            })
+            const addrObj = {
+              id: address.id || address._id,
+              name: address.name || address.label,
+              label: address.label || address.name,
+              address: address.address || address.street,
+              street: address.street || address.address,
+              city: address.city,
+              state: address.state,
+              pincode: address.pincode,
+              phone: address.phone,
+              country: address.country || 'India',
+              isDefault: address.isDefault || false,
+            }
+            dispatch({ type: 'ADD_ADDRESS', payload: addrObj })
+            if (addrObj.isDefault) defaultAddr = addrObj
           })
+
+          // Pre-fill checkoutAddress if default exists
+          const chosen = defaultAddr || addressesResult.data.addresses[0]
+          if (chosen) {
+            const [firstName, ...lastNameParts] = (chosen.name || '').split(' ')
+            dispatch({
+              type: 'UPDATE_CHECKOUT_ADDRESS',
+              payload: {
+                firstName: firstName || '',
+                lastName: lastNameParts.join(' ') || '',
+                address: chosen.address,
+                city: chosen.city,
+                state: chosen.state,
+                pincode: chosen.pincode,
+                phone: chosen.phone,
+                country: chosen.country || 'India',
+              }
+            })
+          }
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -424,7 +472,7 @@ export function WebsiteProvider({ children }) {
       dispatch({
         type: 'ADD_NOTIFICATION',
         payload: {
-          title: 'Welcome to Satpura Bio!',
+          title: 'Welcome to Noor E Adah!',
           message: 'Start shopping for your farming needs',
           type: 'welcome',
         },

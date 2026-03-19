@@ -25,14 +25,18 @@
 const DEFAULT_DELIVERY_CONFIG = {
   mode: 'flat_rate',
   domestic: {
-    charge: 150,
+    charge: 300, // Standard
+    expressCharge: 800, // Express
     minFreeDelivery: null,
     timeLabel: '7-8 days',
+    expressTimeLabel: '1-2 days',
     isEnabled: true,
   },
   international: {
-    charge: null,
+    charge: 1500,
+    expressCharge: 3000,
     timeLabel: 'Coming Soon',
+    expressTimeLabel: '5-7 days',
     isEnabled: false,
   },
 };
@@ -45,19 +49,19 @@ const DEFAULT_DELIVERY_CONFIG = {
  * @param {string} zone         - 'domestic' | 'international'
  * @returns {{ charge: number, timeLabel: string, isFree: boolean, isAvailable: boolean }}
  */
-function computeDelivery(config = DEFAULT_DELIVERY_CONFIG, subtotal = 0, zone = 'domestic') {
-  const safeConfig = { ...DEFAULT_DELIVERY_CONFIG, ...config };
-  const safeMode = safeConfig.mode || 'flat_rate';
+function computeDelivery(configSubtotal = DEFAULT_DELIVERY_CONFIG, subtotal = 0, zone = 'domestic', shippingMethod = 'standard') {
+  const config = { ...DEFAULT_DELIVERY_CONFIG, ...configSubtotal };
+  const safeMode = config.mode || 'flat_rate';
 
   // Mode: free — no charge ever
   if (safeMode === 'free') {
-    const zoneLabel = safeConfig[zone]?.timeLabel || '7-8 days';
+    const zoneLabel = config[zone]?.timeLabel || '7-8 days';
     return { charge: 0, timeLabel: zoneLabel, isFree: true, isAvailable: true };
   }
 
-  const zoneConfig = safeConfig[zone] || {};
+  const zoneConfig = config[zone] || {};
 
-  // Zone not enabled yet (e.g., international not set up)
+  // Zone not enabled yet
   if (!zoneConfig.isEnabled) {
     return {
       charge: 0,
@@ -78,9 +82,18 @@ function computeDelivery(config = DEFAULT_DELIVERY_CONFIG, subtotal = 0, zone = 
     };
   }
 
+  // Determine which charge to use based on shippingMethod
+  let charge = Number(zoneConfig.charge) || 0;
+  let timeLabel = zoneConfig.timeLabel || '7-8 days';
+
+  if (shippingMethod === 'express') {
+    charge = Number(zoneConfig.expressCharge) || Number(zoneConfig.charge) * 2 || 800;
+    timeLabel = zoneConfig.expressTimeLabel || '1-2 days';
+  }
+
   return {
-    charge: Number(zoneConfig.charge) || 0,
-    timeLabel: zoneConfig.timeLabel || '7-8 days',
+    charge,
+    timeLabel,
     isFree: false,
     isAvailable: true,
   };
@@ -96,21 +109,42 @@ async function loadDeliveryConfig() {
   try {
     const Settings = require('../models/Settings');
     const config = await Settings.getSetting('DELIVERY_CONFIG', null);
+    
     if (!config) {
       // First run: seed the default into DB
       await Settings.setSetting(
         'DELIVERY_CONFIG',
-        DEFAULT_DELIVERY_CONFIG,
+        {
+          ...DEFAULT_DELIVERY_CONFIG,
+          domestic: { ...DEFAULT_DELIVERY_CONFIG.domestic, isExpressEnabled: true },
+          international: { ...DEFAULT_DELIVERY_CONFIG.international, isExpressEnabled: false }
+        },
         'Delivery charge and time configuration for Domestic and International zones',
       );
-      return DEFAULT_DELIVERY_CONFIG;
+      return {
+        ...DEFAULT_DELIVERY_CONFIG,
+        domestic: { ...DEFAULT_DELIVERY_CONFIG.domestic, isExpressEnabled: true },
+        international: { ...DEFAULT_DELIVERY_CONFIG.international, isExpressEnabled: false }
+      };
     }
-    // Deep merge with defaults so new fields are always present
+
+    // Determine availability of express shipping
+    const domesticExpressEnabled = config.domestic && (config.domestic.isExpressEnabled !== undefined ? config.domestic.isExpressEnabled : !!config.domestic.expressCharge);
+    const internationalExpressEnabled = config.international && (config.international.isExpressEnabled !== undefined ? config.international.isExpressEnabled : !!config.international.expressCharge);
+
     return {
       ...DEFAULT_DELIVERY_CONFIG,
       ...config,
-      domestic: { ...DEFAULT_DELIVERY_CONFIG.domestic, ...(config.domestic || {}) },
-      international: { ...DEFAULT_DELIVERY_CONFIG.international, ...(config.international || {}) },
+      domestic: { 
+        ...DEFAULT_DELIVERY_CONFIG.domestic, 
+        ...(config.domestic || {}),
+        isExpressEnabled: domesticExpressEnabled
+      },
+      international: { 
+        ...DEFAULT_DELIVERY_CONFIG.international, 
+        ...(config.international || {}),
+        isExpressEnabled: internationalExpressEnabled
+      },
     };
   } catch (err) {
     console.error('[DeliveryUtils] Failed to load config from DB, using defaults:', err.message);

@@ -173,6 +173,21 @@ router.put('/orders/:orderId/status', authorizeUser, userController.updateOrderS
  * @access  Private (User)
  */
 router.get('/orders', authorizeUser, userController.getOrders);
+router.post('/orders', authorizeUser, userController.createOrder);
+
+/**
+ * @route   POST /api/users/payments/create-intent
+ * @desc    Create payment intent for an order
+ * @access  Private (User)
+ */
+router.post('/payments/create-intent', authorizeUser, userController.createPaymentIntent);
+
+/**
+ * @route   POST /api/users/payments/confirm
+ * @desc    Confirm payment for an order
+ * @access  Private (User)
+ */
+router.post('/payments/confirm', authorizeUser, userController.confirmPayment);
 
 /**
  * @route   GET /api/users/orders/:orderId
@@ -180,6 +195,45 @@ router.get('/orders', authorizeUser, userController.getOrders);
  * @access  Private (User)
  */
 router.get('/orders/:orderId', authorizeUser, userController.getOrderDetails);
+
+// ============================================================================
+// SHOPPING BAG / CART ROUTES
+// ============================================================================
+
+/**
+ * @route   GET /api/users/cart
+ * @desc    Get user's shopping bag
+ * @access  Private (User/Customer)
+ */
+router.get('/cart', authorizeUser, userController.getCart);
+
+/**
+ * @route   POST /api/users/cart
+ * @desc    Add product to shopping bag
+ * @access  Private (User/Customer)
+ */
+router.post('/cart', authorizeUser, userController.addToCart);
+
+/**
+ * @route   PUT /api/users/cart/:itemId
+ * @desc    Update cart item quantity
+ * @access  Private (User/Customer)
+ */
+router.put('/cart/:itemId', authorizeUser, userController.updateCartItem);
+
+/**
+ * @route   DELETE /api/users/cart/:itemId
+ * @desc    Remove item from shopping bag
+ * @access  Private (User/Customer)
+ */
+router.delete('/cart/:itemId', authorizeUser, userController.removeFromCart);
+
+/**
+ * @route   DELETE /api/users/cart
+ * @desc    Clear shopping bag
+ * @access  Private (User/Customer)
+ */
+router.delete('/cart', authorizeUser, userController.clearCart);
 
 // ============================================================================
 // PRODUCT MANAGEMENT ROUTES (For users to view and order products)

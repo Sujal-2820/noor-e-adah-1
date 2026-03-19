@@ -113,7 +113,7 @@ export function RegisterPage() {
         // Store token if provided (same user_token as User module)
         if (result.data?.token) {
           localStorage.setItem('user_token', result.data.token)
-          localStorage.setItem('user_token_expiry', Date.now() + 7 * 24 * 60 * 60 * 1000)
+          localStorage.setItem('user_token_expiry', Date.now() + 30 * 24 * 60 * 60 * 1000)
         }
 
         // Update WebsiteContext with user data
@@ -181,8 +181,8 @@ export function RegisterPage() {
             </svg>
           </div>
           <p className="text-xs uppercase tracking-wide text-blue-600 font-semibold">Create Account</p>
-          <h1 className="text-3xl font-bold text-gray-900">Join Satpura Bio</h1>
-          <p className="text-sm text-gray-600">Start your journey to better farming</p>
+          <h1 className="text-3xl font-bold text-gray-900">Join Noor E Adah</h1>
+          <p className="text-sm text-gray-600">Start your journey with us</p>
         </div>
 
         <div className="rounded-3xl border border-green-200/60 bg-white/90 p-8 shadow-xl backdrop-blur-sm">
@@ -229,7 +229,7 @@ export function RegisterPage() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label htmlFor="register-adminId" className="text-xs font-semibold text-gray-700">
-                  Satpura Partner ID <span className="text-gray-400 text-xs">(Optional)</span>
+                  Noor E Adah Partner ID <span className="text-gray-400 text-xs">(Optional)</span>
                 </label>
                 <button
                   type="button"
@@ -246,13 +246,13 @@ export function RegisterPage() {
                   type="text"
                   value={form.adminId}
                   onChange={handleChange}
-                  placeholder="Enter Satpura Partner ID (e.g., SLR-1001)"
+                  placeholder="Enter Partner ID (e.g., NEA-1001)"
                   className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all"
                 />
               )}
               {showAdminId && (
                 <p className="text-xs text-gray-500">
-                  Link your purchases to a Satpura Partner for cashback benefits
+                  Link your account to a partner for exclusive benefits
                 </p>
               )}
             </div>

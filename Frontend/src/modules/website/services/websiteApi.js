@@ -8,7 +8,7 @@
  * 
  * Base URL should be configured in environment variables:
  * - Development: http://localhost:3000/api
- * - Production: https://api.satpurabio.com/api
+ * - Production: https://api.nooreadah.com/api
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
@@ -133,7 +133,7 @@ export async function getAdminID() {
  * @returns {Promise<Object>} - User profile data
  */
 export async function getUserProfile() {
-  return apiRequest('/users/profile')
+  return apiRequest('/users/auth/profile')
 }
 
 /**
@@ -144,7 +144,7 @@ export async function getUserProfile() {
  * @returns {Promise<Object>} - Updated user profile
  */
 export async function updateUserProfile(profileData) {
-  return apiRequest('/users/profile', {
+  return apiRequest('/users/auth/profile', {
     method: 'PUT',
     body: JSON.stringify(profileData),
   })
@@ -799,6 +799,16 @@ export async function initiateSupportCall(data) {
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
+
+/**
+ * Get Delivery Configuration
+ * GET /catalog/delivery-config
+ * 
+ * @returns {Promise<Object>} - Delivery configuration (charges, thresholds, times)
+ */
+export async function getDeliveryConfig() {
+  return apiRequest('/catalog/delivery-config')
 }
 
 // ============================================================================

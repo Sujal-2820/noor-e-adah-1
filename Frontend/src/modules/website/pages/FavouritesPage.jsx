@@ -11,11 +11,23 @@ import '../styles/website.css'
 export function FavouritesPage() {
   const navigate = useNavigate()
   const dispatch = useWebsiteDispatch()
-  const { favourites, authenticated } = useWebsiteState()
+  const { favourites, authenticated, authLoading } = useWebsiteState()
   const { removeFromFavourites, addToCart } = useWebsiteApi()
 
   const [favouriteProducts, setFavouriteProducts] = useState([])
   const [loading, setLoading] = useState(true)
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <Container>
+          <div className="flex items-center justify-center min-h-[400px]">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
+          </div>
+        </Container>
+      </Layout>
+    )
+  }
 
   // Fetch favourite products from API
   useEffect(() => {

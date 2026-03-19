@@ -83,7 +83,7 @@ export async function openRazorpayCheckout(options) {
         amount: Math.round(options.amount * 100), // Convert to paise (Razorpay expects amount in smallest currency unit)
         currency: options.currency || 'INR',
         order_id: options.order_id,
-        name: options.name || 'Satpura Bio',
+        name: options.name || 'Noor E Adah',
         description: options.description || 'Order Payment',
         prefill: {
           name: options.prefill?.name || '',
@@ -91,7 +91,7 @@ export async function openRazorpayCheckout(options) {
           contact: options.prefill?.contact || '',
         },
         theme: {
-          color: '#1b8f5b', // Match app theme
+          color: '#CFAE5C', // Gold accent from Noor E Adah theme
         },
         handler: function (response) {
           // Payment successful

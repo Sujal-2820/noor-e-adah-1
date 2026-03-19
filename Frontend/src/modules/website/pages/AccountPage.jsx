@@ -60,7 +60,7 @@ const formatTimelineTimestamp = (timestamp) => {
 }
 
 export function AccountPage() {
-  const { profile, authenticated } = useWebsiteState()
+  const { profile, authenticated, authLoading } = useWebsiteState()
   const location = useLocation()
   const [activeSection, setActiveSection] = useState(() => {
     if (location.pathname.includes('/orders')) return 'orders'
@@ -68,6 +68,18 @@ export function AccountPage() {
     if (location.pathname.includes('/support')) return 'support'
     return 'profile'
   })
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <Container>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
+          </div>
+        </Container>
+      </Layout>
+    )
+  }
 
   if (!authenticated) {
     return (

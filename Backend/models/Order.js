@@ -195,17 +195,33 @@ orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ paymentStatus: 1 });
 orderSchema.index({ assignedTo: 1, status: 1 });
 
-orderSchema.pre('save', async function (next) {
-  if (!this.orderNumber && this.isNew) {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const OrderModel = this.constructor;
-    const todayCount = await OrderModel.countDocuments({
-      createdAt: { $gte: new Date(date.setHours(0, 0, 0, 0)), $lte: new Date(date.setHours(23, 59, 59, 999)) },
-    });
-    const sequence = String(todayCount + 1).padStart(4, '0');
-    this.orderNumber = `ORD-${dateStr}-${sequence}`;
+orderSchema.pre('validate', async function (next) {
+  if (this.isNew && !this.orderNumber) {
+    try {
+      const date = new Date();
+      const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+      const OrderModel = this.constructor;
+      
+      // Get count of orders created today for sequence
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      const todayCount = await OrderModel.countDocuments({
+        createdAt: { $gte: startOfDay, $lte: endOfDay }
+      });
+      
+      const sequence = String(todayCount + 1).padStart(4, '0');
+      this.orderNumber = `ORD-${dateStr}-${sequence}`;
+    } catch (error) {
+      return next(error);
+    }
   }
+  next();
+});
+
+orderSchema.pre('save', async function (next) {
 
   if (!this.expectedDeliveryDate && this.isNew) {
     this.expectedDeliveryDate = new Date(Date.now() + DELIVERY_TIMELINE_HOURS * 60 * 60 * 1000);

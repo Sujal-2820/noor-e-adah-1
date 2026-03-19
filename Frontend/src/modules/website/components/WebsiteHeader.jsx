@@ -104,7 +104,7 @@ function AuthDropdown({ onClose }) {
 }
 
 export function WebsiteHeader() {
-  const { authenticated, profile, cart, favourites } = useWebsiteState()
+  const { authenticated, profile, cart, favourites, authLoading } = useWebsiteState()
   const dispatch = useWebsiteDispatch()
   const navigate = useNavigate()
   const location = useLocation()
@@ -328,7 +328,9 @@ export function WebsiteHeader() {
                 onMouseEnter={handleMouseEnterAuth}
                 onMouseLeave={handleMouseLeaveAuth}
               >
-                {authenticated ? (
+                {authLoading ? (
+                  <div className="flex items-center gap-2 group/auth relative opacity-0">...</div>
+                ) : authenticated ? (
                   <div className="flex items-center gap-2 group/auth relative">
                     <Link to="/account" className="flex items-center gap-2 hover:text-accent transition-colors py-2">
                       <span className={cn(

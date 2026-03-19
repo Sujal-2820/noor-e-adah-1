@@ -16,18 +16,17 @@ const PaymentHistory = require('../models/PaymentHistory');
 const UserNotification = require('../models/UserNotification');
 const Payment = require('../models/Payment');
 const Settings = require('../models/Settings');
+const Cart = require('../models/Cart');
 const Address = require('../models/Address');
 const razorpayService = require('../services/razorpayService');
 const { admin } = require('../services/firebaseAdmin');
-
-const { sendOTP } = require('../utils/otp');
-const { getTestOTPInfo } = require('../services/smsIndiaHubService');
-const { generateToken } = require('../middleware/auth');
 const { OTP_EXPIRY_MINUTES, MIN_USER_PURCHASE, MAX_USER_PURCHASE, USER_COVERAGE_RADIUS_KM, DELIVERY_TIMELINE_HOURS, ORDER_STATUS, PAYMENT_STATUS } = require('../utils/constants');
 const { checkPhoneExists, checkPhoneInRole, isSpecialBypassNumber, SPECIAL_BYPASS_OTP, normalizePhoneNumber } = require('../utils/phoneValidation');
 const { generateUniqueId } = require('../utils/generateUniqueId');
 const { createPaymentHistory, createBankAccount } = require('../utils/createWithId');
 const adminTaskController = require('./adminTaskController');
+const { loadDeliveryConfig, computeDelivery } = require('../utils/deliveryUtils');
+const { generateToken } = require('../middleware/auth');
 
 const DELIVERY_WINDOW_HOURS = DELIVERY_TIMELINE_HOURS || 24;
 const DELIVERY_WINDOW_MS = DELIVERY_WINDOW_HOURS * 60 * 60 * 1000;
@@ -352,7 +351,12 @@ exports.firebaseSync = async (req, res, next) => {
     }
 
     // Generate JWT
-    const token = generateToken({ id: user._id, role: 'user' });
+    const token = generateToken({
+      userId: user._id,
+      phone: user.phone,
+      role: 'user',
+      type: 'user',
+    });
 
     res.status(200).json({
       success: true,
@@ -731,23 +735,23 @@ exports.verifyOTP = async (req, res, next) => {
       data: {
         token,
         status: 'approved',
-        User: {
+        user: {
           id: user._id,
           userId: user.userId,
           name: user.name,
-          firstName: User.firstName,
-          lastName: User.lastName,
+          firstName: user.firstName,
+          lastName: user.lastName,
           phone: user.phone,
           email: user.email,
-          shopName: User.shopName,
-          shopAddress: User.shopAddress,
-          gstNumber: User.gstNumber,
-          panNumber: User.panNumber,
-          aadhaarNumber: User.aadhaarNumber,
-          agentName: User.agentName,
-          status: User.status,
-          isActive: User.isActive,
-          location: User.location,
+          shopName: user.shopName,
+          shopAddress: user.shopAddress,
+          gstNumber: user.gstNumber,
+          panNumber: user.panNumber,
+          aadhaarNumber: user.aadhaarNumber,
+          agentName: user.agentName,
+          status: user.status,
+          isActive: user.isActive,
+          location: user.location,
         },
       },
     });
@@ -786,23 +790,23 @@ exports.getProfile = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
-        User: {
+        user: {
           id: user._id,
           userId: user.userId,
           name: user.name,
-          firstName: User.firstName,
-          lastName: User.lastName,
+          firstName: user.firstName,
+          lastName: user.lastName,
           phone: user.phone,
           email: user.email,
-          shopName: User.shopName,
-          shopAddress: User.shopAddress,
-          gstNumber: User.gstNumber,
-          panNumber: User.panNumber,
-          aadhaarNumber: User.aadhaarNumber,
-          agentName: User.agentName,
-          location: User.location,
-          status: User.status,
-          isActive: User.isActive,
+          shopName: user.shopName,
+          shopAddress: user.shopAddress,
+          gstNumber: user.gstNumber,
+          panNumber: user.panNumber,
+          aadhaarNumber: user.aadhaarNumber,
+          agentName: user.agentName,
+          location: user.location,
+          status: user.status,
+          isActive: user.isActive,
         },
       },
     });
@@ -875,20 +879,27 @@ exports.updateProfile = async (req, res, next) => {
  */
 exports.createOrder = async (req, res, next) => {
   try {
-    const { items, deliveryAddress, notes, orderSource = 'cart' } = req.body;
+    const { items, deliveryAddress, shippingAddress, notes, orderNote, orderSource = 'cart' } = req.body;
+    const finalDeliveryAddress = shippingAddress || deliveryAddress;
+    const finalNotes = orderNote || notes;
     const user = req.user;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Order items are required' });
     }
 
-    if (!deliveryAddress) {
+    if (!finalDeliveryAddress) {
       return res.status(400).json({ success: false, message: 'Delivery address is required' });
     }
 
-    // Process items and calculate subtotal
+    // Prepare items and calculate subtotal
     let subtotal = 0;
     const processedItems = [];
+
+    // Construct customer name for delivery address if missing
+    if (finalDeliveryAddress && !finalDeliveryAddress.name && (finalDeliveryAddress.firstName || finalDeliveryAddress.lastName)) {
+      finalDeliveryAddress.name = `${finalDeliveryAddress.firstName || ''} ${finalDeliveryAddress.lastName || ''}`.trim();
+    }
 
     for (const item of items) {
       const product = await Product.findById(item.productId);
@@ -910,8 +921,16 @@ exports.createOrder = async (req, res, next) => {
       });
     }
 
-    // Use constants for charges
-    const deliveryCharge = subtotal >= 500 ? 0 : 100;
+    // Use dynamic delivery config
+    const { shippingMethod = 'standard' } = req.body;
+    let zone = 'domestic';
+    if (finalDeliveryAddress && finalDeliveryAddress.country && finalDeliveryAddress.country.toLowerCase() !== 'india') {
+      zone = 'international';
+    }
+
+    const deliveryConfig = await loadDeliveryConfig();
+    const deliveryInfo = computeDelivery(deliveryConfig, subtotal, zone, shippingMethod);
+    const deliveryCharge = deliveryInfo.charge;
 
     const order = new Order({
       userId: user._id,
@@ -919,15 +938,17 @@ exports.createOrder = async (req, res, next) => {
       subtotal,
       deliveryCharge,
       totalAmount: subtotal + deliveryCharge,
-      deliveryAddress,
-      notes,
+      deliveryAddress: finalDeliveryAddress,
+      notes: finalNotes,
       orderSource,
       status: ORDER_STATUS.PENDING,
       paymentStatus: PAYMENT_STATUS.PENDING,
       assignedTo: 'admin'
     });
 
+    console.log(`[DEBUG] createOrder: Saving new order for user ${user._id}`);
     await order.save();
+    console.log(`[DEBUG] createOrder: Order SAVED: ${order.orderNumber} (ID: ${order._id})`);
 
     res.status(201).json({
       success: true,
@@ -949,10 +970,10 @@ exports.createOrder = async (req, res, next) => {
  */
 exports.createPaymentIntent = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const orderId = req.body.orderId || req.params.id;
     const { payFull = false } = req.body;
 
-    const order = await Order.findById(id);
+    const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
@@ -982,10 +1003,14 @@ exports.createPaymentIntent = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
-        razorpayOrderId: rzpOrder.id,
-        amount: paymentAmount,
-        currency: 'INR',
-        paymentType
+        paymentIntent: {
+          id: rzpOrder.id, // Using Razorpay Order ID as the intent ID
+          razorpayOrderId: rzpOrder.id,
+          amount: paymentAmount,
+          currency: 'INR',
+          keyId: process.env.RAZORPAY_KEY_ID,
+          paymentType
+        }
       }
     });
 
@@ -1001,33 +1026,58 @@ exports.createPaymentIntent = async (req, res, next) => {
  */
 exports.confirmPayment = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { razorpayPaymentId, razorpaySignature, paymentType } = req.body;
+    const orderId = req.body.orderId || req.params.id;
+    const { 
+      razorpayPaymentId, 
+      gatewayPaymentId,
+      razorpaySignature, 
+      gatewaySignature,
+      paymentType 
+    } = req.body;
 
-    const order = await Order.findById(id);
+    const finalPaymentId = razorpayPaymentId || gatewayPaymentId;
+    const finalSignature = razorpaySignature || gatewaySignature;
+
+    console.log(`[DEBUG] confirmPayment: Finding order: ${orderId}`);
+    const order = await Order.findById(orderId);
     if (!order) {
+      console.log(`[DEBUG] confirmPayment: Order NOT found: ${orderId}`);
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    console.log(`[DEBUG] confirmPayment: Order found: ${order.orderNumber}. Verifying signature...`);
     // Verify signature
+    const rzpOrderId = order.paymentDetails?.razorpayOrderId;
     const isValid = razorpayService.verifyPaymentSignature(
-      order.paymentDetails.razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature
+      rzpOrderId,
+      finalPaymentId,
+      finalSignature
     );
 
     if (!isValid) {
+      console.log(`[DEBUG] confirmPayment: Invalid signature for ${order.orderNumber}`);
       return res.status(400).json({ success: false, message: 'Invalid payment signature' });
     }
 
+    console.log(`[DEBUG] confirmPayment: Signature valid for ${order.orderNumber}. Updating status...`);
     // Update order status - Always 100% payment
     order.paymentStatus = PAYMENT_STATUS.FULLY_PAID;
     order.status = ORDER_STATUS.PAID;
 
-    order.paymentDetails.razorpayPaymentId = razorpayPaymentId;
-    order.paymentDetails.razorpaySignature = razorpaySignature;
+    order.paymentDetails.razorpayPaymentId = finalPaymentId;
+    order.paymentDetails.razorpaySignature = finalSignature;
+    if (req.body.gatewayOrderId) {
+      order.paymentDetails.razorpayOrderId = req.body.gatewayOrderId;
+    }
     
+    console.log(`[DEBUG] confirmPayment: Saving order: ${order.orderNumber}`);
     await order.save();
+    console.log(`[DEBUG] confirmPayment: Order saved: ${order.orderNumber}`);
+    
+    // Clear cart if the order source was cart
+    if (order.orderSource === 'cart') {
+      await Cart.findOneAndDelete({ userId: order.userId });
+    }
 
     // Create Notification using the static method we just added
     await UserNotification.createOrderStatusNotification(
@@ -1040,6 +1090,243 @@ exports.confirmPayment = async (req, res, next) => {
       success: true,
       message: 'Payment confirmed successfully',
       data: order
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// CART / SHOPPING BAG CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get user's shopping bag
+ * @route   GET /api/users/cart
+ * @access  Private (User/Customer)
+ */
+exports.getCart = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    // Find cart and populate product details
+    let cart = await Cart.findOne({ userId }).populate({
+      path: 'items.productId',
+      select: 'name publicPrice discountPublic images sizes primaryImage isActive'
+    });
+
+    // If no cart exists, return empty cart
+    if (!cart) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          cart: {
+            items: [],
+            totalAmount: 0,
+            itemCount: 0
+          }
+        }
+      });
+    }
+
+    // Filter out inactive products that may still be in cart
+    const validItems = cart.items.filter(item => item.productId && item.productId.isActive !== false);
+
+    // If items were removed, save cart
+    if (validItems.length !== cart.items.length) {
+      cart.items = validItems;
+      await cart.save();
+    }
+
+    // Map items for standardized frontend response
+    const frontendItems = cart.items.map(item => {
+      const product = item.productId;
+      const unitPrice = product.priceToUser || product.publicPrice; 
+      
+      return {
+        id: item._id, // cart item ID
+        productId: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice,
+        totalPrice: unitPrice * item.quantity,
+        image: (product.images && product.images.length > 0) ? (product.images.find(img => img.isPrimary)?.url || product.images[0].url) : '',
+        variantAttributes: item.variantAttributes ? Object.fromEntries(item.variantAttributes) : {},
+        product: {
+           id: product._id,
+           name: product.name,
+           priceToUser: unitPrice,
+           primaryImage: (product.images && product.images.length > 0) ? (product.images.find(img => img.isPrimary)?.url || product.images[0].url) : ''
+        }
+      };
+    });
+
+    const totalAmount = frontendItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        cart: {
+          id: cart._id,
+          items: frontendItems,
+          totalAmount,
+          itemCount: frontendItems.reduce((sum, item) => sum + item.quantity, 0)
+        }
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Add product to shopping bag
+ * @route   POST /api/users/cart
+ * @access  Private (User/Customer)
+ */
+exports.addToCart = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { productId, quantity = 1, variantAttributes = {} } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ success: false, message: 'Product ID is required' });
+    }
+
+    // Verify product exists and is active
+    const product = await Product.findById(productId);
+    if (!product || !product.isActive) {
+      return res.status(404).json({ success: false, message: 'Product not found or inactive' });
+    }
+
+    // Find or create cart
+    let cart = await Cart.findOne({ userId });
+    if (!cart) {
+      cart = new Cart({ userId, items: [] });
+    }
+
+    // Check if same product with same attributes already exists
+    const existingItemIndex = cart.items.findIndex(item => {
+      const idMatch = item.productId.toString() === productId.toString();
+      if (!idMatch) return false;
+
+      // Check variant matching if any
+      const itemAttrs = item.variantAttributes ? Object.fromEntries(item.variantAttributes) : {};
+      const newAttrs = variantAttributes || {};
+      
+      const itemKeys = Object.keys(itemAttrs);
+      const newKeys = Object.keys(newAttrs);
+      
+      if (itemKeys.length !== newKeys.length) return false;
+      
+      return itemKeys.every(key => String(itemAttrs[key]) === String(newAttrs[key]));
+    });
+
+    if (existingItemIndex > -1) {
+      // Update quantity
+      cart.items[existingItemIndex].quantity += Number(quantity);
+    } else {
+      // Add new item
+      cart.items.push({
+        productId,
+        quantity: Number(quantity),
+        variantAttributes
+      });
+    }
+
+    await cart.save();
+
+    // Just call getCart to return the full updated structure
+    return exports.getCart(req, res, next);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update cart item quantity
+ * @route   PUT /api/users/cart/:itemId
+ * @access  Private (User/Customer)
+ */
+exports.updateCartItem = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { itemId } = req.params;
+    const { quantity } = req.body;
+
+    if (quantity === undefined || quantity < 1) {
+      return res.status(400).json({ success: false, message: 'Valid quantity is required (minimum 1)' });
+    }
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      return res.status(404).json({ success: false, message: 'Cart not found' });
+    }
+
+    const itemIndex = cart.items.findIndex(item => item._id.toString() === itemId);
+    if (itemIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Item not found in cart' });
+    }
+
+    cart.items[itemIndex].quantity = Number(quantity);
+    await cart.save();
+
+    return exports.getCart(req, res, next);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Remove item from cart
+ * @route   DELETE /api/users/cart/:itemId
+ * @access  Private (User/Customer)
+ */
+exports.removeFromCart = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { itemId } = req.params;
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      return res.status(404).json({ success: false, message: 'Cart not found' });
+    }
+
+    cart.items = cart.items.filter(item => item._id.toString() !== itemId);
+    await cart.save();
+
+    return exports.getCart(req, res, next);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Clear shopping bag
+ * @route   DELETE /api/users/cart
+ * @access  Private (User/Customer)
+ */
+exports.clearCart = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    await Cart.findOneAndDelete({ userId });
+
+    res.status(200).json({
+      success: true,
+      message: 'Cart cleared successfully',
+      data: {
+        cart: {
+          items: [],
+          totalAmount: 0,
+          itemCount: 0
+        }
+      }
     });
 
   } catch (error) {

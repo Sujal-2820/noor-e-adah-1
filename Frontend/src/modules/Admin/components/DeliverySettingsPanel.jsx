@@ -173,7 +173,7 @@ export function DeliverySettingsPanel({ onProcessingChange }) {
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="text-xs font-semibold text-gray-500 block mb-1.5">Delivery Charge (₹)</label>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1.5">Standard Charge (₹)</label>
                             <input
                                 type="number"
                                 min="0"
@@ -185,13 +185,39 @@ export function DeliverySettingsPanel({ onProcessingChange }) {
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-semibold text-gray-500 block mb-1.5">Delivery Time</label>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1.5">Standard Time</label>
                             <input
                                 type="text"
                                 disabled={!form.domestic.isEnabled}
                                 value={form.domestic.timeLabel ?? ''}
                                 onChange={e => setDomestic('timeLabel', e.target.value)}
                                 placeholder="e.g. 7-8 days"
+                                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1.5">Express Charge (₹)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                disabled={form.mode === 'free' || !form.domestic.isEnabled}
+                                value={form.domestic.expressCharge ?? ''}
+                                onChange={e => setDomestic('expressCharge', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                placeholder="e.g. 500"
+                                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1.5">Express Time</label>
+                            <input
+                                type="text"
+                                disabled={!form.domestic.isEnabled}
+                                value={form.domestic.expressTimeLabel ?? ''}
+                                onChange={e => setDomestic('expressTimeLabel', e.target.value)}
+                                placeholder="e.g. 1-2 days"
                                 className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
                             />
                         </div>
@@ -213,12 +239,23 @@ export function DeliverySettingsPanel({ onProcessingChange }) {
                     </div>
 
                     <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-100">
-                        <p className="text-[11px] font-bold text-blue-700">Current Value</p>
-                        <p className="text-sm text-blue-900 font-semibold mt-0.5">
-                            {form.mode === 'free' ? 'FREE' : `₹${form.domestic.charge ?? 0}`}
-                            {' '}·{' '}
-                            {form.domestic.timeLabel || '—'}
-                        </p>
+                        <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Current Domestic Rates</p>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                            <div>
+                                <p className="text-[10px] text-blue-600 font-bold uppercase">Standard</p>
+                                <p className="text-sm text-blue-900 font-black">
+                                    {form.mode === 'free' ? 'FREE' : `₹${form.domestic.charge ?? 300}`}
+                                    <span className="text-[10px] font-medium ml-1">({form.domestic.timeLabel || '7-8 days'})</span>
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-blue-600 font-bold uppercase">Express</p>
+                                <p className="text-sm text-blue-900 font-black">
+                                    {form.mode === 'free' ? 'FREE' : `₹${form.domestic.expressCharge ?? 800}`}
+                                    <span className="text-[10px] font-medium ml-1">({form.domestic.expressTimeLabel || '1-2 days'})</span>
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -253,29 +290,55 @@ export function DeliverySettingsPanel({ onProcessingChange }) {
                     )}
 
                     {form.international.isEnabled && (
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs font-semibold text-gray-500 block mb-1.5">Delivery Charge (₹)</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={form.international.charge ?? ''}
-                                    onChange={e => setInternational('charge', e.target.value === '' ? null : parseFloat(e.target.value))}
-                                    placeholder="e.g. 1500"
-                                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
-                                />
+                        <>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 block mb-1.5">Standard Charge (₹)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={form.international.charge ?? ''}
+                                        onChange={e => setInternational('charge', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                        placeholder="e.g. 1500"
+                                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 block mb-1.5">Standard Time</label>
+                                    <input
+                                        type="text"
+                                        value={form.international.timeLabel ?? ''}
+                                        onChange={e => setInternational('timeLabel', e.target.value)}
+                                        placeholder="e.g. 14-21 days"
+                                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-xs font-semibold text-gray-500 block mb-1.5">Delivery Time</label>
-                                <input
-                                    type="text"
-                                    value={form.international.timeLabel ?? ''}
-                                    onChange={e => setInternational('timeLabel', e.target.value)}
-                                    placeholder="e.g. 14-21 days"
-                                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
-                                />
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 block mb-1.5">Express Charge (₹)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={form.international.expressCharge ?? ''}
+                                        onChange={e => setInternational('expressCharge', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                        placeholder="e.g. 3000"
+                                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 block mb-1.5">Express Time</label>
+                                    <input
+                                        type="text"
+                                        value={form.international.expressTimeLabel ?? ''}
+                                        onChange={e => setInternational('expressTimeLabel', e.target.value)}
+                                        placeholder="e.g. 5-7 days"
+                                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        </>
                     )}
                 </div>
 

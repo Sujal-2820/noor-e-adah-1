@@ -192,8 +192,8 @@ export function UserRegister({ onSuccess, onSwitchToLogin }) {
         if (responseData?.token || result.data?.token) {
           const token = responseData?.token || result.data?.token
           localStorage.setItem('user_token', token)
-          // Set 7-day expiry
-          localStorage.setItem('user_token_expiry', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString())
+          // Set 30-day expiry
+          localStorage.setItem('user_token_expiry', (Date.now() + 30 * 24 * 60 * 60 * 1000).toString())
         }
 
         if (userData) {
