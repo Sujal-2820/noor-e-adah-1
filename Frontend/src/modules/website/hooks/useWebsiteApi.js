@@ -444,6 +444,32 @@ export function useWebsiteApi() {
     [handleApiCall],
   )
 
+  const downloadInvoice = useCallback(
+    async (orderId) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const blob = await websiteApi.getInvoice(orderId)
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `invoice-${orderId}.html`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        return { success: true }
+      } catch (err) {
+        const errorMsg = err.message || 'Failed to download invoice'
+        setError(errorMsg)
+        return { success: false, error: errorMsg }
+      } finally {
+        setLoading(false)
+      }
+    },
+    [],
+  )
+
   // Payment APIs
   const createPaymentIntent = useCallback(
     async (data) => {
@@ -458,11 +484,14 @@ export function useWebsiteApi() {
 
   const confirmPayment = useCallback(
     async (paymentData) => {
-      return handleApiCall(
+      console.log('📡 [WebsiteApi] Calling confirmPayment API with:', paymentData);
+      const result = await handleApiCall(
         () => websiteApi.confirmPayment(paymentData),
         null,
         'Failed to confirm payment',
       )
+      console.log('📡 [WebsiteApi] confirmPayment result:', result);
+      return result
     },
     [handleApiCall],
   )
@@ -762,6 +791,7 @@ export function useWebsiteApi() {
     fetchOrderDetails,
     trackOrder,
     cancelOrder,
+    downloadInvoice,
     createPaymentIntent,
     confirmPayment,
     createRemainingPaymentIntent,

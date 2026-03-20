@@ -4878,6 +4878,33 @@
   box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
 }
 
+.account-orders__invoice-btn {
+  width: 100%;
+  padding: 10px 24px;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-orders__invoice-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.account-orders__invoice-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 /* Account Profile Page */
 .account-profile {
   padding: 0;

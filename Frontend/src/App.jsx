@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes, Link, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, Link, useNavigate, useLocation } from 'react-router-dom'
 import { AdminDashboardRoute as AdminDashboardModuleRoute, AdminLogin } from './modules/Admin'
 
 import {
@@ -60,6 +60,16 @@ function AdminDashboardRoute() {
   return <AdminDashboardModuleRoute onExit={() => navigate('/admin/login')} />
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+
+  return null
+}
+
 function App() {
   useEffect(() => {
     // Initialize Push Notifications
@@ -74,6 +84,7 @@ function App() {
   return (
     <TranslationProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           {/* Console/Admin Routes */}
           <Route path="/console" element={<Home />} />

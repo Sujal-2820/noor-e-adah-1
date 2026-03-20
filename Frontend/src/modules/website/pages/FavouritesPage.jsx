@@ -17,18 +17,6 @@ export function FavouritesPage() {
   const [favouriteProducts, setFavouriteProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
-  if (authLoading) {
-    return (
-      <Layout>
-        <Container>
-          <div className="flex items-center justify-center min-h-[400px]">
-             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
-          </div>
-        </Container>
-      </Layout>
-    )
-  }
-
   // Fetch favourite products from API
   useEffect(() => {
     const loadFavourites = async () => {
@@ -62,6 +50,18 @@ export function FavouritesPage() {
       setLoading(false)
     }
   }, [favourites])
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <Container>
+          <div className="flex items-center justify-center min-h-[400px]">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
+          </div>
+        </Container>
+      </Layout>
+    )
+  }
 
   const handleRemoveFromFavourites = async (productId) => {
     try {

@@ -20,18 +20,6 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'User ID is required'],
-    // The customer
-  },
-  assignedUserId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    // The fulfiller (formerly Vendor)
-  },
-  assignedTo: {
-    type: String,
-    enum: ['user', 'admin'],
-    default: 'user',
-    // Determines who fulfills the order (user or admin)
   },
   // Order items
   items: [{
@@ -63,11 +51,6 @@ const orderSchema = new mongoose.Schema({
       type: Map,
       of: String,
     },
-    status: {
-      type: String,
-      enum: ['pending', 'accepted', 'rejected'],
-      default: 'pending',
-    },
   }],
   subtotal: {
     type: Number,
@@ -78,10 +61,6 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: [0, 'Delivery charge cannot be negative'],
-  },
-  deliveryChargeWaived: {
-    type: Boolean,
-    default: false,
   },
   totalAmount: {
     type: Number,
@@ -118,7 +97,7 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: Object.values(ORDER_STATUS),
-    default: ORDER_STATUS.AWAITING,
+    default: ORDER_STATUS.PENDING,
   },
   statusTimeline: [{
     status: {
@@ -133,14 +112,10 @@ const orderSchema = new mongoose.Schema({
     note: String,
     updatedBy: {
       type: String,
-      enum: ['system', 'user', 'admin'],
+      enum: ['system', 'admin'],
       default: 'system',
     },
   }],
-  isPartialFulfillment: {
-    type: Boolean,
-    default: false,
-  },
   expectedDeliveryDate: {
     type: Date,
   },
@@ -159,31 +134,11 @@ const orderSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
-  stockDeducted: {
-    type: Boolean,
-    default: false,
-  },
   orderSource: {
     type: String,
     enum: ['cart', 'direct'],
     default: 'cart',
   },
-  acceptanceGracePeriod: {
-    isActive: { type: Boolean, default: false },
-    acceptedAt: Date,
-    expiresAt: Date,
-    confirmedAt: Date,
-    cancelledAt: Date,
-    previousStatus: String,
-  },
-  escalation: {
-    isEscalated: { type: Boolean, default: false },
-    escalatedAt: Date,
-    escalatedBy: String,
-    escalationReason: String,
-    escalationType: { type: String, enum: ['full', 'partial'] },
-    originalassignedUserId: mongoose.Schema.Types.ObjectId,
-  }
 }, {
   timestamps: true,
 });
@@ -213,7 +168,8 @@ orderSchema.pre('validate', async function (next) {
       });
       
       const sequence = String(todayCount + 1).padStart(4, '0');
-      this.orderNumber = `ORD-${dateStr}-${sequence}`;
+      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+      this.orderNumber = `ORD-${dateStr}-${sequence}-${randomSuffix}`;
     } catch (error) {
       return next(error);
     }

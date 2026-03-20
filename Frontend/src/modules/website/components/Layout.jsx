@@ -15,7 +15,7 @@ export function Layout({ children }) {
       <CartSidebar />
       <main className={cn(
         "flex-grow transition-all duration-300",
-        isHome ? "pt-0" : "pt-[90px] lg:pt-[100px]"
+        isHome ? "pt-0" : "pt-[140px] lg:pt-[180px]"
       )}>
         {children}
       </main>

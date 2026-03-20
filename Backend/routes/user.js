@@ -254,6 +254,17 @@ router.get('/products', authorizeUser, userController.getProducts);
 router.get('/products/:productId', authorizeUser, userController.getProductDetails);
 
 // ============================================================================
+// ORDER INVOICE ROUTES
+// ============================================================================
+
+/**
+ * @route   GET /api/users/orders/:id/invoice
+ * @desc    Generate invoice for user's order
+ * @access  Private (User)
+ */
+router.get('/orders/:id/invoice', authorizeUser, userController.generateInvoice);
+
+// ============================================================================
 // INVENTORY MANAGEMENT ROUTES
 // ============================================================================
 

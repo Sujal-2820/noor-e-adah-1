@@ -32,6 +32,10 @@ const STATUS_DESCRIPTIONS = {
 const getStatusKey = (status) => {
   if (!status) return 'awaiting'
   const normalized = status.toLowerCase()
+  if (normalized === 'delivered') return 'delivered'
+  if (normalized === 'shipped' || normalized === 'dispatched') return 'dispatched'
+  // pending, paid, processing all map to 'awaiting'
+  if (['pending', 'paid', 'processing'].includes(normalized)) return 'awaiting'
   if (normalized.includes('deliver')) return 'delivered'
   if (normalized.includes('dispatch')) return 'dispatched'
   if (normalized.includes('await')) return 'awaiting'
@@ -96,7 +100,7 @@ export function AccountPage() {
 
   return (
     <Layout>
-      <Container className="account-page">
+      <Container className="account-page pt-32 pb-24">
         <div className="account-page__layout">
           {/* Sidebar Navigation - Desktop */}
           <aside className="account-page__sidebar">
@@ -813,7 +817,7 @@ export function AccountSupportPage() {
 export function AccountOrdersPage() {
   const navigate = useNavigate()
   const { orders, cart } = useWebsiteState()
-  const { createRemainingPaymentIntent, confirmRemainingPayment } = useWebsiteApi()
+  const { createRemainingPaymentIntent, confirmRemainingPayment, downloadInvoice, loading } = useWebsiteApi()
   const [activeFilter, setActiveFilter] = useState('all')
   const [processingPayment, setProcessingPayment] = useState(null)
 
@@ -1064,7 +1068,7 @@ export function AccountOrdersPage() {
               <div className="account-orders__card-header">
                 <div className="account-orders__card-header-left">
                   <div className="account-orders__card-id">
-                    {item.type === 'cart' ? 'Cart' : `Order #${item.id?.slice(-8) || 'N/A'}`}
+                    {item.type === 'cart' ? 'Cart' : `Order #${item.orderNumber || item.id?.slice(-8) || 'N/A'}`}
                   </div>
                   <div className="account-orders__card-date">{formatDate(item.date)}</div>
                 </div>
@@ -1142,7 +1146,7 @@ export function AccountOrdersPage() {
                 </div>
 
                 {/* Payment Status */}
-                {item.paymentStatus && item.paymentStatus !== 'fully_paid' && (
+                {item.paymentStatus && !['completed', 'paid', 'fully_paid', 'completed'].includes(item.paymentStatus.toLowerCase()) && (
                   <div className="account-orders__card-payment">
                     {item.paymentPreference === 'partial' && item.upfrontAmount !== undefined && (
                       <div className="account-orders__card-summary-row">
@@ -1165,16 +1169,30 @@ export function AccountOrdersPage() {
                       <span className={cn(
                         'font-semibold',
                         item.paymentStatus === 'partial_paid' && 'text-orange-600',
-                        item.paymentStatus === 'pending' && 'text-red-600'
+                        item.paymentStatus === 'pending' && 'text-red-600',
+                        item.paymentStatus === 'completed' && 'text-green-600'
                       )}>
                         {item.paymentStatus === 'partial_paid'
                           ? 'Partial Paid'
                           : item.paymentStatus === 'pending'
                             ? 'Pending'
-                            : item.paymentStatus}
+                            : item.paymentStatus === 'completed'
+                              ? 'Paid'
+                              : item.paymentStatus}
                       </span>
                     </div>
                   </div>
+                )}
+
+                {item.type === 'order' && (
+                  <button
+                    type="button"
+                    onClick={() => downloadInvoice(item.id || item._id)}
+                    disabled={loading}
+                    className="account-orders__invoice-btn"
+                  >
+                    {loading ? 'Generating...' : 'Download Invoice'}
+                  </button>
                 )}
 
                 {/* Pay Remaining Button */}

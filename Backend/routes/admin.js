@@ -286,41 +286,10 @@ router.get('/payment-history/stats', authorizeAdmin, adminController.getPaymentH
  */
 router.get('/orders', authorizeAdmin, adminController.getOrders);
 
-/**
- * @route   GET /api/admin/orders/escalated
- * @desc    Get escalated orders (assigned to admin)
- * @access  Private (Admin)
- */
-router.get('/orders/escalated', authorizeAdmin, adminController.getEscalatedOrders);
-
-/**
- * IMPORTANT: Specific routes with sub-paths must come BEFORE generic :orderId routes
- */
-
-/**
- * @route   POST /api/admin/orders/:orderId/revert-escalation
- * @desc    Revert escalation back to User
- * @access  Private (Admin)
- */
-router.post('/orders/:orderId/revert-escalation', authorizeAdmin, adminController.revertEscalation);
-
-/**
- * @route   PUT /api/admin/orders/:orderId/reassign
- * @desc    Reassign order to different User
- * @access  Private (Admin)
- */
-router.put('/orders/:orderId/reassign', authorizeAdmin, adminController.reassignOrder);
-
-/**
- * @route   POST /api/admin/orders/:orderId/fulfill
- * @desc    Fulfill escalated order from warehouse
- * @access  Private (Admin)
- */
-router.post('/orders/:orderId/fulfill', authorizeAdmin, adminController.fulfillOrderFromWarehouse);
 
 /**
  * @route   PUT /api/admin/orders/:orderId/status
- * @desc    Update order status (for admin-fulfilled orders)
+ * @desc    Update order status
  * @access  Private (Admin)
  */
 router.put('/orders/:orderId/status', authorizeAdmin, adminController.updateOrderStatus);

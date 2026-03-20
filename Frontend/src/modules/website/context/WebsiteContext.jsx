@@ -151,6 +151,11 @@ function reducer(state, action) {
         orders: [...state.orders, action.payload],
         // cart: [] - Removed: Cart should only be cleared after payment is confirmed
       }
+    case 'SET_ORDERS':
+      return {
+        ...state,
+        orders: Array.isArray(action.payload) ? action.payload : [],
+      }
     case 'UPDATE_CHECKOUT_ADDRESS':
       return {
         ...state,
@@ -380,27 +385,24 @@ export function WebsiteProvider({ children }) {
       try {
         // Fetch orders
         const ordersResult = await getOrders()
-        if (ordersResult.success && ordersResult.data?.orders) {
-          ordersResult.data.orders.forEach((order) => {
-            dispatch({
-              type: 'ADD_ORDER',
-              payload: {
-                id: order.id || order._id,
-                orderNumber: order.orderNumber,
-                status: order.status,
-                totalAmount: order.totalAmount,
-                subtotal: order.subtotal,
-                deliveryCharge: order.deliveryCharge,
-                paymentPreference: order.paymentPreference,
-                upfrontAmount: order.upfrontAmount,
-                remainingAmount: order.remainingAmount,
-                paymentStatus: order.paymentStatus,
-                items: order.items,
-                statusTimeline: order.statusTimeline,
-                createdAt: order.createdAt,
-              },
-            })
-          })
+        if (ordersResult.success && Array.isArray(ordersResult.data)) {
+          const mappedOrders = ordersResult.data.map((order) => ({
+            id: order.id || order._id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            totalAmount: order.totalAmount,
+            subtotal: order.subtotal,
+            deliveryCharge: order.deliveryCharge,
+            paymentPreference: order.paymentPreference,
+            upfrontAmount: order.upfrontAmount,
+            remainingAmount: order.remainingAmount,
+            paymentStatus: order.paymentStatus,
+            items: order.items,
+            statusTimeline: order.statusTimeline,
+            date: order.createdAt,
+            createdAt: order.createdAt,
+          }))
+          dispatch({ type: 'SET_ORDERS', payload: mappedOrders })
         }
 
         // Fetch cart

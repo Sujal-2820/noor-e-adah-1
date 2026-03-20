@@ -26,14 +26,14 @@ const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES) || 5;
 const ORDER_STATUS = {
   PENDING: 'pending',
   AWAITING: 'awaiting',
+  ACCEPTED: 'accepted',
   PAID: 'paid',
   PROCESSING: 'processing',
+  DISPATCHED: 'dispatched',
   SHIPPED: 'shipped',
   DELIVERED: 'delivered',
   CANCELLED: 'cancelled',
   RETURNED: 'returned',
-  REFUNDED: 'refunded',
-  FULLY_PAID: 'fully_paid'
 };
 
 // Payment Status
@@ -42,7 +42,6 @@ const PAYMENT_STATUS = {
   COMPLETED: 'completed',
   FAILED: 'failed',
   REFUNDED: 'refunded',
-  FULLY_PAID: 'fully_paid'
 };
 
 // Payment Methods

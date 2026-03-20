@@ -80,6 +80,7 @@ export function CheckoutPage() {
     pincode: profile?.location?.pincode || '',
     phone: profile?.phone || '',
     country: 'India',
+    saveToProfile: true,
     useSameAddress: true,
     addNote: false,
     note: ''
@@ -98,12 +99,14 @@ export function CheckoutPage() {
     }
   }, [checkoutAddress, profile])
 
+  const [orderPlaced, setOrderPlaced] = useState(false)
+
   // Redirect if cart is empty
   useEffect(() => {
-    if (cart.length === 0) {
+    if (cart.length === 0 && !loading && !orderPlaced) {
       navigate('/cart')
     }
-  }, [cart, navigate])
+  }, [cart, navigate, loading, orderPlaced])
 
   // Fetch delivery config
   useEffect(() => {
@@ -170,7 +173,7 @@ export function CheckoutPage() {
         payload: { [name]: type === 'checkbox' ? checked : value } 
       })
 
-      if (name === 'country' && value === 'India') {
+      if (name === 'country' && value === 'India' && !newData.state) {
         newData.state = 'Haryana'
         dispatch({ type: 'UPDATE_CHECKOUT_ADDRESS', payload: { state: 'Haryana' } })
       }
@@ -242,8 +245,8 @@ export function CheckoutPage() {
 
       const order = orderResult.data.order
 
-      // Save address to profile if it's new and user is authenticated
-      if (authenticated) {
+      // Save address to profile if user opted-in and is authenticated
+      if (authenticated && formData.saveToProfile) {
         const isExisting = addresses.some(a => 
           a.address === formData.address && 
           a.pincode === formData.pincode &&
@@ -267,16 +270,21 @@ export function CheckoutPage() {
         }
       }
 
+      console.log('🚀 [Checkout] Initiating handlePlaceOrder...');
       const paymentIntentResult = await createPaymentIntent({
         orderId: order._id || order.id,
         paymentMethod: 'razorpay'
       })
 
-      if (paymentIntentResult.error) {
-        throw new Error(paymentIntentResult.error.message || 'Payment initialization failed')
+      console.log('📦 [Checkout] Payment Intent Result:', paymentIntentResult);
+
+      if (paymentIntentResult.error || !paymentIntentResult.data) {
+        console.error('❌ [Checkout] Payment Intent Failed:', paymentIntentResult.error);
+        throw new Error(paymentIntentResult.error?.message || 'Payment initialization failed')
       }
 
       const { razorpayOrderId, keyId, amount } = paymentIntentResult.data.paymentIntent
+      console.log('💳 [Checkout] Opening Razorpay Checkout...', { razorpayOrderId, keyId, amount });
 
       const razorpayResponse = await openRazorpayCheckout({
         key: keyId,
@@ -292,6 +300,8 @@ export function CheckoutPage() {
         }
       })
 
+      console.log('✅ [Checkout] Razorpay Success Response:', razorpayResponse);
+
       const confirmResult = await confirmPayment({
         orderId: order._id || order.id,
         paymentIntentId: paymentIntentResult.data.paymentIntent.id,
@@ -301,22 +311,30 @@ export function CheckoutPage() {
         paymentMethod: 'razorpay'
       })
 
-      if (confirmResult.error) {
-        throw new Error(confirmResult.error.message || 'Payment confirmation failed')
+      console.log('🏁 [Checkout] Confirm Payment Result:', confirmResult);
+
+      if (confirmResult.error || !confirmResult.data) {
+        console.error('❌ [Checkout] Confirm Payment Failed:', confirmResult.error);
+        throw new Error(confirmResult.error?.message || 'Payment confirmation failed')
       }
+
+      const finalOrder = confirmResult.data || order;
+      console.log('📄 [Checkout] Final Order Data:', finalOrder);
 
       const completedOrder = {
-        ...order,
-        id: order._id || order.id,
-        total: order.totalAmount,
-        date: order.createdAt || new Date().toISOString()
+        ...finalOrder,
+        id: finalOrder._id || finalOrder.id,
+        total: finalOrder.totalAmount,
+        date: finalOrder.createdAt || new Date().toISOString()
       }
 
-      dispatch({ type: 'ADD_ORDER', payload: completedOrder })
+      setOrderPlaced(true)
+      console.log('🔄 [Checkout] Clearing cart and navigating to /order-confirmation');
       dispatch({ type: 'CLEAR_CART' })
 
       navigate('/order-confirmation', {
-        state: { order: completedOrder }
+        state: { order: completedOrder },
+        replace: true
       })
     } catch (err) {
       console.error('Order placement error:', err)
@@ -361,7 +379,9 @@ export function CheckoutPage() {
                     placeholder="Email address"
                     className="checkout-input"
                   />
-                  <p className="mt-4 text-[11px] font-semibold text-brand/40 italic">You are currently checking out as a guest.</p>
+                  {!authenticated && (
+                    <p className="mt-4 text-[11px] font-semibold text-brand/40 italic">You are currently checking out as a guest.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -457,6 +477,13 @@ export function CheckoutPage() {
                     <input type="checkbox" name="useSameAddress" checked={formData.useSameAddress} onChange={handleInputChange} className="checkout-checkbox" />
                     <span>Use same address for billing</span>
                   </label>
+
+                  {authenticated && (
+                    <label className="checkout-checkbox-group">
+                      <input type="checkbox" name="saveToProfile" checked={formData.saveToProfile} onChange={handleInputChange} className="checkout-checkbox" />
+                      <span>Save this address to my profile for future use</span>
+                    </label>
+                  )}
                 </div>
               </div>
             </div>

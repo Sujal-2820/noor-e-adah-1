@@ -1061,7 +1061,7 @@ exports.confirmPayment = async (req, res, next) => {
 
     console.log(`[DEBUG] confirmPayment: Signature valid for ${order.orderNumber}. Updating status...`);
     // Update order status - Always 100% payment
-    order.paymentStatus = PAYMENT_STATUS.FULLY_PAID;
+    order.paymentStatus = PAYMENT_STATUS.COMPLETED;
     order.status = ORDER_STATUS.PAID;
 
     order.paymentDetails.razorpayPaymentId = finalPaymentId;
@@ -1091,6 +1091,179 @@ exports.confirmPayment = async (req, res, next) => {
       message: 'Payment confirmed successfully',
       data: order
     });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Generate invoice PDF for user's order
+ * @route   GET /api/users/orders/:id/invoice
+ * @access  Private (User/Customer)
+ */
+exports.generateInvoice = async (req, res, next) => {
+  try {
+    const orderId = req.params.id;
+    const user = req.user;
+
+    const order = await Order.findById(orderId)
+      .populate('items.productId', 'name sku category')
+      .select('-__v');
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Ensure user owns this order
+    if (order.userId.toString() !== user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to view this invoice' });
+    }
+
+    // Format date
+    const formatDate = (date) => {
+      if (!date) return 'N/A';
+      return new Date(date).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    };
+
+    // Format currency
+    const formatCurrency = (amount) => {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+      }).format(amount || 0);
+    };
+
+    // Generate HTML invoice
+    const invoiceHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice - ${order.orderNumber}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f5f5f5; }
+    .invoice-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #CFAE5C; }
+    .logo { font-size: 24px; font-weight: bold; color: #CFAE5C; }
+    .invoice-title { text-align: right; }
+    .invoice-title h1 { font-size: 32px; color: #1f2937; margin-bottom: 5px; }
+    .invoice-title p { color: #6b7280; font-size: 14px; }
+    .details { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+    .detail-section h3 { color: #374151; font-size: 14px; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+    .detail-section p { color: #6b7280; font-size: 14px; margin: 5px 0; }
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+    .items-table thead { background: #f3f4f6; }
+    .items-table th { padding: 12px; text-align: left; font-weight: 600; color: #374151; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .items-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; color: #1f2937; }
+    .text-right { text-align: right; }
+    .totals { margin-top: 20px; margin-left: auto; width: 300px; }
+    .total-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+    .total-row:last-child { border-bottom: none; }
+    .total-label { font-weight: 600; color: #374151; }
+    .total-amount { font-weight: bold; color: #1f2937; }
+    .grand-total { background: #CFAE5C; color: white; padding: 15px; border-radius: 5px; margin-top: 10px; }
+    .grand-total .total-label { color: white; font-size: 18px; }
+    .grand-total .total-amount { color: white; font-size: 20px; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px; }
+    .payment-info { background: #fdf6e7; padding: 15px; border-radius: 5px; margin-top: 20px; }
+    .payment-info h4 { color: #855d04; margin-bottom: 8px; }
+    .payment-info p { color: #855d04; font-size: 13px; margin: 3px 0; }
+    @media print { body { background: white; padding: 0; } .invoice-container { box-shadow: none; padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="invoice-container">
+    <div class="header">
+      <div class="logo">NOOR E ADAH</div>
+      <div class="invoice-title">
+        <h1>INVOICE</h1>
+        <p>Order #${order.orderNumber}</p>
+      </div>
+    </div>
+
+    <div class="details">
+      <div class="detail-section">
+        <h3>Bill To</h3>
+        <p><strong>${order.deliveryAddress?.name || user.name || 'N/A'}</strong></p>
+        <p>${order.deliveryAddress?.phone || user.phone || 'N/A'}</p>
+        <p>${order.deliveryAddress?.address || 'N/A'}</p>
+        <p>${order.deliveryAddress?.city || ''} ${order.deliveryAddress?.state || ''} - ${order.deliveryAddress?.pincode || ''}</p>
+      </div>
+      <div class="detail-section">
+        <h3>Invoice Details</h3>
+        <p><strong>Invoice Date:</strong> ${formatDate(new Date())}</p>
+        <p><strong>Order Date:</strong> ${formatDate(order.createdAt)}</p>
+        <p><strong>Order Number:</strong> ${order.orderNumber}</p>
+        <p><strong>Payment Status:</strong> <span style="text-transform: capitalize;">${order.paymentStatus === 'completed' ? 'Paid' : (order.paymentStatus?.replace('_', ' ') || 'Pending')}</span></p>
+      </div>
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Qty</th>
+          <th class="text-right">Price</th>
+          <th class="text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${order.items.map((item) => `
+          <tr>
+            <td>
+              <strong>${item.productName || 'Product'}</strong>
+              ${item.productId?.sku ? `<br><small style="color: #6b7280;">SKU: ${item.productId.sku}</small>` : ''}
+            </td>
+            <td>${item.quantity}</td>
+            <td class="text-right">${formatCurrency(item.unitPrice)}</td>
+            <td class="text-right"><strong>${formatCurrency(item.totalPrice)}</strong></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <div class="total-row">
+        <span class="total-label">Subtotal</span>
+        <span class="total-amount">${formatCurrency(order.subtotal)}</span>
+      </div>
+      ${order.deliveryCharge > 0 ? `
+      <div class="total-row">
+        <span class="total-label">Delivery Charge</span>
+        <span class="total-amount">${formatCurrency(order.deliveryCharge)}</span>
+      </div>
+      ` : ''}
+      <div class="total-row grand-total">
+        <span class="total-label">Grand Total</span>
+        <span class="total-amount">${formatCurrency(order.totalAmount)}</span>
+      </div>
+    </div>
+
+    <div class="payment-info">
+      <h4>Payment Information</h4>
+      <p><strong>Status:</strong> ${order.paymentStatus === 'completed' ? 'Paid in Full' : (order.paymentStatus === 'pending' ? 'Pending' : order.paymentStatus)}</p>
+      <p><strong>Total Paid:</strong> ${formatCurrency(order.totalAmount)}</p>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for choosing Noor E Adah!</p>
+      <p style="margin-top: 10px;">Generated on ${formatDate(new Date())}</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${order.orderNumber}.html"`);
+    res.send(invoiceHTML);
 
   } catch (error) {
     next(error);

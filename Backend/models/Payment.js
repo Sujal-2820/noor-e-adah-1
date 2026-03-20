@@ -136,7 +136,7 @@ paymentSchema.pre('save', async function (next) {
 
   // Update timestamps based on status
   if (this.isModified('status')) {
-    if (this.status === PAYMENT_STATUS.FULLY_PAID || this.status === PAYMENT_STATUS.PARTIAL_PAID) {
+    if (this.status === PAYMENT_STATUS.COMPLETED) {
       this.paidAt = new Date();
     } else if (this.status === PAYMENT_STATUS.FAILED) {
       this.failedAt = new Date();
@@ -148,7 +148,7 @@ paymentSchema.pre('save', async function (next) {
 
 // Instance method: Check if payment is successful
 paymentSchema.methods.isSuccessful = function () {
-  return this.status === PAYMENT_STATUS.FULLY_PAID || this.status === PAYMENT_STATUS.PARTIAL_PAID;
+  return this.status === PAYMENT_STATUS.COMPLETED;
 };
 
 // Instance method: Check if payment is failed

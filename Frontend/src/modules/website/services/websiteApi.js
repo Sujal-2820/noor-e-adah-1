@@ -491,6 +491,29 @@ export async function cancelOrder(orderId, data = {}) {
   })
 }
 
+/**
+ * Get Order Invoice
+ * GET /users/orders/:orderId/invoice
+ * 
+ * @param {string} orderId - Order ID
+ * @returns {Promise<Blob>} - Invoice file blob
+ */
+export async function getInvoice(orderId) {
+  const token = localStorage.getItem('user_token')
+  const response = await fetch(`${API_BASE_URL}/users/orders/${orderId}/invoice`, {
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  })
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to download invoice' }))
+    throw new Error(error.message || 'Failed to download invoice')
+  }
+  
+  return response.blob()
+}
+
 // ============================================================================
 // PAYMENT APIs
 // ============================================================================

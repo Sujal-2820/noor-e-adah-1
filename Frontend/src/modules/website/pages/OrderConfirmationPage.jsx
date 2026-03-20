@@ -2,13 +2,25 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Container } from '../components/Layout'
 import { cn } from '../../../lib/cn'
+import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import '../styles/website.css'
 
 export function OrderConfirmationPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { downloadInvoice, loading } = useWebsiteApi()
   const order = location.state?.order || null
   
+  useEffect(() => {
+    console.log('🎉 [OrderConfirmation] Component Mounted');
+    console.log('📍 [OrderConfirmation] Location State:', location.state);
+    console.log('📄 [OrderConfirmation] Order Object:', order);
+    
+    if (!order) {
+      console.warn('⚠️ [OrderConfirmation] No order data found in state. User might have refreshed or navigated directly.');
+    }
+  }, [location.state, order])
+
   const [animationProgress, setAnimationProgress] = useState(0)
   const [showContent, setShowContent] = useState(false)
 
@@ -116,14 +128,6 @@ export function OrderConfirmationPage() {
                   ₹{(order.total || 0).toLocaleString('en-IN')}
                 </span>
               </div>
-              {order.advancePaid !== undefined && (
-                <div className="order-confirmation-page__detail-item">
-                  <span className="order-confirmation-page__detail-label">Advance Paid</span>
-                  <span className="order-confirmation-page__detail-value order-confirmation-page__detail-value--highlight">
-                    ₹{(order.advancePaid || 0).toLocaleString('en-IN')}
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Delivery Information */}
@@ -142,30 +146,38 @@ export function OrderConfirmationPage() {
                     <span className="order-confirmation-page__info-icon">🚚</span>
                     <div>
                       <strong>Delivery Updates</strong>
-                      <p>Track your order in real-time. Estimated delivery: {order.deliveryTime || '24 hours'}.</p>
+                      <p>Track your order in real-time. Estimated delivery: {order.deliveryTime || '3-5 business days'}.</p>
                     </div>
                   </li>
-                  {order.remaining !== undefined && (
-                    <li className="order-confirmation-page__info-item">
-                      <span className="order-confirmation-page__info-icon">💳</span>
-                      <div>
-                        <strong>Remaining Payment</strong>
-                        <p>Pay the remaining ₹{(order.remaining || 0).toLocaleString('en-IN')} upon delivery. Cash or card accepted.</p>
-                      </div>
-                    </li>
-                  )}
+                  <li className="order-confirmation-page__info-item">
+                    <span className="order-confirmation-page__info-icon">✅</span>
+                    <div>
+                      <strong>Payment Confirmed</strong>
+                      <p>Your order is fully paid for. No further payment is required.</p>
+                    </div>
+                  </li>
                 </ul>
               </div>
             </div>
 
-            {/* Action Button */}
-            <button
-              type="button"
-              onClick={handleBackToHome}
-              className="order-confirmation-page__button"
-            >
-              Back to Home
-            </button>
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-4">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => downloadInvoice(order.id || order._id)}
+                className="order-confirmation-page__button order-confirmation-page__button--secondary disabled:opacity-50"
+              >
+                {loading ? 'Generating...' : 'Download Invoice'}
+              </button>
+              <button
+                type="button"
+                onClick={handleBackToHome}
+                className="order-confirmation-page__button"
+              >
+                Continue Shopping
+              </button>
+            </div>
           </div>
         </div>
       </Container>

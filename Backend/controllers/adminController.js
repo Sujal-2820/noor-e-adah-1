@@ -3416,17 +3416,12 @@ exports.blockUser = async (req, res, next) => {
  */
 exports.getOrders = async (req, res, next) => {
   try {
-    // Process expired status updates in background (non-blocking)
-    processExpiredStatusUpdates().catch(() => { });
-
     const {
       page = 1,
       limit = 20,
       status,
       paymentStatus,
-      UserId,
       userId,
-      assignedTo,
       dateFrom,
       dateTo,
       search,
@@ -3434,35 +3429,15 @@ exports.getOrders = async (req, res, next) => {
       sortOrder = 'desc',
     } = req.query;
 
-    // Build query
     const query = {};
 
-    if (status) {
-      query.status = status;
-    }
+    if (status) query.status = status;
+    if (paymentStatus) query.paymentStatus = paymentStatus;
+    if (userId) query.userId = userId;
 
-    if (paymentStatus) {
-      query.paymentStatus = paymentStatus;
-    }
-
-    if (UserId) {
-      query.userId = UserId;
-    }
-
-    if (userId) {
-      query.userId = userId;
-    }
-
-    if (assignedTo) {
-      query.assignedTo = assignedTo;
-    }
-
-    // Date range filter
     if (dateFrom || dateTo) {
       query.createdAt = {};
-      if (dateFrom) {
-        query.createdAt.$gte = new Date(dateFrom);
-      }
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
       if (dateTo) {
         const toDate = new Date(dateTo);
         toDate.setHours(23, 59, 59, 999);
@@ -3470,12 +3445,9 @@ exports.getOrders = async (req, res, next) => {
       }
     }
 
-    // Search by order number, user ID/name, or User ID/name
     if (search) {
-      // Find all users (partners and customers) matching the search
       const matchingUsers = await User.find({
         $or: [
-          { userId: { $regex: search, $options: 'i' } },
           { name: { $regex: search, $options: 'i' } },
           { phone: { $regex: search, $options: 'i' } },
           { email: { $regex: search, $options: 'i' } },
@@ -3486,50 +3458,31 @@ exports.getOrders = async (req, res, next) => {
 
       query.$or = [
         { orderNumber: { $regex: search, $options: 'i' } },
-        ...(userIds.length > 0 ? [
-          { userId: { $in: userIds } },
-          { assignedUserId: { $in: userIds } }
-        ] : []),
+        ...(userIds.length > 0 ? [{ userId: { $in: userIds } }] : []),
       ];
     }
 
-    // Pagination
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // Sort
     const sort = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    // Execute query
     const orders = await Order.find(query)
       .sort(sort)
       .skip(skip)
       .limit(limitNum)
       .populate('userId', 'name phone email location')
-      .populate('assignedUserId', 'userId name phone')
       .select('-__v')
       .lean();
 
     const total = await Order.countDocuments(query);
 
-    // Filter orders in grace period - show as 'pending' to admin (not accepted yet)
-    const filteredOrders = orders.map(order => {
-      // If order is in grace period, show status as 'pending' instead of actual status
-      if (order.acceptanceGracePeriod?.isActive) {
-        return {
-          ...order,
-          status: 'pending', // Show as pending during grace period
-        };
-      }
-      return order;
-    });
-
     res.status(200).json({
       success: true,
       data: {
-        orders: filteredOrders,
+        orders,
         pagination: {
           currentPage: pageNum,
           totalPages: Math.ceil(total / limitNum),
@@ -3554,11 +3507,7 @@ exports.getOrderDetails = async (req, res, next) => {
 
     const order = await Order.findById(orderId)
       .populate('userId', 'name phone email location')
-      .populate('userId', 'name phone location')
-      .populate('assignedUserId', 'userId name phone')
       .populate('items.productId', 'name sku category wholesalePrice publicPrice')
-      .populate('parentOrderId')
-      .populate('childOrderIds')
       .select('-__v');
 
     if (!order) {
@@ -3568,14 +3517,12 @@ exports.getOrderDetails = async (req, res, next) => {
       });
     }
 
-    // Get order payments
     const payments = await Payment.find({ orderId })
       .sort({ createdAt: -1 })
       .select('-__v');
 
-    // Calculate payment summary
     const totalPaid = payments
-      .filter(p => p.status === 'fully_paid' || p.status === 'partial_paid')
+      .filter(p => p.status === 'completed')
       .reduce((sum, p) => sum + p.amount, 0);
 
     const totalPending = payments
@@ -3588,10 +3535,9 @@ exports.getOrderDetails = async (req, res, next) => {
         order,
         payments,
         paymentSummary: {
-          totalAmount: order.totalAmount,
           totalPaid,
           totalPending,
-          remaining: order.totalAmount - totalPaid,
+          totalAmount: order.totalAmount,
         },
       },
     });
@@ -3599,12 +3545,6 @@ exports.getOrderDetails = async (req, res, next) => {
     next(error);
   }
 };
-
-/**
- * @desc    Get all commissions with order and user details
- * @route   GET /api/admin/commissions
- * @access  Private (Admin)
- */
 
 /**
  * @desc    Generate invoice PDF for order
@@ -3617,8 +3557,6 @@ exports.generateInvoice = async (req, res, next) => {
 
     const order = await Order.findById(orderId)
       .populate('userId', 'name phone email location')
-      .populate('userId', 'name phone location')
-      .populate('assignedUserId', 'userId name phone')
       .populate('items.productId', 'name sku category wholesalePrice publicPrice')
       .select('-__v');
 
@@ -3634,9 +3572,13 @@ exports.generateInvoice = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .select('-__v');
 
-    const totalPaid = payments
-      .filter(p => p.status === 'fully_paid' || p.status === 'partial_paid')
-      .reduce((sum, p) => sum + p.amount, 0);
+    // Calculate total paid (Sum of completed payments or order total if marked completed)
+    const successPaymentsTotal = payments
+      .filter(p => p.status === 'completed')
+      .reduce((acc, p) => acc + (p.amount || 0), 0);
+    
+    // Fallback: if order is marked completed but no payment records, show total as paid
+    const totalPaid = successPaymentsTotal > 0 ? successPaymentsTotal : (order.paymentStatus === 'completed' ? order.totalAmount : 0);
 
     // Format date
     const formatDate = (date) => {
@@ -3829,7 +3771,7 @@ exports.generateInvoice = async (req, res, next) => {
 <body>
   <div class="invoice-container">
     <div class="header">
-      <div class="logo">IRA SATHI</div>
+      <div class="logo">NOOR E ADAH</div>
       <div class="invoice-title">
         <h1>INVOICE</h1>
         <p>Order #${order.orderNumber}</p>
@@ -3846,10 +3788,10 @@ exports.generateInvoice = async (req, res, next) => {
       </div>
       <div class="detail-section">
         <h3>Invoice Details</h3>
-        <p><strong>Invoice Date:</strong> ${formatDate(order.createdAt)}</p>
+        <p><strong>Invoice Date:</strong> ${formatDate(new Date())}</p>
         <p><strong>Order Date:</strong> ${formatDate(order.createdAt)}</p>
         <p><strong>Order Number:</strong> ${order.orderNumber}</p>
-        <p><strong>Payment Status:</strong> <span style="text-transform: capitalize;">${order.paymentStatus?.replace('_', ' ') || 'Pending'}</span></p>
+        <p><strong>Payment Status:</strong> <span style="text-transform: capitalize;">${order.paymentStatus === 'completed' ? 'Paid' : (order.paymentStatus?.replace('_', ' ') || 'Pending')}</span></p>
         ${order.userId ? `<p><strong>User:</strong> ${order.userId.name || 'N/A'}</p>` : ''}
       </div>
     </div>
@@ -3897,9 +3839,7 @@ exports.generateInvoice = async (req, res, next) => {
 
     <div class="payment-info">
       <h4>Payment Information</h4>
-      <p><strong>Payment Preference:</strong> ${order.paymentPreference === 'partial' ? 'Partial Payment (30% Advance + 70% Remaining)' : 'Full Payment'}</p>
-      <p><strong>Upfront Amount:</strong> ${formatCurrency(order.upfrontAmount)}</p>
-      ${order.remainingAmount > 0 ? `<p><strong>Remaining Amount:</strong> ${formatCurrency(order.remainingAmount)}</p>` : ''}
+      <p><strong>Payment Type:</strong> ${order.paymentPreference === 'partial' ? 'Partial (Legacy)' : 'Full Payment'}</p>
       <p><strong>Total Paid:</strong> ${formatCurrency(totalPaid)}</p>
       <p><strong>Balance Due:</strong> ${formatCurrency(order.totalAmount - totalPaid)}</p>
     </div>
@@ -3928,533 +3868,27 @@ exports.generateInvoice = async (req, res, next) => {
  * @route   GET /api/admin/orders/escalated
  * @access  Private (Admin)
  */
-exports.getEscalatedOrders = async (req, res, next) => {
-  try {
-    const {
-      page = 1,
-      limit = 20,
-      status,
-      dateFrom,
-      dateTo,
-      search,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-    } = req.query;
-
-    // Build query for escalated orders (assigned to admin)
-    const query = {
-      assignedTo: 'admin',
-    };
-
-    // Filter by status if provided
-    if (status) {
-      query.status = status;
-    } else {
-      // By default, exclude delivered and cancelled escalated orders
-      query.status = { $nin: ['delivered', 'cancelled'] };
-    }
-
-    // Date range filter
-    if (dateFrom || dateTo) {
-      query.createdAt = {};
-      if (dateFrom) {
-        query.createdAt.$gte = new Date(dateFrom);
-      }
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = toDate;
-      }
-    }
-
-    // Search by order number
-    if (search) {
-      query.orderNumber = { $regex: search, $options: 'i' };
-    }
-
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Sort
-    const sort = {};
-    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-
-    // Execute query
-    const orders = await Order.find(query)
-      .sort(sort)
-      .skip(skip)
-      .limit(limitNum)
-      .populate('userId', 'name phone email location')
-      .populate('assignedUserId', 'userId name phone')
-      .populate('items.productId', 'name sku category')
-      .select('-__v')
-      .lean();
-
-    const total = await Order.countDocuments(query);
-
-    // Transform orders for frontend
-    const transformedOrders = orders.map(order => {
-      const User = order.userId || order.escalation?.originalUserId;
-      const user = order.userId;
-
-      // Get escalation details
-      const escalation = order.escalation || {};
-      const escalationEntry = order.statusTimeline?.find(
-        entry => entry.status === 'rejected' && entry.updatedBy === 'User'
-      );
-
-      return {
-        id: order._id.toString(),
-        orderNumber: order.orderNumber,
-        User: User?.name || 'N/A',
-        userId: User?._id?.toString() || null,
-        UserPhone: User?.phone || null,
-        UserLocation: User?.location ? `${User.location.city || ''}, ${User.location.state || ''}`.trim() : null,
-        value: order.totalAmount || 0,
-        orderValue: order.totalAmount || 0,
-        escalatedAt: escalation.escalatedAt || escalationEntry?.timestamp || order.createdAt,
-        escalatedBy: escalation.escalatedBy || 'User',
-        escalationReason: escalation.escalationReason || 'Not provided',
-        escalationType: escalation.escalationType || 'full',
-        escalatedItems: escalation.escalatedItems || [],
-        isReverted: !!escalation.revertedAt,
-        revertedAt: escalation.revertedAt || null,
-        revertReason: escalation.revertReason || null,
-        status: order.status || 'rejected',
-        items: order.items?.map(item => ({
-          id: item.productId?._id?.toString() || item._id?.toString(),
-          name: item.productId?.name || item.productName,
-          quantity: item.quantity,
-          price: item.unitPrice,
-          totalPrice: item.totalPrice,
-        })) || [],
-        userId: user?._id?.toString(),
-        userName: user?.name,
-        userPhone: user?.phone || null,
-        userLocation: user?.location ? `${user.location.city || ''}, ${user.location.state || ''}`.trim() : null,
-        deliveryAddress: order.deliveryAddress,
-        notes: order.notes,
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        orders: transformedOrders,
-        pagination: {
-          currentPage: pageNum,
-          totalPages: Math.ceil(total / limitNum),
-          totalItems: total,
-          itemsPerPage: limitNum,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// Legacy Order Management Functions (Removed for simplification)
+// getEscalatedOrders, fulfillOrderFromWarehouse, revertEscalation, reassignOrder removed.
 
 /**
- * @desc    Fulfill escalated order from warehouse
- * @route   POST /api/admin/orders/:orderId/fulfill
- * @access  Private (Admin)
- */
-exports.fulfillOrderFromWarehouse = async (req, res, next) => {
-  try {
-    const { orderId } = req.params;
-    const { note, deliveryDate, trackingNumber } = req.body;
-
-    const order = await Order.findById(orderId)
-      .populate('userId', 'name phone email')
-      .populate('items.productId', 'name sku');
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found',
-      });
-    }
-
-    // Check if order is assigned to admin (escalated)
-    if (order.assignedTo !== 'admin') {
-      return res.status(400).json({
-        success: false,
-        message: 'Order is not escalated to admin. Only escalated orders can be fulfilled from warehouse.',
-      });
-    }
-
-    // Check if order can be fulfilled
-    if (order.status === 'delivered' || order.status === 'cancelled') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot fulfill order with status: ${order.status}`,
-      });
-    }
-
-    // Update order status to accepted (admin is handling fulfillment)
-    // Status flow: awaiting -> accepted -> dispatched -> delivered -> fully_paid (if partial payment)
-    const previousStatus = order.status;
-    order.status = 'accepted'; // Changed from 'processing' to 'accepted' to match status flow
-    order.assignedTo = 'admin'; // Keep assigned to admin
-
-    // Add admin fulfillment notes
-    if (note) {
-      order.notes = `${order.notes || ''}\n[Admin Warehouse Fulfillment] ${note}`.trim();
-    }
-
-    // Set delivery date if provided
-    if (deliveryDate) {
-      order.expectedDeliveryDate = new Date(deliveryDate);
-    } else {
-      // Default: set delivery date to 4 hours from now
-      order.expectedDeliveryDate = new Date(Date.now() + 4 * 60 * 60 * 1000);
-    }
-
-    // Add tracking number if provided
-    if (trackingNumber) {
-      order.trackingNumber = trackingNumber;
-    }
-
-    // Update status timeline
-    order.statusTimeline.push({
-      status: 'accepted',
-      timestamp: new Date(),
-      updatedBy: 'admin',
-      note: `Order fulfilled from warehouse by admin. Status set to Accepted.${note ? ` Note: ${note}` : ''}`,
-    });
-
-    // DEDUCT STOCK FROM ADMIN INVENTORY
-    for (const item of order.items) {
-      const product = await Product.findById(item.productId);
-      if (product) {
-        // Deduct Global Stock
-        product.stock = Math.max(0, (product.stock || 0) - item.quantity);
-        if (product.displayStock) {
-          product.displayStock = Math.max(0, (product.displayStock || 0) - item.quantity);
-        }
-
-        // Deduct Attribute Stock
-        let itemAttrs = null;
-        if (item.variantAttributes) {
-          itemAttrs = item.variantAttributes instanceof Map
-            ? Object.fromEntries(item.variantAttributes)
-            : item.variantAttributes;
-        }
-
-        if (itemAttrs && Object.keys(itemAttrs).length > 0 && product.attributeStocks) {
-          const matchingVariant = product.attributeStocks.find(variant => {
-            if (!variant.attributes) return false;
-            const variantAttrs = variant.attributes instanceof Map
-              ? Object.fromEntries(variant.attributes)
-              : variant.attributes;
-            const keys = Object.keys(itemAttrs);
-            return keys.every(key => String(variantAttrs[key]) === String(itemAttrs[key]));
-          });
-
-          if (matchingVariant) {
-            matchingVariant.stock = Math.max(0, (matchingVariant.stock || 0) - item.quantity);
-            if (matchingVariant.displayStock) {
-              matchingVariant.displayStock = Math.max(0, (matchingVariant.displayStock || 0) - item.quantity);
-            }
-            console.log(`📦 ADMIN Variant Stock reduced for ${product.name}: ${item.quantity}`);
-          }
-        }
-        await product.save();
-        console.log(`📦 ADMIN Global Stock reduced for ${product.name}: ${item.quantity}`);
-      }
-    }
-
-    await order.save();
-
-    // SEND User NOTIFICATION: Escalation Accepted
-    if (order.escalation && order.escalation.originalUserId) {
-      try {
-        await UserNotification.createNotification({
-          userId: order.escalation.originalUserId,
-          type: 'order_status_changed',
-          title: 'Escalation Accepted',
-          message: `Your escalated order #${order.orderNumber} has been accepted by Admin and will be fulfilled from the warehouse.`,
-          relatedEntityType: 'order',
-          relatedEntityId: order._id,
-          priority: 'normal',
-          metadata: { orderNumber: order.orderNumber, status: 'accepted' }
-        });
-      } catch (notifError) {
-        console.error('Failed to send escalation accepted notification:', notifError);
-      }
-    }
-
-    console.log(`✅ Escalated order ${order.orderNumber} fulfilled from warehouse by admin. Previous status: ${previousStatus}`);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        order: {
-          id: order._id,
-          orderNumber: order.orderNumber,
-          status: order.status,
-          assignedTo: order.assignedTo,
-          expectedDeliveryDate: order.expectedDeliveryDate,
-          trackingNumber: order.trackingNumber,
-        },
-        message: 'Order fulfilled from warehouse successfully',
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Revert escalation back to User
- * @route   POST /api/admin/orders/:orderId/revert-escalation
- * @access  Private (Admin)
- */
-exports.revertEscalation = async (req, res, next) => {
-  try {
-    const { orderId } = req.params;
-    const { reason } = req.body;
-
-    if (!reason) {
-      return res.status(400).json({
-        success: false,
-        message: 'Revert reason is required',
-      });
-    }
-
-    const order = await Order.findById(orderId)
-      .populate('userId', 'name phone email location')
-      .populate('escalation.originalUserId', 'name phone location');
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found',
-      });
-    }
-
-    // Check if order is escalated
-    if (!order.escalation?.isEscalated || order.assignedTo !== 'admin') {
-      return res.status(400).json({
-        success: false,
-        message: 'Order is not escalated to admin',
-      });
-    }
-
-    // Check if order can be reverted (not delivered or cancelled)
-    if (order.status === 'delivered' || order.status === 'cancelled') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot revert order with status: ${order.status}`,
-      });
-    }
-
-    // Get original User
-    const originalUser = order.escalation.originalUserId;
-    if (!originalUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'Original User not found. Cannot revert escalation.',
-      });
-    }
-
-    // Revert escalation - assign back to User
-    // Handle case where UserId might already be set (no error if same)
-    if (order.userId && order.userId.toString() !== originaluser._id.toString()) {
-      // If UserId exists but is different, update it
-      order.userId = originaluser._id;
-    } else if (!order.userId) {
-      // If UserId doesn't exist, set it
-      order.userId = originaluser._id;
-    }
-    // If UserId is already the same, no need to change it
-
-    order.assignedTo = 'User';
-    order.status = 'pending'; // Reset to pending for User to handle
-
-    // Update escalation tracking
-    order.escalation.revertedAt = new Date();
-    order.escalation.revertedBy = req.admin._id;
-    order.escalation.revertReason = reason;
-
-    // Add notes
-    order.notes = `${order.notes || ''}\n[Admin Revert] Order reverted back to User ${originaluser.name}. Reason: ${reason}`.trim();
-
-    // Update status timeline
-    order.statusTimeline.push({
-      status: 'pending',
-      timestamp: new Date(),
-      updatedBy: 'admin',
-      note: `Escalation reverted back to User ${originaluser.name}. Reason: ${reason}`,
-    });
-
-    await order.save();
-
-    // TODO: Send notification to User
-
-    console.log(`✅ Escalation reverted for order ${order.orderNumber} back to User ${originaluser.name}`);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        order: {
-          id: order._id,
-          orderNumber: order.orderNumber,
-          status: order.status,
-          assignedTo: order.assignedTo,
-          userId: order.userId,
-          User: {
-            id: originaluser._id,
-            name: originaluser.name,
-            phone: originalUser.phone,
-            location: originalUser.location,
-          },
-        },
-        message: 'Escalation reverted successfully. Order assigned back to User.',
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Reassign order to different User
- * @route   PUT /api/admin/orders/:orderId/reassign
- * @access  Private (Admin)
- */
-exports.reassignOrder = async (req, res, next) => {
-  try {
-    const { orderId } = req.params;
-    const { UserId, reason } = req.body;
-
-    if (!UserId) {
-      return res.status(400).json({
-        success: false,
-        message: 'User ID is required',
-      });
-    }
-
-    const order = await Order.findById(orderId);
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found',
-      });
-    }
-
-    // Check if order can be reassigned
-    if (order.status === 'delivered' || order.status === 'cancelled') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot reassign order with status: ${order.status}`,
-      });
-    }
-
-    // Check if new User exists and is approved
-    const newUser = await User.findById(UserId);
-    if (!newUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    if (newUser.status !== 'approved' || !newUser.isActive) {
-      return res.status(400).json({
-        success: false,
-        message: 'User must be approved and active',
-      });
-    }
-
-    // Check if User is same
-    if (order.userId && order.userId.toString() === UserId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order is already assigned to this User',
-      });
-    }
-
-    const oldUserId = order.userId;
-
-    // Reassign order
-    order.userId = UserId;
-    order.assignedTo = 'User';
-
-    // Add note to order if reason provided
-    if (reason) {
-      order.notes = `${order.notes || ''}\n[Reassigned by Admin] ${reason}`.trim();
-    }
-
-    // Update status timeline
-    order.statusTimeline.push({
-      status: order.status,
-      timestamp: new Date(),
-      updatedBy: 'admin',
-      note: `Order reassigned to User: ${newuser.name}${reason ? ` - Reason: ${reason}` : ''}`,
-    });
-
-    await order.save();
-
-    // TODO: Send notifications
-    // - Notify old User (if exists)
-    // - Notify new User
-    // - Notify user
-
-    console.log(`✅ Order ${order.orderNumber} reassigned from User ${oldUserId} to ${UserId}`);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        order,
-        oldUserId,
-        newUser: {
-          id: newuser._id,
-          name: newuser.name,
-          phone: newUser.phone,
-        },
-        message: 'Order reassigned successfully',
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Update order status (for admin-fulfilled orders)
+ * @desc    Update order status
  * @route   PUT /api/admin/orders/:orderId/status
  * @access  Private (Admin)
  */
 exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    const { status, notes, isRevert, finalizeGracePeriod } = req.body;
+    const { status, notes } = req.body;
 
-    // If finalizing grace period, status is not required
-    if (!finalizeGracePeriod && !status) {
+    if (!status) {
       return res.status(400).json({
         success: false,
         message: 'Status is required',
       });
     }
 
-    // Valid status transitions for admin (only validate if status is provided)
-    if (status) {
-      const validStatuses = ['awaiting', 'accepted', 'processing', 'dispatched', 'delivered', 'fully_paid'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid status. Allowed: ${validStatuses.join(', ')}`,
-        });
-      }
-    }
-
     const order = await Order.findById(orderId);
-
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -4462,187 +3896,20 @@ exports.updateOrderStatus = async (req, res, next) => {
       });
     }
 
-    // Admin can update status for any order (User-assigned or admin-assigned)
-    // No restriction needed
+    // Direct update logic
+    order.status = status;
+    order.statusTimeline.push({
+      status,
+      note: notes || `Status updated to ${status} by admin`,
+      updatedBy: 'admin',
+      timestamp: new Date()
+    });
 
-    const normalizeStatusValue = (value) => {
-      if (!value) {
-        return ORDER_STATUS.AWAITING;
-      }
-      const normalized = value.toString().toLowerCase();
-      if (normalized === ORDER_STATUS.PENDING) {
-        return ORDER_STATUS.AWAITING;
-      }
-      if (normalized === ORDER_STATUS.PROCESSING) {
-        return ORDER_STATUS.ACCEPTED;
-      }
-      return normalized;
-    };
-
-    const normalizedCurrentStatus = normalizeStatusValue(order.status);
-    const normalizedNewStatus = normalizeStatusValue(status);
-
-    // Simplified flow for Noor E Adah (Full Payment only)
-    const statusFlow = [ORDER_STATUS.AWAITING, ORDER_STATUS.PAID, ORDER_STATUS.ACCEPTED, ORDER_STATUS.PROCESSING, ORDER_STATUS.DISPATCHED, ORDER_STATUS.DELIVERED];
-
-    const finalStageStatus = ORDER_STATUS.DELIVERED;
-
-    // Check if there's an active status update grace period that hasn't expired
-    const now = new Date();
-    const hasActiveGracePeriod = order.statusUpdateGracePeriod?.isActive &&
-      order.statusUpdateGracePeriod.expiresAt > now;
-
-    // Allow finalizing grace period without status change
-    if (finalizeGracePeriod === true && hasActiveGracePeriod) {
-      order.statusUpdateGracePeriod.isActive = false;
-      order.statusUpdateGracePeriod.finalizedAt = now;
-      await order.save();
-      return res.status(200).json({
-        success: true,
-        data: {
-          order: {
-            id: order._id,
-            orderNumber: order.orderNumber,
-            status: order.status,
-            paymentStatus: order.paymentStatus,
-            statusUpdateGracePeriod: order.statusUpdateGracePeriod,
-          },
-          message: 'Status update grace period finalized successfully.',
-        },
-      });
-    }
-
-    if (hasActiveGracePeriod) {
-      // During grace period, only allow reverting to previous status
-      const isReverting = order.statusUpdateGracePeriod.previousStatus === status;
-
-      if (!isReverting) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot update status. Previous status update is still in grace period. Please wait for it to finalize (expires in ${Math.ceil((order.statusUpdateGracePeriod.expiresAt - now) / 1000 / 60)} minutes) or revert to previous status.`,
-        });
-      }
-    } else if (order.statusUpdateGracePeriod?.isActive && order.statusUpdateGracePeriod.expiresAt <= now) {
-      // Grace period expired, finalize it
-      order.statusUpdateGracePeriod.isActive = false;
-      order.statusUpdateGracePeriod.finalizedAt = now;
-      order.statusUpdateGracePeriod.previousPaymentStatus = undefined;
-      order.statusUpdateGracePeriod.previousRemainingAmount = undefined;
-    }
-
-    if (!hasActiveGracePeriod && normalizedCurrentStatus === finalStageStatus) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order has already completed its workflow. Further updates are not allowed.',
-      });
-    }
-
-
-    // If reverting to previous status during grace period, allow it
-    // Also check if isRevert flag is explicitly set
-    const isReverting = (hasActiveGracePeriod &&
-      order.statusUpdateGracePeriod.previousStatus === normalizedNewStatus) ||
-      (isRevert === true);
-
-    const currentIndex = statusFlow.indexOf(normalizedCurrentStatus);
-    const newIndex = statusFlow.indexOf(normalizedNewStatus);
-
-    if (newIndex === -1 && !isReverting) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot change status. ${status} is not part of the standard workflow.`,
-      });
-    }
-
-    if (!isReverting && newIndex !== -1 && newIndex <= currentIndex) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot change status from ${order.status} to ${status}. Invalid transition.`,
-      });
-    }
-
-    // Store previous status for grace period (only if not reverting)
-    const previousStatus = normalizeStatusValue(order.status);
-    const isStatusChange = normalizedNewStatus !== previousStatus;
-
-    const startGracePeriod = (extra = {}) => {
-      const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
-      order.statusUpdateGracePeriod = {
-        isActive: true,
-        previousStatus,
-        updatedAt: now,
-        expiresAt,
-        updatedBy: 'admin',
-        previousPaymentStatus: undefined,
-        previousRemainingAmount: undefined,
-        ...extra,
-      };
-    };
-
-    const finalizeStatusUpdateGracePeriod = () => {
-      order.statusUpdateGracePeriod.isActive = false;
-      order.statusUpdateGracePeriod.finalizedAt = now;
-    };
-
-      order.status = normalizedNewStatus;
-
-      if (isStatusChange && !isReverting) {
-        startGracePeriod();
-      } else if (isReverting && order.statusUpdateGracePeriod?.isActive) {
-        finalizeStatusUpdateGracePeriod();
-      }
-
-    // Update delivery date if delivered
-    if (normalizedNewStatus === ORDER_STATUS.DELIVERED && !order.deliveredAt) {
+    if (status === ORDER_STATUS.DELIVERED) {
       order.deliveredAt = new Date();
     }
 
-    // Add notes if provided
-    if (notes) {
-      order.notes = `${order.notes || ''}\n[Admin Status Update] ${notes}`.trim();
-    }
-
-    const timelineStatus = order.status;
-    const timelineNote = isReverting
-      ? (notes ? `Status reverted to ${timelineStatus} from ${previousStatus}. Note: ${notes}` : `Status reverted to ${timelineStatus} from ${previousStatus}`)
-      : (notes ? `Status updated from ${previousStatus} to ${timelineStatus}. Note: ${notes}` : `Status updated from ${previousStatus} to ${timelineStatus}`);
-
-    order.statusTimeline.push({
-      status: timelineStatus,
-      timestamp: now,
-      updatedBy: 'admin',
-      note: timelineNote,
-    });
-
     await order.save();
-
-    // Send notification to user about order status change
-    try {
-      if (order.userId && isStatusChange && !isReverting) {
-        await UserNotification.createOrderStatusNotification(
-          order.userId,
-          order,
-          normalizedNewStatus
-        );
-        console.log(`📱 User notification sent for order ${order.orderNumber} status: ${normalizedNewStatus}`);
-      }
-    } catch (notifError) {
-      // Don't fail the request if notification fails
-      console.error('Failed to send user notification:', notifError);
-    }
-
-    // For fully_paid status, no grace period message
-    const hasGracePeriod = isStatusChange && normalizedNewStatus !== ORDER_STATUS.FULLY_PAID && order.statusUpdateGracePeriod?.isActive;
-
-    const message = isReverting
-      ? `Order status reverted to ${timelineStatus}`
-      : normalizedNewStatus === ORDER_STATUS.FULLY_PAID
-        ? `Order status updated to ${timelineStatus}. Payment completed.`
-        : isStatusChange
-          ? `Order status updated to ${timelineStatus}. You have 1 hour to revert this change.`
-          : `Order status updated to ${timelineStatus} successfully`;
-
-    console.log(`✅ Order ${order.orderNumber} status updated to ${status} by admin${hasGracePeriod ? ' (grace period active)' : normalizedNewStatus === ORDER_STATUS.FULLY_PAID ? ' (no grace period - immediately finalized)' : ''}`);
 
     res.status(200).json({
       success: true,
@@ -4652,20 +3919,15 @@ exports.updateOrderStatus = async (req, res, next) => {
           orderNumber: order.orderNumber,
           status: order.status,
           paymentStatus: order.paymentStatus,
-          statusUpdateGracePeriod: order.statusUpdateGracePeriod,
         },
-        message,
-        gracePeriod: hasGracePeriod ? {
-          isActive: true,
-          expiresAt: order.statusUpdateGracePeriod.expiresAt,
-          previousStatus: order.statusUpdateGracePeriod.previousStatus,
-        } : null,
+        message: `Order status updated to ${status} successfully.`,
       },
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 /**
  * @desc    Get all payments with filtering and pagination
