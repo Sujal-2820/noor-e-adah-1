@@ -1,7 +1,7 @@
 import { messaging, getToken, onMessage } from '../firebase';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 /**
  * Register the Service Worker for Firebase Messaging
@@ -105,7 +105,7 @@ async function registerFCMTokenWithBackend(force = false) {
         if (!token) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/fcm/register`, {
+            const response = await fetch(`${API_BASE_URL}/fcm/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
