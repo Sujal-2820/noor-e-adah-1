@@ -1,15 +1,22 @@
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
+
 import { useNavigate, Link } from 'react-router-dom'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import { useWebsiteApi } from '../hooks/useWebsiteApi'
+import { SizeChartModal } from './SizeChartModal'
 import { cn } from '../../../lib/cn'
+
 
 export function CartSidebar() {
     const navigate = useNavigate()
     const dispatch = useWebsiteDispatch()
     const { cart, cartOpen } = useWebsiteState()
-    const { updateCartItem, removeFromCart } = useWebsiteApi()
+    const { updateCartItem, removeFromCart, fetchProductDetails } = useWebsiteApi()
+    const [isSizeChartOpen, setIsSizeChartOpen] = useState(false)
+    const [chartProduct, setChartProduct] = useState(null)
+    const [isChartLoading, setIsChartLoading] = useState(false)
     const sidebarRef = useRef(null)
+
 
     // Close sidebar on escape key
     useEffect(() => {
@@ -70,6 +77,22 @@ export function CartSidebar() {
         dispatch({ type: 'SET_CART_OPEN', payload: false })
         navigate('/cart')
     }
+
+    const handleOpenSizeChart = async (productId) => {
+        setIsChartLoading(true)
+        try {
+            const res = await fetchProductDetails(productId)
+            if (res.data) {
+                setChartProduct(res.data)
+                setIsSizeChartOpen(true)
+            }
+        } catch (error) {
+            console.error('Failed to load size chart:', error)
+        } finally {
+            setIsChartLoading(false)
+        }
+    }
+
 
     return (
         <>
@@ -160,7 +183,13 @@ export function CartSidebar() {
                                                 </button>
                                             </div>
                                             <div className="mt-2 text-right">
-                                                <button className="text-[10px] font-bold tracking-widest uppercase text-brand/40 hover:text-accent underline underline-offset-4">Size chart</button>
+                                                <button 
+                                                    onClick={() => handleOpenSizeChart(item.productId)}
+                                                    disabled={isChartLoading}
+                                                    className="text-[10px] font-bold tracking-widest uppercase text-brand/40 hover:text-accent underline underline-offset-4 disabled:opacity-50"
+                                                >
+                                                    {isChartLoading ? 'Loading...' : 'Size chart'}
+                                                </button>
                                             </div>
                                         </div>
 
@@ -221,6 +250,13 @@ export function CartSidebar() {
                     </div>
                 )}
             </div>
+            {/* Size Chart Modal */}
+            <SizeChartModal 
+                isOpen={isSizeChartOpen} 
+                onClose={() => { setIsSizeChartOpen(false); setChartProduct(null); }} 
+                product={chartProduct} 
+            />
         </>
+
     )
 }

@@ -6,7 +6,9 @@ import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import * as websiteApi from '../services/websiteApi'
 import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
+import { SizeChartModal } from '../components/SizeChartModal'
 import '../styles/website.css'
+
 import { useTranslation } from '../../../context/TranslationContext'
 import { Trans } from '../../../components/Trans'
 import { TransText } from '../../../components/TransText'
@@ -35,7 +37,13 @@ export function ProductListingPage() {
   const [products, setProducts] = useState([])
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [activeQuickBuyId, setActiveQuickBuyId] = useState(null)
+  const [selectedSize, setSelectedSize] = useState(null)
+  const [isSizeChartOpen, setIsSizeChartOpen] = useState(false)
+  const [chartProduct, setChartProduct] = useState(null)
   const [taxonomies, setTaxonomies] = useState({ categories: [], looks: [], themes: [], collections: [] })
+
+
 
   // Filter State
   const [priceRange, setPriceRange] = useState({ min: 0, max: 50000 })
@@ -230,77 +238,159 @@ export function ProductListingPage() {
               ))
             ) : products.length > 0 ? (
               products.map((product, idx) => {
-                const productId = product._id || product.id
-                const productImage = getPrimaryImageUrl(product)
-                const isWishlisted = favourites.includes(productId)
-                const outOfStock = (product.displayStock || product.stock || 0) === 0
+                 const productId = product._id || product.id
+                 const productImage = getPrimaryImageUrl(product)
+                 const isWishlisted = favourites.includes(productId)
+                 const outOfStock = (product.displayStock || product.stock || 0) === 0
+                 const isQuickBuyOpen = activeQuickBuyId === productId
+                 const availableSizes = product.sizes || ['XS', 'S', 'M', 'L', 'XL', '2XL']
 
-                return (
-                  <div
-                    key={productId}
-                    className="group animate-calm-entry flex flex-col items-center text-center"
-                    style={{ animationDelay: `${idx * 50}ms` }}
-                  >
-                    <div
-                      className={cn(
-                        "relative aspect-[3/4] overflow-hidden bg-surface-muted/30 w-full mb-6 cursor-pointer border border-brand/20 group-hover:border-brand/50 transition-all duration-700 product-card-container",
-                        outOfStock && "grayscale"
-                      )}
-                      onClick={() => navigate(`/product/${productId}`)}
-                    >
-                      <img
-                        src={productImage}
-                        alt={product.name}
-                        className={cn("w-full h-full object-cover product-image-primary", outOfStock && "opacity-60")}
-                      />
+                 return (
+                   <div
+                     key={productId}
+                     className="group animate-calm-entry flex flex-col items-center text-center"
+                     style={{ animationDelay: `${idx * 50}ms` }}
+                   >
+                     <div
+                       className={cn(
+                         "relative aspect-[3/4] overflow-hidden bg-surface-muted/30 w-full mb-6 cursor-pointer border border-brand/20 group-hover:border-brand/50 transition-all duration-700 product-card-container",
+                         outOfStock && "grayscale"
+                       )}
+                       onClick={() => navigate(`/product/${productId}`)}
+                     >
+                       <img
+                         src={productImage}
+                         alt={product.name}
+                         className={cn("w-full h-full object-cover product-image-primary", outOfStock && "opacity-60")}
+                       />
 
-                      {/* Secondary Image for Hover (Smooth Transition) */}
-                      {!outOfStock && (
-                        <img
-                          src={getImageUrlAt(product, 1)}
-                          alt={`${product.name} alternate view`}
-                          className="product-image-secondary"
-                        />
-                      )}
+                       {/* Secondary Image for Hover (Smooth Transition) */}
+                       {!outOfStock && (
+                         <img
+                           src={getImageUrlAt(product, 1)}
+                           alt={`${product.name} alternate view`}
+                           className="product-image-secondary"
+                         />
+                       )}
 
-                      {outOfStock && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
-                          <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
-                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
-                                Sold Out
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                       {outOfStock && (
+                         <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
+                           <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
+                             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
+                                 Sold Out
+                             </span>
+                           </div>
+                         </div>
+                       )}
 
-                      {/* Premium Hover Actions Overlay */}
-                      {!outOfStock && <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />}
+                       {/* Floating Action Pill (Image 1) */}
+                       {!outOfStock && !isQuickBuyOpen && (
+                         <div className="absolute top-4 right-4 flex flex-col bg-white rounded-2xl shadow-premium overflow-hidden z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                           <button
+                             onClick={(e) => { e.stopPropagation(); handleToggleFavourite(e, productId) }}
+                             className="p-3.5 hover:bg-brand/5 border-b border-brand/5 transition-colors group/fav"
+                           >
+                             <svg 
+                               className={cn("w-5 h-5 transition-transform group-hover/fav:scale-110", isWishlisted ? "text-red-500 fill-red-500" : "text-brand/40")} 
+                               stroke="currentColor" 
+                               viewBox="0 0 24 24"
+                               fill={isWishlisted ? "currentColor" : "none"}
+                             >
+                               <path d="M20.81 4.64a5.48 5.48 0 0 0-7.78 0L12 5.67l-1.03-1.03a5.48 5.48 0 0 0-7.78 7.78l1.03 1.03 7.78 7.78 7.78-7.78 1.03-1.03a5.48 5.48 0 0 0 0-7.78z" strokeWidth="1.5" />
+                             </svg>
+                           </button>
+                           <button
+                             onClick={(e) => { e.stopPropagation(); setSelectedSize(null); setActiveQuickBuyId(productId) }}
+                             className="p-3.5 hover:bg-brand/5 transition-colors group/cart"
+                           >
+                             <svg className="w-5 h-5 text-brand/40 group-hover/cart:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                             </svg>
+                           </button>
+                         </div>
+                       )}
 
-                      <div className="absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out z-10 flex flex-col gap-3">
-                        <button
-                          className="w-full bg-white/95 backdrop-blur-sm text-brand py-3.5 text-[10px] lg:text-[12px] font-bold tracking-[0.15em] uppercase hover:bg-brand hover:text-white transition-all shadow-xl border border-brand/40 font-sans"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/product/${productId}`) }}
-                        >
-                          {outOfStock ? 'View Piece' : 'Select Piece'}
-                        </button>
-                      </div>
+                       {/* Size Selection Overlay (Image 2 & 3) */}
+                       {isQuickBuyOpen && (
+                         <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-30 animate-in fade-in duration-300 flex flex-col p-6 pr-10" onClick={(e) => e.stopPropagation()}>
+                           {/* Close Button */}
+                           <button 
+                             onClick={() => setActiveQuickBuyId(null)}
+                             className="absolute top-4 right-4 text-brand/40 hover:text-brand transition-colors"
+                           >
+                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round"/></svg>
+                           </button>
 
-                      <div className="absolute top-4 right-4 flex flex-col gap-3 translate-x-12 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-500">
-                        <button
-                          onClick={(e) => handleToggleFavourite(e, productId)}
-                          className="bg-white/90 p-3 rounded-full shadow-lg hover:bg-white transition-all text-brand border border-brand/20"
-                        >
-                          <svg className="w-4 h-4" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" strokeWidth="1.5" />
-                          </svg>
-                        </button>
-                        <button className="bg-white/90 p-3 rounded-full shadow-lg hover:bg-white transition-all text-brand border border-brand/20">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeWidth="1.5" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                           <div className="flex-1 flex flex-col">
+                             <h4 className="text-[12px] font-bold tracking-[0.2em] text-brand/80 text-center uppercase mb-8 mt-4">
+                               Size: {selectedSize || ""}
+                             </h4>
+
+                             <div className="grid grid-cols-3 gap-3 mb-10">
+                               {availableSizes.map(size => {
+                                 const sizeLabel = typeof size === 'object' ? size.label : size;
+                                 return (
+                                   <button
+                                     key={sizeLabel}
+                                     onClick={() => setSelectedSize(sizeLabel)}
+                                     className={cn(
+                                       "h-10 border text-[11px] font-bold tracking-widest transition-all",
+                                       selectedSize === sizeLabel 
+                                         ? "border-brand bg-brand text-white shadow-md active:scale-95" 
+                                         : "border-brand/10 text-brand/40 hover:border-brand/30 hover:text-brand"
+                                     )}
+                                   >
+                                     {sizeLabel}
+                                   </button>
+                                 );
+                               })}
+                             </div>
+
+
+                             {/* Clear Selection */}
+                             {selectedSize && (
+                                 <button 
+                                     onClick={() => setSelectedSize(null)}
+                                     className="flex items-center justify-center gap-2 text-[10px] font-bold text-brand/30 hover:text-brand transition-all uppercase mb-6"
+                                 >
+                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" /></svg>
+                                     Clear
+                                 </button>
+                             )}
+
+                             <div className="mt-auto text-right">
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); setChartProduct(product); setIsSizeChartOpen(true); }}
+                                 className="text-[10px] font-bold text-brand italic border-b border-brand pb-0.5 tracking-wider hover:text-accent transition-colors"
+                               >
+                                 Size chart
+                               </button>
+                             </div>
+
+                           </div>
+
+                           {/* Black Trolley Bar (Bottom of Overlay) */}
+                           <div className="absolute bottom-0 left-0 right-0">
+                              <button
+                                onClick={() => {
+                                  if (!selectedSize) {
+                                    alert('Please select a size first')
+                                    return
+                                  }
+                                  addToCart(productId, 1, { size: selectedSize })
+                                  setActiveQuickBuyId(null)
+                                }}
+                                className="w-full h-14 bg-black flex items-center justify-center group active:bg-brand transition-colors"
+                              >
+                                 <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                 </svg>
+                              </button>
+                           </div>
+                         </div>
+                       )}
+                     </div>
+
 
                     <h3 className="text-[10px] sm:text-[11px] lg:text-[13px] font-semibold tracking-[0.1em] text-brand/90 uppercase mb-1.5 group-hover:text-accent transition-all px-2 text-center leading-relaxed">
                       {product.name}
@@ -576,6 +666,12 @@ export function ProductListingPage() {
           </div>
         </div>
       </aside>
+      {/* Quick Buy Size Chart Modal */}
+      <SizeChartModal 
+        isOpen={isSizeChartOpen} 
+        onClose={() => { setIsSizeChartOpen(false); setChartProduct(null); }} 
+        product={chartProduct} 
+      />
     </Layout>
   )
 }

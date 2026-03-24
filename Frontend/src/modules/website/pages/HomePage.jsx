@@ -6,7 +6,9 @@ import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import * as websiteApi from '../services/websiteApi'
 import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
+import { SizeChartModal } from '../components/SizeChartModal'
 import '../styles/website.css'
+
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -23,7 +25,13 @@ export function HomePage() {
   const [collections, setCollections] = useState([])
   const [popularProducts, setPopularProducts] = useState([])
   const [videoProducts, setVideoProducts] = useState([]) // Watch and Buy
+  const [activeQuickBuyId, setActiveQuickBuyId] = useState(null)
+  const [selectedSize, setSelectedSize] = useState(null)
+  const [isSizeChartOpen, setIsSizeChartOpen] = useState(false)
+  const [chartProduct, setChartProduct] = useState(null)
   const [desktopCarousels, setDesktopCarousels] = useState([])
+
+
   const [smartphoneCarousels, setSmartphoneCarousels] = useState([])
   const [carousels, setCarousels] = useState([]) // Current active carousels based on screen
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
@@ -245,6 +253,9 @@ export function HomePage() {
                 const productImage = getPrimaryImageUrl(product)
                 const isWishlisted = favourites.includes(productId)
                 const outOfStock = (product.displayStock || product.stock || 0) === 0
+                const isQuickBuyOpen = activeQuickBuyId === productId
+                const availableSizes = product.sizes || ['XS', 'S', 'M', 'L', 'XL', '2XL']
+
 
                 return (
                   <div
@@ -284,15 +295,114 @@ export function HomePage() {
 
                       {!outOfStock && <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />}
 
-                      <button
-                        onClick={(e) => handleToggleFavourite(e, productId)}
-                        className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white border border-brand/5 rounded-full transition-all opacity-0 group-hover:opacity-100 shadow-sm z-20"
-                      >
-                        <svg className="w-3 h-3 text-brand" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" strokeWidth="1.5" />
-                        </svg>
-                      </button>
+                      {/* Floating Action Pill (Image 1) */}
+                      {!outOfStock && !isQuickBuyOpen && (
+                        <div className="absolute top-4 right-4 flex flex-col bg-white rounded-2xl shadow-premium overflow-hidden z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleFavourite(e, productId) }}
+                            className="p-3.5 hover:bg-brand/5 border-b border-brand/5 transition-colors group/fav"
+                          >
+                            <svg 
+                              className={cn("w-5 h-5 transition-transform group-hover/fav:scale-110", isWishlisted ? "text-red-500 fill-red-500" : "text-brand/40")} 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                              fill={isWishlisted ? "currentColor" : "none"}
+                            >
+                              <path d="M20.81 4.64a5.48 5.48 0 0 0-7.78 0L12 5.67l-1.03-1.03a5.48 5.48 0 0 0-7.78 7.78l1.03 1.03 7.78 7.78 7.78-7.78 1.03-1.03a5.48 5.48 0 0 0 0-7.78z" strokeWidth="1.5" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setSelectedSize(null); setActiveQuickBuyId(productId) }}
+                            className="p-3.5 hover:bg-brand/5 transition-colors group/cart"
+                          >
+                            <svg className="w-5 h-5 text-brand/40 group-hover/cart:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Size Selection Overlay (Image 2 & 3) */}
+                      {isQuickBuyOpen && (
+                        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-30 animate-in fade-in duration-300 flex flex-col p-6 pr-10" onClick={(e) => e.stopPropagation()}>
+                          {/* Close Button */}
+                          <button 
+                            onClick={() => setActiveQuickBuyId(null)}
+                            className="absolute top-4 right-4 text-brand/40 hover:text-brand transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round"/></svg>
+                          </button>
+
+                          <div className="flex-1 flex flex-col">
+                            <h4 className="text-[12px] font-bold tracking-[0.2em] text-brand/80 text-center uppercase mb-8 mt-4">
+                              Size: {selectedSize || ""}
+                            </h4>
+
+                            <div className="grid grid-cols-3 gap-3 mb-10">
+                              {availableSizes.map(size => {
+                                const sizeLabel = typeof size === 'object' ? size.label : size;
+                                return (
+                                  <button
+                                    key={sizeLabel}
+                                    onClick={() => setSelectedSize(sizeLabel)}
+                                    className={cn(
+                                      "h-10 border text-[11px] font-bold tracking-widest transition-all",
+                                      selectedSize === sizeLabel 
+                                        ? "border-brand bg-brand text-white shadow-md active:scale-95" 
+                                        : "border-brand/10 text-brand/40 hover:border-brand/30 hover:text-brand"
+                                    )}
+                                  >
+                                    {sizeLabel}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+
+                            {/* Clear Selection */}
+                            {selectedSize && (
+                                <button 
+                                    onClick={() => setSelectedSize(null)}
+                                    className="flex items-center justify-center gap-2 text-[10px] font-bold text-brand/30 hover:text-brand transition-all uppercase mb-6"
+                                >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" /></svg>
+                                    Clear
+                                </button>
+                            )}
+
+                            <div className="mt-auto text-right">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setChartProduct(product); setIsSizeChartOpen(true); }}
+                                className="text-[10px] font-bold text-brand italic border-b border-brand pb-0.5 tracking-wider hover:text-accent transition-colors"
+                              >
+                                Size chart
+                              </button>
+                            </div>
+
+                          </div>
+
+                          {/* Black Trolley Bar (Bottom of Overlay) */}
+                          <div className="absolute bottom-0 left-0 right-0">
+                             <button
+                               onClick={() => {
+                                 if (!selectedSize) {
+                                   alert('Please select a size first')
+                                   return
+                                 }
+                                 addToCart(productId, 1, { size: selectedSize })
+                                 setActiveQuickBuyId(null)
+                               }}
+                               className="w-full h-14 bg-black flex items-center justify-center group active:bg-brand transition-colors"
+                             >
+                                <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                             </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
+
 
                     <div className="text-center flex flex-col items-center px-2">
                       <h3 className="text-[10px] sm:text-[11px] lg:text-[13px] font-bold tracking-[0.1em] text-brand/90 uppercase mb-1 transition-all">
@@ -610,6 +720,13 @@ export function HomePage() {
           </div>
         </Container>
       </Section>
+      {/* Quick Buy Size Chart Modal */}
+      <SizeChartModal 
+        isOpen={isSizeChartOpen} 
+        onClose={() => { setIsSizeChartOpen(false); setChartProduct(null); }} 
+        product={chartProduct} 
+      />
     </Layout>
+
   )
 }
