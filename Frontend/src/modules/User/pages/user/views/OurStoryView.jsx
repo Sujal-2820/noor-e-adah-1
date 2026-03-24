@@ -1,7 +1,6 @@
-import React from 'react';
 import { Sparkles, Heart, Users, ShieldCheck, ShoppingBag } from 'lucide-react';
 import { cn } from '../../../../../lib/cn';
-import { Trans } from '../../../components/Trans';
+import { Trans } from '../../../../../components/Trans';
 
 export function OurStoryView() {
   return (
