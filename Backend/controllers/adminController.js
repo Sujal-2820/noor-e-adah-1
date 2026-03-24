@@ -22,6 +22,8 @@ const UserNotification = require('../models/UserNotification');
 const Offer = require('../models/Offer');
 const Review = require('../models/Review');
 const Category = require('../models/Category');
+const UserPurchase = require('../models/UserPurchase');
+
 
 const razorpayService = require('../services/razorpayService');
 const { deleteFile, getVideoThumbnail } = require('../config/cloudinary');
@@ -5784,6 +5786,283 @@ exports.updateDeliverySettings = async (req, res, next) => {
       message: 'Delivery settings updated successfully.',
       data: updatedConfig,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// USER PURCHASE (STOCK ORDER) MANAGEMENT CONTROLLERS
+// ============================================================================
+
+/**
+ * @desc    Get all user purchase requests
+ * @route   GET /api/admin/users/purchases
+ */
+exports.getUserPurchaseRequests = async (req, res, next) => {
+  try {
+    const { status, userId, page = 1, limit = 20, search } = req.query;
+
+    const query = {};
+    if (status) query.status = status;
+    if (userId) query.userId = userId;
+
+    if (search) {
+      // Search by orderId or user name
+      const users = await User.find({ name: { $regex: search, $options: 'i' } }).select('_id');
+      const userIds = users.map(u => u._id);
+      query.$or = [
+        { orderId: { $regex: search, $options: 'i' } },
+        { userId: { $in: userIds } }
+      ];
+    }
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await UserPurchase.countDocuments(query);
+    const purchases = await UserPurchase.find(query)
+      .populate('userId', 'name phone email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        purchases,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          pages: Math.ceil(total / limitNum)
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get single user purchase details
+ * @route   GET /api/admin/users/purchases/:requestId
+ */
+exports.getUserPurchaseDetails = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const purchase = await UserPurchase.findById(requestId).populate('userId', 'name phone email');
+
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'Purchase request not found' });
+    }
+
+    res.status(200).json({ success: true, data: purchase });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Approve user purchase request
+ * @route   POST /api/admin/users/purchases/:requestId/approve
+ */
+exports.approveUserPurchase = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { remarks } = req.body;
+
+    const purchase = await UserPurchase.findById(requestId);
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'Purchase request not found' });
+    }
+
+    if (purchase.status !== 'pending') {
+      return res.status(400).json({ success: false, message: `Cannot approve order with status ${purchase.status}` });
+    }
+
+    purchase.status = 'approved';
+    if (remarks) purchase.adminRemarks = remarks;
+    await purchase.save();
+
+    res.status(200).json({ success: true, message: 'Purchase request approved successfully', data: purchase });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reject user purchase request
+ * @route   POST /api/admin/users/purchases/:requestId/reject
+ */
+exports.rejectUserPurchase = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { reason } = req.body;
+
+    const purchase = await UserPurchase.findById(requestId);
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'Purchase request not found' });
+    }
+
+    if (purchase.status !== 'pending' && purchase.status !== 'approved') {
+      return res.status(400).json({ success: false, message: `Cannot reject order with status ${purchase.status}` });
+    }
+
+    purchase.status = 'rejected';
+    if (reason) purchase.adminRemarks = reason;
+    await purchase.save();
+
+    res.status(200).json({ success: true, message: 'Purchase request rejected successfully', data: purchase });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Process user purchase stock
+ * @route   POST /api/admin/users/purchases/:requestId/process
+ */
+exports.processUserPurchaseStock = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { deliveryNotes } = req.body;
+
+    const purchase = await UserPurchase.findById(requestId);
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'Purchase request not found' });
+    }
+
+    purchase.status = 'processing';
+    purchase.deliveryStatus = 'processing';
+    if (deliveryNotes) purchase.deliveryNotes = deliveryNotes;
+    await purchase.save();
+
+    res.status(200).json({ success: true, message: 'Order is now being processed.', data: purchase });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Send user purchase stock
+ * @route   POST /api/admin/users/purchases/:requestId/send
+ */
+exports.sendUserPurchaseStock = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { deliveryNotes, trackingNumber } = req.body;
+
+    const purchase = await UserPurchase.findById(requestId);
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'Purchase request not found' });
+    }
+
+    purchase.status = 'dispatched';
+    purchase.deliveryStatus = 'in_transit';
+    if (deliveryNotes) purchase.deliveryNotes = deliveryNotes;
+
+    if (trackingNumber) purchase.trackingNumber = trackingNumber;
+    await purchase.save();
+
+    res.status(200).json({ success: true, message: 'Stock has been dispatched.', data: purchase });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Confirm user purchase delivery
+ * @route   POST /api/admin/users/purchases/:requestId/confirm-delivery
+ */
+exports.confirmUserPurchaseDelivery = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { deliveryNotes } = req.body;
+
+    const purchase = await UserPurchase.findById(requestId);
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'Purchase request not found' });
+    }
+
+    if (purchase.status === 'delivered') {
+      return res.status(400).json({ success: false, message: 'Order already delivered' });
+    }
+
+    purchase.status = 'delivered';
+    purchase.deliveryStatus = 'delivered';
+    purchase.deliveredAt = new Date();
+    if (deliveryNotes) purchase.deliveryNotes = deliveryNotes;
+    await purchase.save();
+
+    // 🚀 CRITICAL: Update user stock in ProductAssignment
+    for (const item of purchase.items) {
+      try {
+        let assignment = await ProductAssignment.findOne({
+          userId: purchase.userId,
+          productId: item.productId
+        });
+
+        if (!assignment) {
+          // Create new assignment if it doesn't exist
+          assignment = new ProductAssignment({
+            userId: purchase.userId,
+            productId: item.productId,
+            stock: item.quantity,
+            assignedBy: req.admin?._id || purchase.userId, // Fallback if admin info missing
+            isActive: true,
+            notes: `Auto-created from delivered purchase ${purchase.orderId}`
+          });
+        } else {
+          // Update existing stock
+          assignment.stock += item.quantity;
+          assignment.isActive = true;
+          assignment.notes = (assignment.notes ? assignment.notes + '\n' : '') + `Added ${item.quantity} units from purchase ${purchase.orderId}`;
+        }
+
+        // Handle variant stock if applicable
+        if (item.variantAttributes && item.variantAttributes.size > 0) {
+          // Find matching variant in assignment
+          let variantHandled = false;
+          if (assignment.attributeStocks) {
+            for (let variant of assignment.attributeStocks) {
+              const variantMap = new Map(variant.attributes);
+              let mismatch = false;
+              for (let [k, v] of item.variantAttributes) {
+                if (variantMap.get(k) !== v) {
+                  mismatch = true;
+                  break;
+                }
+              }
+              if (!mismatch && variantMap.size === item.variantAttributes.size) {
+                variant.stock += item.quantity;
+                variantHandled = true;
+                break;
+              }
+            }
+          } else {
+            assignment.attributeStocks = [];
+          }
+
+          if (!variantHandled) {
+            assignment.attributeStocks.push({
+              attributes: item.variantAttributes,
+              stock: item.quantity,
+              isActive: true
+            });
+          }
+        }
+
+        await assignment.save();
+        console.log(`✅ Stock updated for User ${purchase.userId}, Product ${item.productId}: +${item.quantity}`);
+      } catch (stockError) {
+        console.error(`❌ Failed to update stock for item ${item.productId}:`, stockError);
+        // We don't fail the whole request but log it
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Stock delivered and inventory updated successfully.', data: purchase });
   } catch (error) {
     next(error);
   }

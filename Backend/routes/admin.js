@@ -250,6 +250,61 @@ router.get('/Users/:UserId', authorizeAdmin, adminController.getUserDetails);
  * @access  Private (Admin)
  */
 router.delete('/Users/:UserId', authorizeAdmin, adminController.deleteUser);
+ 
+// ============================================================================
+// USER PURCHASE MANAGEMENT ROUTES (STOCK ORDERS)
+// ============================================================================
+
+/**
+ * @route   GET /api/admin/Users/purchases
+ * @desc    Get all user purchase requests
+ * @access  Private (Admin)
+ */
+router.get('/Users/purchases', authorizeAdmin, adminController.getUserPurchaseRequests);
+
+/**
+ * @route   GET /api/admin/Users/purchases/:requestId
+ * @desc    Get user purchase details
+ * @access  Private (Admin)
+ */
+router.get('/Users/purchases/:requestId', authorizeAdmin, adminController.getUserPurchaseDetails);
+
+/**
+ * @route   POST /api/admin/Users/purchases/:requestId/approve
+ * @desc    Approve user purchase request
+ * @access  Private (Admin)
+ */
+router.post('/Users/purchases/:requestId/approve', authorizeAdmin, adminController.approveUserPurchase);
+
+/**
+ * @route   POST /api/admin/Users/purchases/:requestId/reject
+ * @desc    Reject user purchase request
+ * @access  Private (Admin)
+ */
+router.post('/Users/purchases/:requestId/reject', authorizeAdmin, adminController.rejectUserPurchase);
+
+/**
+ * @route   POST /api/admin/Users/purchases/:requestId/process
+ * @desc    Mark user purchase as processing
+ * @access  Private (Admin)
+ */
+router.post('/Users/purchases/:requestId/process', authorizeAdmin, adminController.processUserPurchaseStock);
+
+/**
+ * @route   POST /api/admin/Users/purchases/:requestId/send
+ * @desc    Mark user purchase as dispatched
+ * @access  Private (Admin)
+ */
+router.post('/Users/purchases/:requestId/send', authorizeAdmin, adminController.sendUserPurchaseStock);
+
+/**
+ * @route   POST /api/admin/Users/purchases/:requestId/confirm-delivery
+ * @desc    Confirm delivery and update stock
+ * @access  Private (Admin)
+ */
+router.post('/Users/purchases/:requestId/confirm-delivery', authorizeAdmin, adminController.confirmUserPurchaseDelivery);
+
++
 
 // UNIFIED WITHDRAWAL MANAGEMENT ROUTES
 // ============================================================================
