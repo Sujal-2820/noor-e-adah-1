@@ -40,7 +40,7 @@ export function OrdersPage({ subRoute = null, navigate }) {
   const [allOrdersList, setAllOrdersList] = useState([])
   const [availableUsers, setAvailableUsers] = useState([])
 
-  // Filter states
+  // Filter and search states
   const [filters, setFilters] = useState({
     region: 'All',
     user: 'All',
@@ -48,6 +48,7 @@ export function OrdersPage({ subRoute = null, navigate }) {
     type: 'All',
     dateFrom: '',
     dateTo: '',
+    search: '',
   })
 
   // View states
@@ -66,15 +67,22 @@ export function OrdersPage({ subRoute = null, navigate }) {
   // Dropdown state for actions menu
   const [openActionsDropdown, setOpenActionsDropdown] = useState(null)
 
-  // Format order data for display
   const formatOrderForDisplay = (order) => {
     const orderValue = typeof order.value === 'number'
       ? order.value
       : parseFloat(order.value?.replace(/[₹,\sL]/g, '') || '0')
 
+    // Extract location from delivery address
+    let userLocation = 'Not provided'
+    if (order.deliveryAddress && order.deliveryAddress.city && order.deliveryAddress.state) {
+      const fullLocation = `${order.deliveryAddress.city}, ${order.deliveryAddress.state}`
+      userLocation = fullLocation.length > 20 ? fullLocation.substring(0, 17) + '...' : fullLocation
+    }
+
     return {
       ...order,
       value: `₹${orderValue.toLocaleString('en-IN')}`,
+      userLocation,
       paymentStatus: order.paymentStatus || 'pending',
       isPaid: order.paymentStatus === 'completed',
     }
@@ -115,25 +123,37 @@ export function OrdersPage({ subRoute = null, navigate }) {
     }
   }, [getOrders, filters])
 
-  // Filter orders based on subRoute
+  // Filter orders based on subRoute and search
   useEffect(() => {
+    let filtered = [...allOrdersList]
+
+    // Search filter
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase()
+      filtered = filtered.filter((o) => {
+        return (o.id && String(o.id).toLowerCase().includes(searchTerm)) ||
+          (o.userName && o.userName.toLowerCase().includes(searchTerm)) ||
+          (o.userLocation && o.userLocation.toLowerCase().includes(searchTerm)) ||
+          (o.value && o.value.toLowerCase().includes(searchTerm))
+      })
+    }
+
     if (subRoute === 'processing') {
-      // Processing orders: accepted but not delivered
-      setOrdersList(allOrdersList.filter((o) => {
-        const status = (o.status || '').toLowerCase()
-        return (status === 'processing' || status === 'accepted' || status === 'awaiting dispatch' || status === 'dispatched') &&
-          status !== 'delivered' && status !== 'completed'
+      // Processing orders: any order not yet delivered or completed
+      setOrdersList(filtered.filter((o) => {
+        const s = (o.status || '').toLowerCase()
+        return s !== 'delivered' && s !== 'completed'
       }))
     } else if (subRoute === 'completed') {
       // Completed: delivered
-      setOrdersList(allOrdersList.filter((o) => {
+      setOrdersList(filtered.filter((o) => {
         const status = (o.status || '').toLowerCase()
         return status === 'delivered' || status === 'completed'
       }))
     } else {
-      setOrdersList(allOrdersList)
+      setOrdersList(filtered)
     }
-  }, [allOrdersList, subRoute])
+  }, [allOrdersList, subRoute, filters.search])
   useEffect(() => {
     fetchOrders()
   }, [fetchOrders])
@@ -864,15 +884,18 @@ export function OrdersPage({ subRoute = null, navigate }) {
         </button>
       </header>
 
-      <FilterBar
-        filters={[
-          { id: 'region', label: filters.region === 'All' ? 'Region' : filters.region, active: filters.region !== 'All' },
-          { id: 'user', label: filters.user === 'All' ? 'User' : filters.user, active: filters.user !== 'All' },
-          { id: 'date', label: filters.dateFrom ? 'Date range' : 'Date range', active: !!filters.dateFrom },
-          { id: 'status', label: filters.status === 'All' ? 'Order status' : filters.status, active: filters.status !== 'All' },
-        ]}
-        onChange={handleFilterChange}
-      />
+      <div className="w-full relative">
+        <input
+          type="text"
+          placeholder="Search by Customer Name, Order ID, Location, or Value..."
+          className="w-full bg-white border border-gray-200 rounded-2xl px-6 py-4 pl-14 text-sm shadow-[0_4px_15px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(255,255,255,0.8)] focus:border-red-500 focus:outline-none focus:ring-4 focus:ring-red-500/5 transition-all duration-300"
+          value={filters.search}
+          onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+        />
+        <svg className="w-6 h-6 absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">

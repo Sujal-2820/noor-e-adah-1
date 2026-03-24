@@ -19,23 +19,12 @@ const notificationColumns = [
   { Header: 'Actions', accessor: 'actions' },
 ]
 
-const escalationColumns = [
-  { Header: 'Order ID', accessor: 'id' },
-  { Header: 'User', accessor: 'user' },
-  { Header: 'Order Value', accessor: 'value' },
-  { Header: 'Escalated', accessor: 'escalatedAt' },
-  { Header: 'Status', accessor: 'status' },
-  { Header: 'Actions', accessor: 'actions' },
-]
 
 export function OperationsPage({ subRoute = null, navigate }) {
   const { orders: ordersState } = useAdminState()
   const {
     getLogisticsSettings,
     updateLogisticsSettings,
-    getEscalatedOrders,
-    fulfillOrderFromWarehouse,
-    revertEscalation,
     getNotifications,
     createNotification,
     updateNotification,
@@ -48,16 +37,11 @@ export function OperationsPage({ subRoute = null, navigate }) {
 
   const [logisticsSettings, setLogisticsSettings] = useState(null)
   const [notifications, setNotifications] = useState([])
-  const [escalatedOrders, setEscalatedOrders] = useState([])
 
   // View states (replacing modals with full-screen views)
-  const [currentView, setCurrentView] = useState(null) // 'logistics', 'notification', 'escalation', 'revertEscalation', 'statusUpdate'
+  const [currentView, setCurrentView] = useState(null) // 'logistics', 'notification', 'statusUpdate'
   const [selectedNotification, setSelectedNotification] = useState(null)
-  const [selectedOrderForEscalation, setSelectedOrderForEscalation] = useState(null)
-  const [selectedOrderForRevert, setSelectedOrderForRevert] = useState(null)
   const [selectedOrderForStatusUpdate, setSelectedOrderForStatusUpdate] = useState(null)
-  const [revertReason, setRevertReason] = useState('')
-  const [fulfillmentNote, setFulfillmentNote] = useState('')
 
   // Status update form states
   const [selectedStatus, setSelectedStatus] = useState('')
@@ -65,7 +49,6 @@ export function OperationsPage({ subRoute = null, navigate }) {
   const [statusUpdateNotes, setStatusUpdateNotes] = useState('')
   const [isRevert, setIsRevert] = useState(false)
   const [openNotificationsDropdown, setOpenNotificationsDropdown] = useState(null)
-  const [openEscalationsDropdown, setOpenEscalationsDropdown] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingMessage, setProcessingMessage] = useState('')
 
@@ -82,13 +65,7 @@ export function OperationsPage({ subRoute = null, navigate }) {
     if (notificationsResult.data?.notifications) {
       setNotifications(notificationsResult.data.notifications)
     }
-
-    // Fetch escalated orders
-    const escalatedResult = await getEscalatedOrders()
-    if (escalatedResult.data?.orders) {
-      setEscalatedOrders(escalatedResult.data.orders)
-    }
-  }, [getLogisticsSettings, getNotifications, getEscalatedOrders])
+  }, [getLogisticsSettings, getNotifications])
 
   useEffect(() => {
     fetchData()
@@ -174,66 +151,11 @@ export function OperationsPage({ subRoute = null, navigate }) {
     }
   }
 
-  const handleFulfillFromWarehouse = async (orderId, fulfillmentData) => {
-    try {
-      setIsProcessing(true)
-      setProcessingMessage('Processing Fulfillment...')
-      const result = await fulfillOrderFromWarehouse(orderId, fulfillmentData)
-      if (result.data) {
-        setCurrentView(null)
-        setSelectedOrderForEscalation(null)
-        fetchData()
-        success('Order fulfilled from warehouse successfully!', 3000)
-        if (navigate) navigate('operations')
-      } else if (result.error) {
-        const errorMessage = result.error.message || 'Failed to fulfill order'
-        if (errorMessage.includes('stock') || errorMessage.includes('unavailable') || errorMessage.includes('cannot')) {
-          showWarning(errorMessage, 6000)
-        } else {
-          showError(errorMessage, 5000)
-        }
-      }
-    } catch (error) {
-      showError(error.message || 'Failed to fulfill order', 5000)
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const handleRevertEscalation = async () => {
-    if (!revertReason.trim()) {
-      showError('Please provide a reason for reverting the escalation')
-      return
-    }
-
-    try {
-      setIsProcessing(true)
-      setProcessingMessage('Reverting Escalation...')
-      const result = await revertEscalation(selectedOrderForRevert.id, { reason: revertReason.trim() })
-      if (result.data) {
-        setCurrentView(null)
-        setSelectedOrderForRevert(null)
-        setRevertReason('')
-        fetchData()
-        success('Escalation reverted successfully. Order assigned back to user.', 3000)
-        if (navigate) navigate('operations')
-      } else if (result.error) {
-        showError(result.error.message || 'Failed to revert escalation', 5000)
-      }
-    } catch (error) {
-      showError(error.message || 'Failed to revert escalation', 5000)
-    } finally {
-      setIsProcessing(false)
-    }
-  }
 
   const handleBackToList = () => {
     setCurrentView(null)
     setSelectedNotification(null)
-    setSelectedOrderForEscalation(null)
-    setSelectedOrderForRevert(null)
     setSelectedOrderForStatusUpdate(null)
-    setRevertReason('')
     setSelectedStatus('')
     setSelectedPaymentStatus('')
     setStatusUpdateNotes('')
@@ -491,222 +413,6 @@ export function OperationsPage({ subRoute = null, navigate }) {
     return column
   })
 
-  const escalationTableColumns = escalationColumns.map((column) => {
-    if (column.accessor === 'status') {
-      return {
-        ...column,
-        Cell: (row) => {
-          // Get the raw status value
-          const rawStatus = row.status || ''
-          const currentStatus = rawStatus.toLowerCase()
-          const normalizedStatus = normalizeOrderStatus(currentStatus)
-
-          // Explicitly check for 'rejected' status - always show as "Awaiting" for escalated orders
-          if (currentStatus === 'rejected' || rawStatus.toLowerCase() === 'rejected') {
-            return (
-              <div className="flex flex-col gap-1">
-                <StatusBadge tone="warning">Escalated</StatusBadge>
-                <span className="text-xs text-gray-500">Awaiting</span>
-              </div>
-            )
-          }
-
-          // Check if order is fulfilled (accepted or beyond)
-          const isFulfilled = normalizedStatus === 'accepted' || normalizedStatus === 'dispatched' || normalizedStatus === 'delivered' || normalizedStatus === 'fully_paid'
-
-          if (isFulfilled) {
-            // Show the actual status for fulfilled orders
-            const displayStatus = normalizedStatus === 'accepted' ? 'Accepted' :
-              normalizedStatus === 'dispatched' ? 'Dispatched' :
-                normalizedStatus === 'delivered' ? 'Delivered' :
-                  normalizedStatus === 'fully_paid' ? 'Fully Paid' : 'Accepted'
-            return (
-              <div className="flex flex-col gap-1">
-                <StatusBadge tone="success">Accepted</StatusBadge>
-                <span className="text-xs text-gray-500">{displayStatus}</span>
-              </div>
-            )
-          }
-
-          // For escalated orders not yet fulfilled (including 'awaiting', 'pending', etc.),
-          // ALWAYS show "Awaiting" regardless of actual status value
-          return (
-            <div className="flex flex-col gap-1">
-              <StatusBadge tone="warning">Escalated</StatusBadge>
-              <span className="text-xs text-gray-500">Awaiting</span>
-            </div>
-          )
-        },
-      }
-    }
-    if (column.accessor === 'value') {
-      return {
-        ...column,
-        Cell: (row) => {
-          return <span className="text-sm font-bold text-gray-900">{formatCurrency(row.value || row.orderValue || 0)}</span>
-        },
-      }
-    }
-    if (column.accessor === 'actions') {
-      return {
-        ...column,
-        Cell: (row) => {
-          const currentStatus = (row.status || '').toLowerCase()
-          const normalizedStatus = normalizeOrderStatus(currentStatus)
-          const isFulfilled = normalizedStatus === 'accepted' || normalizedStatus === 'dispatched' || normalizedStatus === 'delivered' || normalizedStatus === 'fully_paid'
-          const paymentPreference = row.paymentPreference || 'partial'
-          const workflowCompleted = paymentPreference === 'partial'
-            ? normalizedStatus === 'fully_paid'
-            : normalizedStatus === 'delivered'
-          const isInStatusUpdateGracePeriod = row.statusUpdateGracePeriod?.isActive
-          const statusUpdateGracePeriodExpiresAt = row.statusUpdateGracePeriod?.expiresAt
-          const statusUpdateTimeRemaining = statusUpdateGracePeriodExpiresAt ? Math.max(0, Math.floor((new Date(statusUpdateGracePeriodExpiresAt) - new Date()) / 1000 / 60)) : 0
-          const previousStatus = row.statusUpdateGracePeriod?.previousStatus
-          const hideUpdateButton = workflowCompleted && !isInStatusUpdateGracePeriod
-          const statusButtonConfig = hideUpdateButton ? null : getStatusButtonConfig(row)
-
-          const isDropdownOpen = openEscalationsDropdown === row.id
-
-          const actionItems = [
-            {
-              label: 'View details',
-              icon: Eye,
-              onClick: () => {
-                if (navigate) {
-                  navigate(`orders/escalated?viewOrder=${row.id}`)
-                }
-                setOpenEscalationsDropdown(null)
-              },
-              className: 'text-gray-700 hover:bg-gray-50'
-            }
-          ]
-
-          // Fulfill button
-          if (!isFulfilled) {
-            actionItems.push({
-              label: 'Fulfill from Warehouse',
-              icon: Package,
-              onClick: () => {
-                setSelectedOrderForEscalation(row)
-                setFulfillmentNote('')
-                setCurrentView('escalation')
-                setOpenEscalationsDropdown(null)
-              },
-              className: 'text-green-600 hover:bg-green-50'
-            })
-          }
-
-          if (isFulfilled) {
-            // Confirm Status Update
-            if (isInStatusUpdateGracePeriod && !workflowCompleted) {
-              actionItems.push({
-                label: 'Confirm Update',
-                icon: CheckCircle,
-                onClick: async () => {
-                  const result = await updateOrderStatus(row.id, { finalizeGracePeriod: true })
-                  if (result.data) {
-                    fetchData()
-                    success(result.data.message || 'Status update confirmed successfully!', 3000)
-                  } else if (result.error) {
-                    showError(result.error.message || 'Failed to confirm status update', 5000)
-                  }
-                  setOpenEscalationsDropdown(null)
-                },
-                className: 'text-green-700 hover:bg-green-50'
-              })
-            }
-
-            // Revert button
-            if (isInStatusUpdateGracePeriod && previousStatus && !workflowCompleted) {
-              actionItems.push({
-                label: `Revert to ${previousStatus}`,
-                icon: ArrowLeft,
-                onClick: () => {
-                  handleOpenStatusUpdateModal(row)
-                  setOpenEscalationsDropdown(null)
-                },
-                className: 'text-orange-700 hover:bg-orange-50'
-              })
-            }
-
-            // Update Status button
-            if (!hideUpdateButton && !isInStatusUpdateGracePeriod) {
-              actionItems.push({
-                label: statusButtonConfig?.label || 'Update Status',
-                icon: statusButtonConfig?.icon || RefreshCw,
-                onClick: () => {
-                  handleOpenStatusUpdateModal(row)
-                  setOpenEscalationsDropdown(null)
-                },
-                disabled: !statusButtonConfig,
-                className: 'text-blue-700 hover:bg-blue-50'
-              })
-            }
-          }
-
-          return (
-            <div className="flex flex-col gap-1 items-end">
-              {isInStatusUpdateGracePeriod && (
-                <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200 mb-1">
-                  ⏰ {statusUpdateTimeRemaining}m to revert
-                </div>
-              )}
-
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpenEscalationsDropdown(isDropdownOpen ? null : row.id)
-                  }}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition-all hover:border-red-500 hover:bg-red-50 hover:text-red-700"
-                  title="Actions"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-
-                {isDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setOpenEscalationsDropdown(null)}
-                    />
-                    <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
-                      {actionItems.map((item, index) => {
-                        const Icon = item.icon
-                        return (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (!item.disabled) {
-                                item.onClick()
-                              }
-                            }}
-                            disabled={item.disabled}
-                            className={cn(
-                              'w-full flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors',
-                              item.className,
-                              item.disabled && 'opacity-50 cursor-not-allowed'
-                            )}
-                          >
-                            <Icon className="h-4 w-4" />
-                            <span>{item.label}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )
-        },
-      }
-    }
-    return column
-  })
 
   // Handle sub-routes
   useEffect(() => {
@@ -744,244 +450,6 @@ export function OperationsPage({ subRoute = null, navigate }) {
     )
   }
 
-  if (currentView === 'escalation' && selectedOrderForEscalation) {
-    const order = selectedOrderForEscalation
-
-    const handleFulfill = () => {
-      handleFulfillFromWarehouse(order.id, {
-        note: fulfillmentNote.trim() || 'Order fulfilled from master warehouse',
-      })
-    }
-
-    return (
-      <div className="space-y-6">
-        <div>
-          <button
-            type="button"
-            onClick={handleBackToList}
-            className="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-[0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 hover:bg-gray-50 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Operations
-          </button>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Step 8 • Operational Controls</p>
-            <h2 className="text-2xl font-bold text-gray-900">Order Escalation - Manual Fulfillment</h2>
-            <p className="text-sm text-gray-600">
-              Fulfill escalated order from master warehouse.
-            </p>
-          </div>
-        </div>
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_4px_15px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <div className="space-y-6">
-            {/* Order Info */}
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Package className="h-5 w-5 text-gray-600" />
-                <p className="text-sm font-bold text-gray-900">Order #{order.orderNumber || order.id}</p>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">User:</span>
-                  <span className="font-bold text-gray-900">{order.user || 'N/A'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Order Value:</span>
-                  <span className="font-bold text-gray-900">
-                    {formatCurrency(order.value || order.orderValue || 0)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Status:</span>
-                  <StatusBadge tone="warning">User Not Available</StatusBadge>
-                </div>
-              </div>
-            </div>
-
-            {/* Escalation Reason */}
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 flex-shrink-0 text-orange-600" />
-                <div>
-                  <p className="text-sm font-bold text-orange-900">Escalation Reason</p>
-                  <p className="mt-1 text-xs text-orange-700">
-                    {order.escalationReason || order.escalation?.escalationReason || order.notes || 'User marked this order as "Not Available". You can manually fulfill this order from the master warehouse.'}
-                  </p>
-                  {order.escalation?.escalatedAt && (
-                    <p className="mt-2 text-xs text-orange-600">
-                      Escalated on: {new Date(order.escalation.escalatedAt).toLocaleString('en-IN')}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Order Items */}
-            {order.items && order.items.length > 0 && (
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
-                <p className="mb-3 text-sm font-bold text-gray-900">Order Items</p>
-                <div className="space-y-2">
-                  {order.items.map((item, index) => {
-                    const itemId = item._id || item.id || index
-                    const productName = item.productName || item.productId?.name || item.name || item.product || 'Unknown Product'
-                    const quantity = item.quantity || 1
-                    const unitPrice = item.unitPrice || item.price || item.amount || 0
-                    const totalPrice = item.totalPrice || (unitPrice * quantity)
-
-                    return (
-                      <div key={itemId} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-2">
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">{productName}</p>
-                          <p className="text-xs text-gray-600">Qty: {quantity} {item.unit || 'units'}</p>
-                        </div>
-                        <p className="text-sm font-bold text-gray-900">
-                          {formatCurrency(totalPrice)}
-                        </p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Fulfillment Note */}
-            <div>
-              <label htmlFor="fulfillmentNote" className="mb-2 block text-sm font-bold text-gray-900">
-                Fulfillment Note (Optional)
-              </label>
-              <textarea
-                id="fulfillmentNote"
-                value={fulfillmentNote}
-                onChange={(e) => setFulfillmentNote(e.target.value)}
-                placeholder="Add any notes about this fulfillment..."
-                rows={3}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              />
-            </div>
-
-            {/* Info Box */}
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <div className="flex items-start gap-3">
-                <Package className="h-5 w-5 flex-shrink-0 text-blue-600" />
-                <div className="text-xs text-blue-900">
-                  <p className="font-bold">Master Warehouse Fulfillment</p>
-                  <ul className="mt-2 space-y-1 list-disc list-inside">
-                    <li>Order will be fulfilled from master warehouse inventory</li>
-                    <li>User will be notified of the fulfillment</li>
-                    <li>Order status will be updated to "Accepted"</li>
-                    <li>You can then update status: Dispatched → Delivered → Fully Paid (if partial payment)</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-6 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={handleBackToList}
-                disabled={loading}
-                className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-700 transition-all hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleFulfill}
-                disabled={loading}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-6 py-3 text-sm font-bold text-white shadow-[0_4px_15px_rgba(34,197,94,0.3),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all hover:shadow-[0_6px_20px_rgba(34,197,94,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] disabled:opacity-50"
-              >
-                <Package className="h-4 w-4" />
-                {loading ? 'Fulfilling...' : 'Fulfill from Warehouse'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (currentView === 'revertEscalation' && selectedOrderForRevert) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <button
-            type="button"
-            onClick={handleBackToList}
-            className="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-[0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 hover:bg-gray-50 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.8)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Operations
-          </button>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Step 8 • Operational Controls</p>
-            <h2 className="text-2xl font-bold text-gray-900">Revert Escalation</h2>
-            <p className="text-sm text-gray-600">
-              Revert escalated order back to user.
-            </p>
-          </div>
-        </div>
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_4px_15px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <div className="space-y-4">
-            <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
-              <p className="text-sm font-semibold text-orange-900">Order #{selectedOrderForRevert.orderNumber}</p>
-              <p className="text-xs text-orange-700 mt-1">
-                User: {selectedOrderForRevert.user || 'N/A'} | Value: {formatCurrency(selectedOrderForRevert.value || 0)}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">
-                Reason for Reverting <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={revertReason}
-                onChange={(e) => setRevertReason(e.target.value)}
-                placeholder="Why are you reverting this escalation back to the user?"
-                rows={4}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-              />
-            </div>
-
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-blue-900">
-                  This order will be assigned back to the original user. The user will receive a notification and can proceed with fulfillment.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={handleBackToList}
-                disabled={loading}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleRevertEscalation}
-                disabled={loading || !revertReason.trim()}
-                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  'Reverting...'
-                ) : (
-                  <>
-                    <Recycle className="h-4 w-4" />
-                    Revert to User
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // Status Update View
   if (currentView === 'statusUpdate' && selectedOrderForStatusUpdate) {
@@ -1357,23 +825,6 @@ export function OperationsPage({ subRoute = null, navigate }) {
         )}
       </div>
 
-      {/* Escalated Orders */}
-      {escalatedOrders.length > 0 && (
-        <div className="rounded-3xl border border-orange-200 bg-white p-6 shadow-[0_4px_15px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <div className="mb-4 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-orange-600" />
-            <div>
-              <h3 className="text-lg font-bold text-orange-700">Escalated Orders</h3>
-              <p className="text-sm text-gray-600">Orders marked as "Not Available" by users</p>
-            </div>
-          </div>
-          <DataTable
-            columns={escalationTableColumns}
-            rows={escalatedOrders}
-            emptyState="No escalated orders"
-          />
-        </div>
-      )}
 
       {/* Notifications */}
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_4px_15px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]">

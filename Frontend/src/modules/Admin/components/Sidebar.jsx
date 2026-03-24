@@ -67,7 +67,6 @@ const links = [
     color: 'red',
     suboptions: [
       { id: 'orders/all', label: 'ALL' },
-      { id: 'orders/escalated', label: 'Escalated Orders' },
       { id: 'orders/processing', label: 'Processing Orders' },
       { id: 'orders/completed', label: 'Completed' },
     ]
