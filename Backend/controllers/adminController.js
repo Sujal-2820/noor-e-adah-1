@@ -1601,6 +1601,27 @@ exports.getUsers = async (req, res, next) => {
       .populate('deletedBy', 'name email')
       .lean();
 
+    // Fetch default addresses for these users
+    const Address = require('../models/Address');
+    const userIds = Users.map(u => u._id);
+    const defaultAddresses = await Address.find({ userId: { $in: userIds }, isDefault: true }).lean();
+    
+    // Create a map for quick lookup
+    const addressMap = new Map(defaultAddresses.map(addr => [addr.userId.toString(), addr]));
+    
+    // Augment users with default address info if current location is empty or incomplete
+    Users.forEach(u => {
+      const defaultAddr = addressMap.get(u._id.toString());
+      if (defaultAddr) {
+        if (!u.location) u.location = {};
+        u.location.address = u.location.address || defaultAddr.address;
+        u.location.city = u.location.city || defaultAddr.city;
+        u.location.state = u.location.state || defaultAddr.state;
+        u.location.pincode = u.location.pincode || defaultAddr.pincode;
+        u.location.coordinates = u.location.coordinates || defaultAddr.coordinates;
+      }
+    });
+
     // Manually populate nested banInfo fields if they exist
     const mongoose = require('mongoose');
     const adminIdsToPopulate = new Set();
@@ -1677,6 +1698,22 @@ exports.getUserDetails = async (req, res, next) => {
       });
     }
 
+    // Convert to plain object to allow modifications
+    const userData = user.toObject();
+
+    // Fetch User's default address
+    const Address = require('../models/Address');
+    const defaultAddress = await Address.findOne({ userId: UserId, isDefault: true }).lean();
+
+    if (defaultAddress) {
+      if (!userData.location) userData.location = {};
+      userData.location.address = userData.location.address || defaultAddress.address;
+      userData.location.city = userData.location.city || defaultAddress.city;
+      userData.location.state = userData.location.state || defaultAddress.state;
+      userData.location.pincode = userData.location.pincode || defaultAddress.pincode;
+      userData.location.coordinates = userData.location.coordinates || defaultAddress.coordinates;
+    }
+
     // Get User's product assignments
     const assignments = await ProductAssignment.find({ userId: UserId, isActive: true })
       .populate('productId', 'name sku category')
@@ -1685,8 +1722,8 @@ exports.getUserDetails = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
-        user,
-        banInfo: user.banInfo || {},
+        user: userData,
+        banInfo: userData.banInfo || {},
         assignments,
       },
     });

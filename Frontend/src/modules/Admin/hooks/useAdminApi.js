@@ -224,6 +224,73 @@ export function useAdminApi() {
     [callApi]
   )
 
+  // User Purchase APIs
+  const getUserPurchaseRequests = useCallback(
+    (params) => callApi(adminApi.getUserPurchaseRequests, params),
+    [callApi],
+  )
+
+  const processUserPurchaseStock = useCallback(
+    (requestId, deliveryData) => {
+      return callApi(adminApi.processUserPurchaseStock, requestId, deliveryData).then((result) => {
+        if (result.success) {
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
+        }
+        return result
+      })
+    },
+    [callApi, dispatch],
+  )
+
+  const sendUserPurchaseStock = useCallback(
+    (requestId, deliveryData) => {
+      return callApi(adminApi.sendUserPurchaseStock, requestId, deliveryData).then((result) => {
+        if (result.success) {
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
+        }
+        return result
+      })
+    },
+    [callApi, dispatch],
+  )
+
+  const confirmUserPurchaseDelivery = useCallback(
+    (requestId, deliveryData) => {
+      return callApi(adminApi.confirmUserPurchaseDelivery, requestId, deliveryData).then((result) => {
+        if (result.success) {
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
+          dispatch({ type: 'SET_PRODUCTS_UPDATED', payload: true }) // Delivery updates stock
+        }
+        return result
+      })
+    },
+    [callApi, dispatch],
+  )
+
+  const approveUserPurchase = useCallback(
+    (requestId, shortDescription) => {
+      return callApi(adminApi.approveUserPurchase, requestId, shortDescription).then((result) => {
+        if (result.success) {
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
+        }
+        return result
+      })
+    },
+    [callApi, dispatch],
+  )
+
+  const rejectUserPurchase = useCallback(
+    (requestId, rejectionData) => {
+      return callApi(adminApi.rejectUserPurchase, requestId, rejectionData).then((result) => {
+        if (result.success) {
+          dispatch({ type: 'SET_USERS_UPDATED', payload: true })
+        }
+        return result
+      })
+    },
+    [callApi, dispatch],
+  )
+
   // User Withdrawal APIs
   const getUserWithdrawalRequests = useCallback((params) => callApi(adminApi.getUserWithdrawalRequests, params), [callApi])
 
@@ -578,6 +645,13 @@ export function useAdminApi() {
     reassignOrder,
     generateInvoice,
     getCommissions,
+    // User Purchases
+    getUserPurchaseRequests,
+    processUserPurchaseStock,
+    sendUserPurchaseStock,
+    confirmUserPurchaseDelivery,
+    approveUserPurchase,
+    rejectUserPurchase,
     // Operations
     getLogisticsSettings,
     updateLogisticsSettings,
