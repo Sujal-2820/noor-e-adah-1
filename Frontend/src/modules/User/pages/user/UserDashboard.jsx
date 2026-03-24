@@ -49,6 +49,7 @@ import { UserCategoryProductsView } from './views/UserCategoryProductsView'
 import { UserFavouritesView } from './views/UserFavouritesView'
 import { UserProfileView } from './views/UserProfileView'
 import { UserOrdersView } from './views/UserOrdersView'
+import { OurStoryView } from './views/OurStoryView'
 
 const NAV_ITEMS = [
   {
@@ -68,6 +69,12 @@ const NAV_ITEMS = [
     label: <Trans>Profile</Trans>,
     description: <Trans>Your information</Trans>,
     icon: UserIcon,
+  },
+  {
+    id: 'our-story',
+    label: <Trans>Our Story</Trans>,
+    description: <Trans>Heritage & Elegance</Trans>,
+    icon: SparkIcon,
   },
 ]
 
@@ -96,7 +103,7 @@ export function UserDashboard({ onLogout }) {
   const [loadingMessage, setLoadingMessage] = useState("Initializing experience")
 
   // Valid tabs for navigation
-  const validTabs = ['home', 'orders', 'profile', 'product-detail', 'catalog-cart', 'checkout', 'category-products', 'favourites']
+  const validTabs = ['home', 'orders', 'profile', 'product-detail', 'catalog-cart', 'checkout', 'category-products', 'favourites', 'our-story']
 
   // Navigate function that updates both state and URL
   const navigateToTab = useCallback((tab, id = null) => {
@@ -853,6 +860,7 @@ export function UserDashboard({ onLogout }) {
           )}
           {activeTab === 'orders' && <UserOrdersView />}
           {activeTab === 'profile' && <UserProfileView onNavigate={navigateToTab} onLogout={handleLogout} />}
+          {activeTab === 'our-story' && <OurStoryView />}
         </section>
       </MobileShell>
 
