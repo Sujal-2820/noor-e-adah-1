@@ -78,7 +78,7 @@ export function ImageUpload({
       uploadPreset: CLOUDINARY_CONFIG.uploadPreset, // Use unsigned preset
       sources: ['local', 'camera', 'url'],
       multiple: false,
-      clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'heic'],
       maxFileSize: 10000000, // 10MB to accommodate PDFs
       cropping: true,
       croppingAspectRatio: aspectRatio,

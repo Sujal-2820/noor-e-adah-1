@@ -31,7 +31,7 @@ export const UPLOAD_WIDGET_OPTIONS = {
   sources: ['local', 'camera', 'url'],
   multiple: false, // Upload one at a time for better control
   maxFiles: 4, // Maximum 4 images per product
-  clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
+  clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'heic'],
   maxFileSize: 5000000, // 5MB max file size
   cropping: true, // Enable cropping
   croppingAspectRatio: 1, // Square images (1:1 ratio)

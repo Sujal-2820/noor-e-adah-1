@@ -30,6 +30,13 @@ router.get('/products', async (req, res, next) => {
         if (theme && theme !== 'all') query.theme = theme;
         if (collection && collection !== 'all') query.collection = collection;
 
+        // Video filter
+        const { hasVideo } = req.query;
+        if (hasVideo === 'true') {
+            query['video.url'] = { $exists: true, $ne: '' };
+        }
+
+
         // Price filter
         if (minPrice || maxPrice) {
             query.publicPrice = {};

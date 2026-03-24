@@ -190,16 +190,18 @@ exports.deleteCategory = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Item not found' });
         }
 
-        // Only block deletion if it's a 'category' type with products assigned
-        if (item.type === 'category') {
-            const productCount = await Product.countDocuments({ category: item.slug || item.name.toLowerCase() });
-            if (productCount > 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Cannot delete this category — ${productCount} product(s) are assigned to it`,
-                });
-            }
+        // Only block deletion if products are assigned to it (any type: category, look, theme, collection)
+        const typeField = item.type || 'category'; // category, look, theme, collection
+        const query = { [typeField]: item._id };
+        
+        const productCount = await Product.countDocuments(query);
+        if (productCount > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot delete this ${typeField} — ${productCount} product(s) are assigned to it`,
+            });
         }
+
 
         await Category.deleteOne({ _id: req.params.id });
 

@@ -603,7 +603,26 @@ exports.getProducts = async (req, res, next) => {
     const query = {};
 
     if (category) {
-      query.category = category.toLowerCase();
+      if (mongoose.Types.ObjectId.isValid(category)) {
+        query.category = category;
+      } else {
+        // Fallback: search by slug/name (case insensitive)
+        const dbCat = await Category.findOne({
+          $or: [
+            { slug: category.toLowerCase() },
+            { name: new RegExp(`^${category}$`, 'i') }
+          ]
+        });
+        if (dbCat) {
+          query.category = dbCat._id;
+        } else {
+          // If filtering by a category that doesn't exist, return empty list
+          return res.status(200).json({
+            success: true,
+            data: { products: [], pagination: { currentPage: parseInt(page), totalItems: 0, totalPages: 0 } }
+          });
+        }
+      }
     }
 
     if (isActive !== undefined) {
@@ -611,15 +630,16 @@ exports.getProducts = async (req, res, next) => {
     }
 
     if (search) {
-      // Search by product ID, name, or text search
+      // Search by product ID, name, or text fields (excluding ObjectId fields like category)
       query.$or = [
-        { productId: { $regex: search, $options: 'i' } }, // Search by unique product ID
+        { productId: { $regex: search, $options: 'i' } },
         { name: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } },
         { sku: { $regex: search, $options: 'i' } },
+        { tags: { $regex: search, $options: 'i' } },
       ];
     }
+
 
     // Pagination
     const pageNum = parseInt(page);

@@ -20,33 +20,42 @@ export function HomePage() {
   // Taxonomy data — 4 types
   const [categories, setCategories] = useState([])
   const [looks, setLooks] = useState([])
-  const [themes, setThemes] = useState([])
   const [collections, setCollections] = useState([])
   const [popularProducts, setPopularProducts] = useState([])
+  const [videoProducts, setVideoProducts] = useState([]) // Watch and Buy
   const [desktopCarousels, setDesktopCarousels] = useState([])
   const [smartphoneCarousels, setSmartphoneCarousels] = useState([])
   const [carousels, setCarousels] = useState([]) // Current active carousels based on screen
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const newArrivalsRef = useRef(null)
+  const watchAndBuyRef = useRef(null)
+
 
   // Fetch data on mount
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       try {
-        const [taxResult, popularResult, offersResult] = await Promise.all([
+        const [taxResult, popularResult, offersResult, videoResult] = await Promise.all([
           // fetch all taxonomy types in one call (no type filter = all types returned)
           websiteApi.getCategories(),
           websiteApi.getPopularProducts({ limit: 8 }),
-          websiteApi.getOffers()
+          websiteApi.getOffers(),
+          websiteApi.getProducts({ hasVideo: 'true', limit: 10, sort: 'latest' })
         ])
 
         if (taxResult.success && taxResult.data?.categories) {
           const all = taxResult.data.categories
           setCategories(all.filter(c => c.type === 'category' || !c.type))
           setLooks(all.filter(c => c.type === 'look'))
-          setThemes(all.filter(c => c.type === 'theme'))
           setCollections(all.filter(c => c.type === 'collection'))
+        }
+
+        // Watch and Buy logic: Pick 4 randomized out of newest 10
+        if (videoResult?.success && videoResult?.data?.products) {
+          const newestWithVideos = videoResult.data.products
+          const shuffled = [...newestWithVideos].sort(() => 0.5 - Math.random())
+          setVideoProducts(shuffled.slice(0, 4))
         }
 
         if (popularResult.success && popularResult.data?.products) {
@@ -251,7 +260,7 @@ export function HomePage() {
                       <img
                         src={productImage}
                         alt={product.name}
-                        className={cn("w-full h-full object-cover product-image-primary transition-transform duration-1000 group-hover:scale-110", outOfStock && "opacity-60")}
+                        className={cn("w-full h-full object-cover product-image-primary", outOfStock && "opacity-60")}
                       />
 
                       {/* Secondary Image for Hover */}
@@ -341,7 +350,104 @@ export function HomePage() {
         </Container>
       </Section>
 
-      {/* Categories - Now below New Arrivals */}
+      {/* Watch and Buy Section - Premium Video Reels */}
+      {videoProducts.length > 0 && (
+        <Section className="bg-white py-12 sm:py-24">
+          <Container>
+            <div className="text-center mb-10 sm:mb-16 animate-calm-entry">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl storefront-heading text-brand text-center uppercase tracking-widest">Watch And Buy</h2>
+            </div>
+
+            <div className="relative group/watch">
+              {/* Horizontal Scroll / Grid Container */}
+              <div 
+                ref={watchAndBuyRef}
+                className={cn(
+                  "flex lg:grid lg:grid-cols-4 gap-4 lg:gap-8 overflow-x-auto lg:overflow-visible no-scrollbar snap-x snap-mandatory scroll-smooth pb-4 lg:pb-0",
+                  "px-4 lg:px-0"
+                )}
+              >
+                {videoProducts.map((product, idx) => {
+                  const productId = product._id || product.id
+                  const videoSrc = product.video?.url
+                  const posterImg = product.video?.thumbnail || getPrimaryImageUrl(product)
+
+                  return (
+                    <div
+                      key={productId}
+                      className="flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33%-12px)] lg:w-full group/reel cursor-pointer animate-calm-entry snap-start"
+                      style={{ animationDelay: `${idx * 150}ms` }}
+                      onClick={() => handleProductClick(productId)}
+                    >
+                      <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-black shadow-lg border border-brand/5 group-hover/reel:border-brand/20 transition-all duration-500">
+                        {/* Video Element with Poster for Optimization */}
+                        <video
+                          src={videoSrc}
+                          poster={posterImg}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          preload="none"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover/reel:scale-105"
+                          onError={(e) => {
+                            // Fallback to image if video fails
+                            e.target.style.display = 'none'
+                            e.target.nextSibling.style.display = 'block'
+                          }}
+                        />
+                        {/* Fallback Image */}
+                        <img 
+                          src={posterImg} 
+                          className="absolute inset-0 w-full h-full object-cover hidden" 
+                          alt={product.name}
+                        />
+
+                        {/* Glass Overlay with Product Info on Hover (Desktop) */}
+                        <div className="hidden lg:flex absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/reel:opacity-100 transition-opacity duration-500 flex-col justify-end p-6">
+                           <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-xl translate-y-4 group-hover/reel:translate-y-0 transition-transform duration-500">
+                              <h4 className="text-white text-[11px] font-bold uppercase tracking-widest mb-1 truncate">{product.name}</h4>
+                              <p className="text-white/80 text-[10px] font-medium tracking-wider mb-2">₹{(product.publicPrice || 0).toLocaleString('en-IN')}</p>
+                              <div className="flex items-center gap-2">
+                                <span className="px-3 py-1 bg-white text-brand text-[8px] font-bold uppercase tracking-widest rounded-full">Shop Now</span>
+                              </div>
+                           </div>
+                        </div>
+
+                        {/* Mobile Info Overlay (Always partially visible) */}
+                        <div className="lg:hidden absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                           <h4 className="text-white text-[9px] font-extrabold uppercase tracking-wider truncate mb-1">{product.name}</h4>
+                           <span className="text-accent text-[9px] font-black uppercase tracking-[0.2em]">View Details</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Navigation Arrows - Absolute Positioned on Sides for Mobile/Tablet */}
+              <div className="lg:hidden">
+                <button 
+                  onClick={() => watchAndBuyRef.current?.scrollBy({ left: -(window.innerWidth * 0.5), behavior: 'smooth' })}
+                  className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/90 text-brand shadow-md active:scale-95 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                <button 
+                  onClick={() => watchAndBuyRef.current?.scrollBy({ left: window.innerWidth * 0.5, behavior: 'smooth' })}
+                  className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/90 text-brand shadow-md active:scale-95 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+              </div>
+            </div>
+
+          </Container>
+        </Section>
+      )}
+
+      {/* Categories - Now below Watch and Buy */}
+
       <Section className="bg-surface-muted/30">
         <Container>
           <div className="text-center mb-16 animate-calm-entry">
@@ -421,44 +527,7 @@ export function HomePage() {
         </Section>
       )}
 
-      {/* Shop By Theme */}
-      {themes.length > 0 && (
-        <Section className="bg-white">
-          <Container>
-            <div className="text-center mb-16 animate-calm-entry">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-widest text-brand uppercase">Shop By Theme</h2>
-              <div className="mt-4 w-12 h-1 bg-accent mx-auto"></div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {themes.map((theme, idx) => (
-                <Link
-                  key={theme._id || theme.id}
-                  to={`/products?theme=${theme._id || theme.id}`}
-                  className="relative group overflow-hidden block h-[400px] animate-calm-entry"
-                  style={{ animationDelay: `${idx * 80}ms` }}
-                >
-                  {theme.image?.url
-                    ? <img src={theme.image.url} alt={theme.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
-                    : <div className="w-full h-full bg-gradient-to-br from-accent/20 to-brand/10 flex items-center justify-center text-4xl">✨</div>
-                  }
-                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-all duration-500" />
-                  <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center">
-                    <span className="text-white text-xs lg:text-[14px] font-bold tracking-[0.2em] uppercase mb-4 drop-shadow-md">
-                      {theme.name}
-                    </span>
-                    <div className="h-[40px] overflow-hidden">
-                      <span className="inline-block px-6 py-2 bg-white text-brand text-[8px] lg:text-[11px] font-bold tracking-widest uppercase transform translate-y-20 group-hover:translate-y-0 transition-transform duration-500">
-                        Shop Now
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
 
-          </Container>
-        </Section>
-      )}
 
       {/* Shop By Collection */}
       {collections.length > 0 && (
