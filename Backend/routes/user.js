@@ -373,6 +373,32 @@ router.post('/withdrawals/request', authorizeUser, userController.requestWithdra
 router.get('/withdrawals', authorizeUser, userController.getWithdrawals);
 
 // ============================================================================
+// STOCK PURCHASE ROUTES
+// ============================================================================
+
+/**
+ * @route   POST /api/users/stock-purchases/request
+ * @desc    Request stock purchase
+ * @access  Private (User)
+ */
+router.post('/stock-purchases/request', authorizeUser, userController.requestStockPurchase);
+
+/**
+ * @route   GET /api/users/stock-purchases
+ * @desc    Get all user stock purchases
+ * @access  Private (User)
+ */
+router.get('/stock-purchases', authorizeUser, userController.getStockPurchases);
+
+/**
+ * @route   GET /api/users/stock-purchases/:purchaseId
+ * @desc    Get stock purchase details
+ * @access  Private (User)
+ */
+router.get('/stock-purchases/:purchaseId', authorizeUser, userController.getStockPurchaseDetails);
+
+
+// ============================================================================
 // BANK ACCOUNT ROUTES
 // ============================================================================
 

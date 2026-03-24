@@ -1074,6 +1074,27 @@ exports.confirmPayment = async (req, res, next) => {
     await order.save();
     console.log(`[DEBUG] confirmPayment: Order saved: ${order.orderNumber}`);
     
+    // Log to payment history
+    try {
+      await createPaymentHistory({
+        activityType: 'user_storefront_order_paid',
+        userId: order.userId,
+        orderId: order._id,
+        amount: order.totalAmount,
+        paymentMethod: order.paymentMethod || 'razorpay',
+        status: 'completed',
+        description: `User paid ₹${order.totalAmount} for storefront order ${order.orderNumber}`,
+        metadata: {
+          orderNumber: order.orderNumber,
+          userName: req.user.name,
+          userPhone: req.user.phone,
+        },
+      });
+    } catch (historyError) {
+      console.error('Error logging payment history:', historyError);
+    }
+
+    
     // Clear cart if the order source was cart
     if (order.orderSource === 'cart') {
       await Cart.findOneAndDelete({ userId: order.userId });
@@ -5493,6 +5514,170 @@ exports.setDefaultAddress = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Default address updated'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+// ============================================================================
+// STOCK PURCHASE APIs
+// ============================================================================
+
+/**
+ * @desc    Request stock purchase
+ * @route   POST /api/users/stock-purchases/request
+ * @access  Private (User)
+ */
+exports.requestStockPurchase = async (req, res, next) => {
+  try {
+    const { items, paymentMethod = 'razorpay', notes } = req.body;
+    const user = req.user;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Stock items are required' });
+    }
+
+    // Process items and calculate total
+    let totalAmount = 0;
+    const processedItems = [];
+
+    const Product = require('../models/Product'); // Ensure it's available
+    
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        return res.status(404).json({ success: false, message: `Product ${item.productId} not found` });
+      }
+
+      const unitPrice = product.priceToUser || product.price;
+      const totalPrice = unitPrice * item.quantity;
+      totalAmount += totalPrice;
+
+      processedItems.push({
+        productId: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice,
+        totalPrice,
+        variantAttributes: item.variantAttributes || {}
+      });
+    }
+
+    const UserPurchase = require('../models/UserPurchase');
+    
+    // Create new purchase request
+    const purchase = new UserPurchase({
+      userId: user._id,
+      userName: user.name || `${user.firstName} ${user.lastName}`,
+      userPhone: user.phone,
+      items: processedItems,
+      totalAmount,
+      paymentMethod,
+      status: 'pending',
+      deliveryStatus: 'pending',
+      notes
+    });
+
+    await purchase.save();
+
+    // Log to payment history
+    try {
+      await createPaymentHistory({
+        activityType: 'user_stock_purchase_requested',
+        userId: user._id,
+        amount: totalAmount,
+        paymentMethod: paymentMethod,
+        status: 'pending',
+        description: `User ${user.name} requested stock purchase of ₹${totalAmount}`,
+        metadata: {
+          purchaseOrderId: purchase._id,
+          userName: user.name,
+          userPhone: user.phone,
+        },
+      });
+    } catch (historyError) {
+      console.error('Error logging stock purchase request to history:', historyError);
+    }
+
+
+    res.status(201).json({
+      success: true,
+      data: {
+        purchase
+      },
+      message: 'Stock purchase request submitted successfully'
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all user stock purchases
+ * @route   GET /api/users/stock-purchases
+ * @access  Private (User)
+ */
+exports.getStockPurchases = async (req, res, next) => {
+  try {
+    const user = req.user;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const query = { userId: user._id };
+    if (status) query.status = status;
+
+    const UserPurchase = require('../models/UserPurchase');
+    const purchases = await UserPurchase.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await UserPurchase.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        purchases,
+        pagination: {
+          total,
+          page: parseInt(page),
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get stock purchase details
+ * @route   GET /api/users/stock-purchases/:purchaseId
+ * @access  Private (User)
+ */
+exports.getStockPurchaseDetails = async (req, res, next) => {
+  try {
+    const user = req.user;
+    const { purchaseId } = req.params;
+
+    const UserPurchase = require('../models/UserPurchase');
+    const purchase = await UserPurchase.findOne({
+      _id: purchaseId,
+      userId: user._id
+    })
+      .populate('items.productId', 'name images sku')
+      .lean();
+
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: 'Purchase record not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        purchase
+      }
     });
   } catch (error) {
     next(error);

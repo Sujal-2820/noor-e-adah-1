@@ -365,6 +365,44 @@ exports.logout = async (req, res, next) => {
   }
 };
 
+exports.getAdmins = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 50, search } = req.query;
+    const query = { _id: { $ne: req.admin._id } }; // Exclude current admin if needed, or show all
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const admins = await Admin.find(query)
+      .select('-password -__v')
+      .sort({ name: 1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Admin.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        admins,
+        pagination: {
+          total,
+          page: parseInt(page),
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * @desc    Get admin profile
  * @route   GET /api/admin/auth/profile
@@ -1367,10 +1405,10 @@ exports.assignProductToUser = async (req, res, next) => {
       });
     }
 
-    if (User.status !== 'approved' || !User.isActive) {
+    if (!user.isActive) {
       return res.status(400).json({
         success: false,
-        message: 'User must be approved and active to receive product assignments',
+        message: 'User must be active to receive product assignments',
       });
     }
 
@@ -1948,8 +1986,8 @@ exports.unbanUser = async (req, res, next) => {
     User.banInfo.revocationReason = revocationReason || 'Ban revoked by admin';
 
     // Update User status
-    User.status = 'approved';
-    User.isActive = true;
+    user.status = 'approved';
+    user.isActive = true;
 
     await User.save();
 
@@ -2737,6 +2775,69 @@ exports.completeUserWithdrawal = async (req, res, next) => {
  */
 exports.getPaymentHistory = async (req, res, next) => {
   try {
+    // -------------------------------------------------------------------------
+    // LAZY MIGRATION: Populate history from existing orders if collection is empty
+    // -------------------------------------------------------------------------
+    try {
+      const historyCount = await PaymentHistory.countDocuments();
+      if (historyCount === 0) {
+        console.log('🔄 PaymentHistory is empty, triggering lazy migration of existing orders...');
+        
+        // 1. Sync store-front orders
+        const orders = await Order.find({ 
+          status: { $in: ['paid', 'confirmed', 'processing', 'dispatched', 'delivered'] } 
+        }).limit(200); // Sanity limit
+        
+        for (const order of orders) {
+          await createPaymentHistory({
+            activityType: 'user_storefront_order_paid',
+            userId: order.userId,
+            orderId: order._id,
+            amount: order.totalAmount,
+            status: 'completed',
+            description: `User paid ₹${order.totalAmount} for storefront order ${order.orderNumber} (Auto-Migrated)`,
+            metadata: { orderNumber: order.orderNumber },
+            createdAt: order.updatedAt || order.createdAt
+          });
+        }
+
+        // 2. Sync user stock purchases
+        const purchases = await UserPurchase.find({ 
+          status: { $in: ['approved', 'processing', 'dispatched', 'delivered'] } 
+        }).limit(200);
+
+        for (const purchase of purchases) {
+          // Add approval record
+          await createPaymentHistory({
+            activityType: 'user_stock_purchase_approved',
+            userId: purchase.userId,
+            amount: purchase.totalAmount,
+            status: 'approved',
+            description: `Admin approved stock purchase request ${purchase.orderId} (Auto-Migrated)`,
+            metadata: { purchaseOrderId: purchase._id, orderId: purchase.orderId },
+            createdAt: purchase.createdAt
+          });
+          
+          // Add delivery record if delivered
+          if (purchase.deliveryStatus === 'delivered') {
+            await createPaymentHistory({
+              activityType: 'user_stock_purchase_delivered',
+              userId: purchase.userId,
+              amount: purchase.totalAmount,
+              status: 'completed',
+              description: `Stock delivered for purchase ${purchase.orderId} (Auto-Migrated)`,
+              metadata: { purchaseOrderId: purchase._id, orderId: purchase.orderId },
+              createdAt: purchase.updatedAt
+            });
+          }
+        }
+        console.log('✅ Lazy migration complete.');
+      }
+    } catch (migrateErr) {
+      console.error('⚠️ Lazy migration failed (non-critical):', migrateErr.message);
+    }
+    // -------------------------------------------------------------------------
+
     const {
       activityType,
       userId,
@@ -5886,7 +5987,27 @@ exports.approveUserPurchase = async (req, res, next) => {
     if (remarks) purchase.adminRemarks = remarks;
     await purchase.save();
 
+
+    // Log to payment history
+    try {
+      await createPaymentHistory({
+        activityType: 'user_stock_purchase_approved',
+        userId: purchase.userId,
+        amount: purchase.totalAmount,
+        status: 'approved',
+        description: `Admin approved stock purchase request ${purchase.orderId}`,
+        metadata: {
+          purchaseOrderId: purchase._id,
+          orderId: purchase.orderId,
+          approvedBy: req.admin?._id
+        },
+      });
+    } catch (historyError) {
+      console.error('Error logging purchase approval to history:', historyError);
+    }
+
     res.status(200).json({ success: true, message: 'Purchase request approved successfully', data: purchase });
+
   } catch (error) {
     next(error);
   }
@@ -6056,6 +6177,27 @@ exports.confirmUserPurchaseDelivery = async (req, res, next) => {
 
         await assignment.save();
         console.log(`✅ Stock updated for User ${purchase.userId}, Product ${item.productId}: +${item.quantity}`);
+        
+        // Log to payment history (only once for the whole purchase, after all items processed)
+        if (purchase.items.indexOf(item) === purchase.items.length - 1) {
+          try {
+            await createPaymentHistory({
+              activityType: 'user_stock_purchase_delivered',
+              userId: purchase.userId,
+              amount: purchase.totalAmount,
+              status: 'completed',
+              description: `Stock delivered and inventory updated for purchase ${purchase.orderId}`,
+              metadata: {
+                purchaseOrderId: purchase._id,
+                orderId: purchase.orderId,
+                itemsCount: purchase.items.length
+              },
+            });
+          } catch (historyError) {
+            console.error('Error logging delivery to history:', historyError);
+          }
+        }
+
       } catch (stockError) {
         console.error(`❌ Failed to update stock for item ${item.productId}:`, stockError);
         // We don't fail the whole request but log it

@@ -32,6 +32,10 @@ const paymentHistorySchema = new mongoose.Schema({
       'user_withdrawal_rejected', // User withdrawal rejected
       'user_withdrawal_completed', // User withdrawal completed
       'user_credit_repayment',    // User credit repayment to admin
+      'user_storefront_order_paid', // User paid for a storefront order
+      'user_stock_purchase_requested', // User requested a stock purchase
+      'user_stock_purchase_approved', // Admin approved a stock purchase
+      'user_stock_purchase_delivered', // Stock purchase delivered and stock updated
       'bank_account_added',         // Bank account added
       'bank_account_updated',       // Bank account updated
       'bank_account_deleted',       // Bank account deleted

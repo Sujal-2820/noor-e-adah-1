@@ -21,6 +21,10 @@ const ACTIVITY_TYPES = [
   // User Payments
   { value: 'user_payment_advance', label: 'User Advance Payments' },
   { value: 'user_payment_remaining', label: 'User Remaining Payments' },
+  { value: 'user_storefront_order_paid', label: 'Storefront Orders' },
+  { value: 'user_stock_purchase_requested', label: 'Stock Purchase Requests' },
+  { value: 'user_stock_purchase_approved', label: 'Stock Purchase Approvals' },
+  { value: 'user_stock_purchase_delivered', label: 'Stock Deliveries' },
   // Admin Payments removed per project requirements 
   // Bank Account Operations
   { value: 'bank_account_added', label: 'Bank Account Added' },
@@ -248,7 +252,12 @@ export function PaymentHistoryPage() {
       bank_account_added: 'Bank Account Added',
       bank_account_updated: 'Bank Account Updated',
       bank_account_deleted: 'Bank Account Deleted',
+      user_storefront_order_paid: 'Storefront Order Paid',
+      user_stock_purchase_requested: 'Stock Purchase Requested',
+      user_stock_purchase_approved: 'Stock Purchase Approved',
+      user_stock_purchase_delivered: 'Stock Purchase Delivered',
     }
+
     return typeMap[type] || type
   }
 

@@ -41,6 +41,8 @@ export function useAdminApi() {
   const logout = useCallback(() => callApi(adminApi.logoutAdmin), [callApi])
 
   const fetchProfile = useCallback(() => callApi(adminApi.getAdminProfile), [callApi])
+  const getAdmins = useCallback((params) => callApi(adminApi.getAdmins, params), [callApi])
+
 
   // Dashboard APIs
   const fetchDashboardData = useCallback(
@@ -618,6 +620,8 @@ export function useAdminApi() {
     login,
     logout,
     fetchProfile,
+    getAdmins,
+
     // Dashboard
     fetchDashboardData,
     // Products

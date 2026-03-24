@@ -49,6 +49,8 @@ router.post('/auth/logout', authorizeAdmin, adminController.logout);
  * @access  Private (Admin)
  */
 router.get('/auth/profile', authorizeAdmin, adminController.getProfile);
+router.get('/admins', authorizeAdmin, adminController.getAdmins);
+
 
 // ============================================================================
 // DASHBOARD ROUTES

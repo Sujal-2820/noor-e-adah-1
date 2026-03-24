@@ -190,6 +190,23 @@ export async function getAdminProfile() {
   return apiRequest('/admin/auth/profile')
 }
 
+/**
+ * Get all admins (limited data for filtering)
+ * GET /admin/admins
+ * 
+ * @param {Object} params - { page, limit, search }
+ * @returns {Promise<Object>}
+ */
+export async function getAdmins(params = {}) {
+  const queryParams = new URLSearchParams()
+  if (params.page) queryParams.append('page', params.page)
+  if (params.limit) queryParams.append('limit', params.limit)
+  if (params.search) queryParams.append('search', params.search)
+
+  const queryString = queryParams.toString()
+  return apiRequest(`/admin/admins${queryString ? `?${queryString}` : ''}`)
+}
+
 // ============================================================================
 // DASHBOARD APIs
 // ============================================================================
@@ -1254,7 +1271,8 @@ export async function getUserPurchaseRequests(params = {}) {
 
     // Use global endpoint (supports userId as query param for filtering)
     // Backend endpoint: GET /admin/users/purchases
-    const endpoint = `/admin/users/purchases${queryString ? `?${queryString}` : ''}`
+    const endpoint = `/admin/Users/purchases${queryString ? `?${queryString}` : ''}`
+
     const response = await apiRequest(endpoint)
 
     // Transform backend response to frontend format
