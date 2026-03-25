@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const axios = require('axios');
 
 // Import routes
 const userRoutes = require('./routes/user');
@@ -81,7 +82,7 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
-    version: '1.0.2',
+    version: '1.0.3',
     message: 'Noor E Adah Backend Server is running correctly',
     timestamp: new Date().toISOString(),
   });
@@ -126,6 +127,22 @@ connectDB()
 
     // Initialize real-time server (WebSocket/SSE) for push notifications
     initializeRealtimeServer(server);
+
+    // Keep-Alive System: Pings the health endpoint every 10 minutes to prevent Render free tier sleeping
+    const APP_URL = process.env.RENDER_EXTERNAL_URL || 'https://noor-e-adah-1.onrender.com';
+    const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+    if (process.env.NODE_ENV === 'production' || process.env.FORCE_KEEP_ALIVE === 'true') {
+      setInterval(async () => {
+        try {
+          const response = await axios.get(`${APP_URL}/health`);
+          console.log(`[Keep-Alive] Ping successful (${response.status}) at ${new Date().toISOString()}`);
+        } catch (error) {
+          console.error(`[Keep-Alive] Ping failed: ${error.message}`);
+        }
+      }, KEEP_ALIVE_INTERVAL);
+      console.log(`📡 Keep-Alive system active: Targetting ${APP_URL}/health`);
+    }
 
     // Graceful shutdown
     process.on('SIGTERM', () => {
