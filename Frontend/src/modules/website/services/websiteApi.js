@@ -190,6 +190,13 @@ export async function requestOTPForNewPhone(data) {
   })
 }
 
+export async function updatePhone(data) {
+  return apiRequest('/users/profile/phone', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
 /**
  * Verify OTP for new phone and update phone number
  * POST /users/profile/phone/verify-otp-new

@@ -52,6 +52,7 @@ router.post('/auth/logout', authorizeUser, userController.logout);
  */
 router.get('/auth/profile', authorizeUser, userController.getProfile);
 router.put('/auth/profile', authorizeUser, userController.updateProfile);
+router.put('/profile/phone', authorizeUser, userController.updatePhone);
 
 // ============================================================================
 // ADDRESS MANAGEMENT ROUTES

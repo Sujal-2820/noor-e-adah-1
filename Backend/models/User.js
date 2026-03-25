@@ -16,12 +16,12 @@ const userSchema = new mongoose.Schema({
   userType: {
     type: String,
     enum: ['partner', 'customer'],
-    default: 'partner',
+    default: 'customer',
   },
   role: {
     type: String,
     enum: ['user', 'customer'],
-    default: 'user',
+    default: 'customer',
   },
   name: {
     type: String,
@@ -59,40 +59,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: [50, 'Last name cannot exceed 50 characters'],
-  },
-  agentName: {
-    type: String,
-    trim: true,
-    // Agent who referred this user
-  },
-  shopName: {
-    type: String,
-    trim: true,
-    maxlength: [200, 'Shop name cannot exceed 200 characters'],
-  },
-  shopAddress: {
-    type: String,
-    trim: true,
-    // Detailed shop address (can be different from location.address)
-  },
-  gstNumber: {
-    type: String,
-    trim: true,
-    uppercase: true,
-    match: [/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Please provide a valid GST number'],
-    // Format: 22AAAAA0000A1Z5
-  },
-  aadhaarNumber: {
-    type: String,
-    trim: true,
-    match: [/^[0-9]{12}$/, 'Aadhaar number must be 12 digits'],
-  },
-  panNumber: {
-    type: String,
-    trim: true,
-    uppercase: true,
-    match: [/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Please provide a valid PAN number'],
-    // Format: ABCDE1234F
   },
 
   location: {

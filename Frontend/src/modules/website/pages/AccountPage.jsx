@@ -153,10 +153,7 @@ export function AccountProfilePage() {
   const [editingName, setEditingName] = useState(false)
   const [editedName, setEditedName] = useState(profile?.name || '')
   const [showPhoneUpdatePanel, setShowPhoneUpdatePanel] = useState(false)
-  const [phoneUpdateStep, setPhoneUpdateStep] = useState(1) // 1: request current OTP, 2: verify current OTP, 3: enter new phone, 4: request new OTP, 5: verify new OTP
-  const [currentPhoneOTP, setCurrentPhoneOTP] = useState('')
   const [newPhone, setNewPhone] = useState('')
-  const [newPhoneOTP, setNewPhoneOTP] = useState('')
   const [phoneUpdateLoading, setPhoneUpdateLoading] = useState(false)
 
   // Update edited name when profile changes
@@ -269,11 +266,8 @@ export function AccountProfilePage() {
             <button
               type="button"
               onClick={() => {
-                setPhoneUpdateStep(1)
                 setShowPhoneUpdatePanel(true)
-                setCurrentPhoneOTP('')
                 setNewPhone('')
-                setNewPhoneOTP('')
               }}
               className="account-profile__field-edit-btn"
             >
@@ -293,10 +287,7 @@ export function AccountProfilePage() {
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowPhoneUpdatePanel(false)
-              setPhoneUpdateStep(1)
-              setCurrentPhoneOTP('')
               setNewPhone('')
-              setNewPhoneOTP('')
             }
           }}
         >
@@ -307,10 +298,7 @@ export function AccountProfilePage() {
                 type="button"
                 onClick={() => {
                   setShowPhoneUpdatePanel(false)
-                  setPhoneUpdateStep(1)
-                  setCurrentPhoneOTP('')
                   setNewPhone('')
-                  setNewPhoneOTP('')
                 }}
                 className="account-profile__panel-close"
               >
@@ -320,217 +308,56 @@ export function AccountProfilePage() {
               </button>
             </div>
             <div className="account-profile__panel-body">
-              {/* Step 1: Request OTP for current phone */}
-              {phoneUpdateStep === 1 && (
-                <div className="account-profile__panel-step">
-                  <div className="account-profile__panel-info">
-                    <p>We'll send an OTP to your current phone number <strong>{profile?.phone}</strong> to verify your identity.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setPhoneUpdateLoading(true)
-                      try {
-                        const result = await websiteApi.requestOTPForCurrentPhone()
-                        if (result.success) {
-                          alert('OTP sent to your current phone number')
-                          setPhoneUpdateStep(2)
-                        } else {
-                          alert(result.message || 'Failed to send OTP')
-                        }
-                      } catch (error) {
-                        console.error('Error requesting OTP:', error)
-                        alert(error.error?.message || 'Failed to send OTP')
-                      } finally {
-                        setPhoneUpdateLoading(false)
-                      }
-                    }}
-                    disabled={phoneUpdateLoading}
-                    className="account-profile__panel-button"
-                  >
-                    {phoneUpdateLoading ? 'Sending...' : 'Send OTP to Current Phone'}
-                  </button>
+              <div className="account-profile__panel-step">
+                <div className="account-profile__panel-info">
+                  <p>Enter your new 10-digit phone number below.</p>
                 </div>
-              )}
-
-              {/* Step 2: Verify OTP for current phone */}
-              {phoneUpdateStep === 2 && (
-                <div className="account-profile__panel-step">
-                  <div className="account-profile__panel-info">
-                    <p>Enter the OTP sent to <strong>{profile?.phone}</strong></p>
-                  </div>
-                  <input
-                    type="text"
-                    value={currentPhoneOTP}
-                    onChange={(e) => setCurrentPhoneOTP(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter 6-digit OTP"
-                    maxLength={6}
-                    className="account-profile__panel-input"
-                  />
-                  <div className="account-profile__panel-actions">
-                    <button
-                      type="button"
-                      onClick={() => setPhoneUpdateStep(1)}
-                      className="account-profile__panel-button account-profile__panel-button--secondary"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!currentPhoneOTP || currentPhoneOTP.length !== 6) {
-                          alert('Please enter a valid 6-digit OTP')
-                          return
-                        }
-                        setPhoneUpdateLoading(true)
-                        try {
-                          const result = await websiteApi.verifyOTPForCurrentPhone({ otp: currentPhoneOTP })
-                          if (result.success) {
-                            alert('Current phone verified successfully')
-                            setPhoneUpdateStep(3)
-                          } else {
-                            alert(result.message || 'Invalid OTP')
-                          }
-                        } catch (error) {
-                          console.error('Error verifying OTP:', error)
-                          alert(error.error?.message || 'Invalid OTP')
-                        } finally {
-                          setPhoneUpdateLoading(false)
-                        }
-                      }}
-                      disabled={phoneUpdateLoading || !currentPhoneOTP || currentPhoneOTP.length !== 6}
-                      className="account-profile__panel-button"
-                    >
-                      {phoneUpdateLoading ? 'Verifying...' : 'Verify OTP'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Enter new phone number */}
-              {phoneUpdateStep === 3 && (
-                <div className="account-profile__panel-step">
-                  <div className="account-profile__panel-info">
-                    <p>Current phone verified! Now enter your new phone number.</p>
-                  </div>
-                  <input
-                    type="tel"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter new phone number"
-                    className="account-profile__panel-input"
-                  />
-                  <div className="account-profile__panel-actions">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPhoneUpdateStep(2)
+                <input
+                  type="tel"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="e.g. 9876543210"
+                  className="account-profile__panel-input"
+                  maxLength={10}
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!newPhone || newPhone.length !== 10) {
+                      alert('Please enter a valid 10-digit phone number')
+                      return
+                    }
+                    if (newPhone === profile?.phone) {
+                      alert('New phone number must be different from current phone number')
+                      return
+                    }
+                    setPhoneUpdateLoading(true)
+                    try {
+                      const result = await websiteApi.updatePhone({ phone: newPhone })
+                      if (result.success) {
+                        alert('Phone number updated successfully')
+                        dispatch({
+                          type: 'AUTH_LOGIN',
+                          payload: { ...profile, phone: result.data?.user?.phone || newPhone },
+                        })
+                        setShowPhoneUpdatePanel(false)
                         setNewPhone('')
-                      }}
-                      className="account-profile__panel-button account-profile__panel-button--secondary"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newPhone || newPhone.length < 10) {
-                          alert('Please enter a valid phone number')
-                          return
-                        }
-                        if (newPhone === profile?.phone) {
-                          alert('New phone number must be different from current phone number')
-                          return
-                        }
-                        setPhoneUpdateLoading(true)
-                        try {
-                          const result = await websiteApi.requestOTPForNewPhone({ newPhone })
-                          if (result.success) {
-                            alert('OTP sent to your new phone number')
-                            setPhoneUpdateStep(4)
-                          } else {
-                            alert(result.message || 'Failed to send OTP')
-                          }
-                        } catch (error) {
-                          console.error('Error requesting OTP:', error)
-                          alert(error.error?.message || 'Failed to send OTP')
-                        } finally {
-                          setPhoneUpdateLoading(false)
-                        }
-                      }}
-                      disabled={phoneUpdateLoading || !newPhone || newPhone.length < 10}
-                      className="account-profile__panel-button"
-                    >
-                      {phoneUpdateLoading ? 'Sending...' : 'Send OTP to New Phone'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 4: Verify OTP for new phone */}
-              {phoneUpdateStep === 4 && (
-                <div className="account-profile__panel-step">
-                  <div className="account-profile__panel-info">
-                    <p>Enter the OTP sent to <strong>{newPhone}</strong></p>
-                  </div>
-                  <input
-                    type="text"
-                    value={newPhoneOTP}
-                    onChange={(e) => setNewPhoneOTP(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter 6-digit OTP"
-                    maxLength={6}
-                    className="account-profile__panel-input"
-                  />
-                  <div className="account-profile__panel-actions">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPhoneUpdateStep(3)
-                        setNewPhoneOTP('')
-                      }}
-                      className="account-profile__panel-button account-profile__panel-button--secondary"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newPhoneOTP || newPhoneOTP.length !== 6) {
-                          alert('Please enter a valid 6-digit OTP')
-                          return
-                        }
-                        setPhoneUpdateLoading(true)
-                        try {
-                          const result = await websiteApi.verifyOTPForNewPhone({ otp: newPhoneOTP })
-                          if (result.success) {
-                            alert('Phone number updated successfully')
-                            dispatch({
-                              type: 'AUTH_LOGIN',
-                              payload: { ...profile, phone: result.data?.user?.phone || newPhone },
-                            })
-                            setShowPhoneUpdatePanel(false)
-                            setPhoneUpdateStep(1)
-                            setCurrentPhoneOTP('')
-                            setNewPhone('')
-                            setNewPhoneOTP('')
-                          } else {
-                            alert(result.message || 'Invalid OTP')
-                          }
-                        } catch (error) {
-                          console.error('Error verifying OTP:', error)
-                          alert(error.error?.message || 'Invalid OTP')
-                        } finally {
-                          setPhoneUpdateLoading(false)
-                        }
-                      }}
-                      disabled={phoneUpdateLoading || !newPhoneOTP || newPhoneOTP.length !== 6}
-                      className="account-profile__panel-button"
-                    >
-                      {phoneUpdateLoading ? 'Updating...' : 'Update Phone Number'}
-                    </button>
-                  </div>
-                </div>
-              )}
+                      } else {
+                        alert(result.error?.message || result.message || 'Failed to update phone number')
+                      }
+                    } catch (error) {
+                      console.error('Error updating phone:', error)
+                      alert(error.error?.message || 'An error occurred while updating phone number')
+                    } finally {
+                      setPhoneUpdateLoading(false)
+                    }
+                  }}
+                  disabled={phoneUpdateLoading || newPhone.length !== 10}
+                  className="account-profile__panel-button"
+                >
+                  {phoneUpdateLoading ? 'Updating...' : 'Update Phone Number'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

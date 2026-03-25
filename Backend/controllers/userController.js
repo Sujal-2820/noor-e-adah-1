@@ -328,7 +328,9 @@ exports.firebaseSync = async (req, res, next) => {
         email,
         phone: phone_number || undefined,
         firebaseUid: uid,
-        isActive: true
+        isActive: true,
+        userType: 'customer',
+        role: 'customer'
       });
       await user.save();
     } else {
@@ -354,8 +356,8 @@ exports.firebaseSync = async (req, res, next) => {
     const token = generateToken({
       userId: user._id,
       phone: user.phone,
-      role: 'user',
-      type: 'user',
+      role: user.role || 'customer',
+      type: user.userType || 'customer',
     });
 
     res.status(200).json({
@@ -556,8 +558,8 @@ exports.verifyOTP = async (req, res, next) => {
       const token = generateToken({
         userId: user._id,
         phone: user.phone,
-        role: 'user',
-        type: 'user',
+        role: user.role || 'customer',
+        type: user.userType || 'customer',
       });
 
       return res.status(200).json({
@@ -809,6 +811,60 @@ exports.getProfile = async (req, res, next) => {
           isActive: user.isActive,
         },
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update User phone number (Simplified - no OTP)
+ * @route   PUT /api/users/profile/phone
+ * @access  Private (User)
+ */
+exports.updatePhone = async (req, res, next) => {
+  try {
+    const { phone } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!phone || phone.replace(/\D/g, '').length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid 10-digit phone number is required',
+      });
+    }
+
+    const { normalizePhoneNumber } = require('../utils/phoneValidation');
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    if (!normalizedPhone) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid phone number format',
+        });
+    }
+
+    // Check if phone already exists for another user
+    const existingUser = await User.findOne({ phone: normalizedPhone, _id: { $ne: user._id } });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'This phone number is already registered to another account',
+      });
+    }
+
+    user.phone = normalizedPhone;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          phone: user.phone,
+        },
+      },
+      message: 'Phone number updated successfully',
     });
   } catch (error) {
     next(error);

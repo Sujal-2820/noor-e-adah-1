@@ -9,7 +9,7 @@
  * @returns {string} - Normalized phone number
  */
 function normalizePhoneNumber(phone) {
-    if (!phone) return '';
+    if (!phone) return undefined;
 
     // Remove all spaces, hyphens, and other non-digit characters except +
     let cleaned = phone.replace(/[\s\-()]/g, '');
@@ -22,6 +22,7 @@ function normalizePhoneNumber(phone) {
         cleaned = cleaned.substring(2);
     }
 
+    if (!cleaned) return undefined;
     // Return in standardized format
     return `+91${cleaned.slice(-10)}`;
 }
