@@ -71,7 +71,7 @@ const ensureVendors = async () => {
       vendorId: 'VEND-001',
       name: 'Rural Agri Supply',
       phone: '+919111111111',
-      email: 'vendor1@irasathi.com',
+      email: 'vendor1@nooreadah.com',
       location: {
         type: 'Point',
         coordinates: [77.1025, 28.7041], // Delhi
@@ -91,7 +91,7 @@ const ensureVendors = async () => {
       vendorId: 'VEND-002',
       name: 'Farm Fresh Store',
       phone: '+919222222222',
-      email: 'vendor2@irasathi.com',
+      email: 'vendor2@nooreadah.com',
       location: {
         type: 'Point',
         coordinates: [77.2090, 28.6139], // East Delhi
@@ -111,7 +111,7 @@ const ensureVendors = async () => {
       vendorId: 'VEND-003',
       name: 'Green Fields Distributor',
       phone: '+919333333333',
-      email: 'vendor3@irasathi.com',
+      email: 'vendor3@nooreadah.com',
       location: {
         type: 'Point',
         coordinates: [77.1024, 28.5355], // South Delhi
@@ -131,7 +131,7 @@ const ensureVendors = async () => {
       vendorId: 'VEND-004',
       name: 'Agri Solutions Hub',
       phone: '+919444444444',
-      email: 'vendor4@irasathi.com',
+      email: 'vendor4@nooreadah.com',
       location: {
         type: 'Point',
         coordinates: [77.0873, 28.6444], // Central Delhi
@@ -151,7 +151,7 @@ const ensureVendors = async () => {
       vendorId: 'VEND-005',
       name: 'Crop Care Center',
       phone: '+919555555555',
-      email: 'vendor5@irasathi.com',
+      email: 'vendor5@nooreadah.com',
       location: {
         type: 'Point',
         coordinates: [77.1027, 28.5925], // West Delhi
@@ -447,7 +447,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1001',
       name: 'Rajesh Kumar',
       phone: '+919111111111',
-      email: 'rajesh@irasathi.com',
+      email: 'rajesh@nooreadah.com',
       area: 'North Delhi',
       location: {
         address: '123, Village Street, North Delhi',
@@ -465,7 +465,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1002',
       name: 'Priya Sharma',
       phone: '+919222222222',
-      email: 'priya@irasathi.com',
+      email: 'priya@nooreadah.com',
       area: 'South Mumbai',
       location: {
         address: '456, Urban Area, South Mumbai',
@@ -483,7 +483,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1003',
       name: 'Amit Patel',
       phone: '+919333333333',
-      email: 'amit@irasathi.com',
+      email: 'amit@nooreadah.com',
       area: 'Gujarat Rural',
       location: {
         address: '789, Farm Road, Gujarat',
@@ -501,7 +501,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1004',
       name: 'Sunita Devi',
       phone: '+919444444444',
-      email: 'sunita@irasathi.com',
+      email: 'sunita@nooreadah.com',
       area: 'Bihar Village',
       location: {
         address: '321, Village Street, Bihar',
@@ -519,7 +519,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1005',
       name: 'Ramesh Yadav',
       phone: '+919555555555',
-      email: 'ramesh@irasathi.com',
+      email: 'ramesh@nooreadah.com',
       area: 'Uttar Pradesh',
       location: {
         address: '654, Rural Area, UP',

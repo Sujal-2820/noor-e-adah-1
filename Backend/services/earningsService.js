@@ -12,7 +12,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
 const Seller = require('../models/Seller');
-const { PAYMENT_STATUS, ORDER_STATUS, IRA_PARTNER_COMMISSION_THRESHOLD, IRA_PARTNER_COMMISSION_RATE_LOW, IRA_PARTNER_COMMISSION_RATE_HIGH } = require('../utils/constants');
+const { PAYMENT_STATUS, ORDER_STATUS, CUSTOMER_REWARD_COMMISSION_THRESHOLD, CUSTOMER_REWARD_COMMISSION_RATE_LOW, CUSTOMER_REWARD_COMMISSION_RATE_HIGH } = require('../utils/constants');
 const { createUserEarning, createCommission, createPaymentHistory } = require('../utils/createWithId');
 
 /**
@@ -144,9 +144,9 @@ async function calculateSellerCommission(order) {
 
     // Determine commission rate based on monthly purchases
     // 3% if >= 50000, 2% if < 50000
-    const commissionRate = newCumulativePurchaseAmount < IRA_PARTNER_COMMISSION_THRESHOLD
-      ? IRA_PARTNER_COMMISSION_RATE_LOW
-      : IRA_PARTNER_COMMISSION_RATE_HIGH;
+    const commissionRate = newCumulativePurchaseAmount < CUSTOMER_REWARD_COMMISSION_THRESHOLD
+      ? CUSTOMER_REWARD_COMMISSION_RATE_LOW
+      : CUSTOMER_REWARD_COMMISSION_RATE_HIGH;
 
     // Calculate commission amount
     const commissionAmount = (order.totalAmount * commissionRate) / 100;
@@ -208,18 +208,18 @@ async function calculateSellerCommission(order) {
       });
 
       // SEND SELLER NOTIFICATION: Tier Upgraded (2% -> 3%)
-      if (cumulativePurchaseAmount < IRA_PARTNER_COMMISSION_THRESHOLD &&
-        newCumulativePurchaseAmount >= IRA_PARTNER_COMMISSION_THRESHOLD) {
+      if (cumulativePurchaseAmount < CUSTOMER_REWARD_COMMISSION_THRESHOLD &&
+        newCumulativePurchaseAmount >= CUSTOMER_REWARD_COMMISSION_THRESHOLD) {
 
         await SellerNotification.createNotification({
           sellerId: seller._id,
           type: 'tier_upgraded',
           title: '🎉 Commission Tier Upgraded!',
-          message: `Congratulations! Your monthly sales crossed ₹${IRA_PARTNER_COMMISSION_THRESHOLD}. You are now earning ${IRA_PARTNER_COMMISSION_RATE_HIGH}% commission!`,
+          message: `Congratulations! Your monthly sales crossed ₹${CUSTOMER_REWARD_COMMISSION_THRESHOLD}. You are now earning ${CUSTOMER_REWARD_COMMISSION_RATE_HIGH}% commission!`,
           relatedEntityType: 'seller',
           relatedEntityId: seller._id,
           priority: 'high',
-          metadata: { newRate: IRA_PARTNER_COMMISSION_RATE_HIGH, threshold: IRA_PARTNER_COMMISSION_THRESHOLD }
+          metadata: { newRate: CUSTOMER_REWARD_COMMISSION_RATE_HIGH, threshold: CUSTOMER_REWARD_COMMISSION_THRESHOLD }
         });
       }
 

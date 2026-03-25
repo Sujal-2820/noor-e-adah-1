@@ -29,8 +29,8 @@ const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
-  'https://www.iraagritech.com',
-  'https://iraagritech.com',
+  'https://www.noor-e-adah.com',
+  'https://noor-e-adah.com',
   'https://noor-e-adah-1.vercel.app'
 ];
 

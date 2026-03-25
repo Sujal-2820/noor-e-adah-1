@@ -360,7 +360,7 @@ export function MobileShell({ title, subtitle, children, navigation, menuContent
               <h4 className="user-shell-footer__heading"><Trans>Contact Us</Trans></h4>
               <div className="user-shell-footer__contact">
                 <p className="user-shell-footer__text"><Trans>Email</Trans>: <a href="mailto:support@nooreadah.com" className="user-shell-footer__link">support@nooreadah.com</a></p>
-                <p className="user-shell-footer__text"><Trans>Instagram</Trans>: @nooreadah</p>
+                <p className="user-shell-footer__text"><Trans>Instagram</Trans>: @noor.e.adah</p>
               </div>
             </div>
 
@@ -375,7 +375,7 @@ export function MobileShell({ title, subtitle, children, navigation, menuContent
               </div>
               <div className="user-shell-footer__social mt-4">
                 <a href="#" className="user-shell-footer__social-icon" aria-label="Facebook">F</a>
-                <a href="#" className="user-shell-footer__social-icon" aria-label="Instagram">I</a>
+                <a href="https://www.instagram.com/noor.e.adah?igsh=MWdvMzE1c3F2MjEyaw==" target="_blank" rel="noopener noreferrer" className="user-shell-footer__social-icon" aria-label="Instagram">I</a>
               </div>
             </div>
           </div>

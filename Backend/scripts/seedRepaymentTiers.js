@@ -1,7 +1,7 @@
 /**
  * Seed Default Repayment Tiers
  * 
- * Creates the discount and interest tiers as per Satpura Bio requirements:
+ * Creates the discount and interest tiers as per Noor E Adah requirements:
  * 
  * DISCOUNT TIERS (Early Payment Incentives):
  * - 0-30 days: 10% discount
@@ -85,7 +85,7 @@ const interestTiers = [
 
 async function seedRepaymentTiers() {
     try {
-        console.log('\n🌱 Seeding Repayment Tiers for Satpura Bio\n');
+        console.log('\n🌱 Seeding Repayment Tiers for Noor E Adah\n');
 
         // Connect to database
         await mongoose.connect(MONGO_URI);

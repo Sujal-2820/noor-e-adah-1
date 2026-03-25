@@ -265,9 +265,9 @@ const runTests = async () => {
         try {
             const constants = require('../utils/constants');
 
-            const tier1Rate = constants.IRA_PARTNER_COMMISSION_RATE_LOW;
-            const tier2Rate = constants.IRA_PARTNER_COMMISSION_RATE_HIGH;
-            const threshold = constants.IRA_PARTNER_COMMISSION_THRESHOLD;
+            const tier1Rate = constants.CUSTOMER_REWARD_COMMISSION_RATE_LOW;
+            const tier2Rate = constants.CUSTOMER_REWARD_COMMISSION_RATE_HIGH;
+            const threshold = constants.CUSTOMER_REWARD_COMMISSION_THRESHOLD;
 
             recordTest('COMM-001', 'Tier 1 Commission = 2%', tier1Rate === 2, {
                 expected: 2,

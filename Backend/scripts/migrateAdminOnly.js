@@ -5,8 +5,8 @@
 
 const mongoose = require('mongoose');
 
-const OLD_DB_URL = 'mongodb+srv://yash007patidar_db_user:XNJIg0oR0Fz6mqyj@cluster0.bjmsiqo.mongodb.net/irasathi?retryWrites=true&w=majority&appName=Cluster0';
-const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-satpura.3fa8s.mongodb.net/?retryWrites=true&w=majority&appName=ecomm-satpura';
+const OLD_DB_URL = 'mongodb+srv://yash007patidar_db_user:XNJIg0oR0Fz6mqyj@cluster0.bjmsiqo.mongodb.net/nooreadah?retryWrites=true&w=majority&appName=Cluster0';
+const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-Noor E Adah.3fa8s.mongodb.net/?retryWrites=true&w=majority&appName=ecomm-Noor E Adah';
 
 async function migrateAdminData() {
     let oldConnection = null;

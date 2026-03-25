@@ -1853,7 +1853,7 @@ async function generateReport() {
   
   const reportPath = path.join(__dirname, '../API_TEST_REPORT.md');
   
-  let markdown = `# IRA SATHI Backend API - Comprehensive Test Report\n\n`;
+  let markdown = `# Noor E Adah Backend API - Comprehensive Test Report\n\n`;
   markdown += `**Generated:** ${new Date().toISOString()}\n\n`;
   markdown += `## Test Summary\n\n`;
   markdown += `- **Total Tests:** ${testResults.totalTests}\n`;

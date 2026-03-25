@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ira-sathi-backend
+    name: noor-e-adah-backend
     env: node
     # Try different paths - Render will use the first that works
     buildCommand: |
@@ -25,7 +25,7 @@ services:
       - key: PORT
         fromService:
           type: web
-          name: ira-sathi-backend
+          name: noor-e-adah-backend
           property: port
       # Add your environment variables in Render dashboard:
       # - MONGO_URI

@@ -1,10 +1,10 @@
 /**
- * Update Admin Email to admin@satpurabio.com
+ * Update Admin Email to admin@Noor E Adahbio.com
  */
 
 const { MongoClient } = require('mongodb');
 
-const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-satpura.3fa8s.mongodb.net/satpurabio?retryWrites=true&w=majority&appName=ecomm-satpura';
+const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-Noor E Adah.3fa8s.mongodb.net/Noor E Adahbio?retryWrites=true&w=majority&appName=ecomm-Noor E Adah';
 
 async function updateAdminEmail() {
     const client = new MongoClient(NEW_DB_URL);
@@ -13,7 +13,7 @@ async function updateAdminEmail() {
         console.log('\n🔄 Updating Admin Email...\n');
 
         await client.connect();
-        const db = client.db('satpurabio');
+        const db = client.db('Noor E Adahbio');
 
         // Get current admin
         const currentAdmin = await db.collection('admins').findOne({});
@@ -30,7 +30,7 @@ async function updateAdminEmail() {
         // Update email
         const result = await db.collection('admins').updateOne(
             { _id: currentAdmin._id },
-            { $set: { email: 'admin@satpurabio.com' } }
+            { $set: { email: 'admin@Noor E Adahbio.com' } }
         );
 
         if (result.modifiedCount === 1) {
@@ -43,7 +43,7 @@ async function updateAdminEmail() {
             console.log(`  👤 Name: ${updatedAdmin.name || 'Not set'}`);
             console.log(`  🆔 ID: ${updatedAdmin._id}`);
 
-            console.log('\n🎉 Admin email is now: admin@satpurabio.com\n');
+            console.log('\n🎉 Admin email is now: admin@Noor E Adahbio.com\n');
             console.log('Use this email to login to the admin panel.\n');
         } else {
             console.log('\n⚠️  No changes made.');

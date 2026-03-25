@@ -523,7 +523,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1001',
       name: 'Rajesh Kumar',
       phone: '+919111111111',
-      email: 'rajesh@irasathi.com',
+      email: 'rajesh@nooreadah.com',
       area: 'North Delhi',
       location: {
         address: '123, Village Street, North Delhi',
@@ -541,7 +541,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1002',
       name: 'Priya Sharma',
       phone: '+919222222222',
-      email: 'priya@irasathi.com',
+      email: 'priya@nooreadah.com',
       area: 'South Mumbai',
       location: {
         address: '456, Urban Area, South Mumbai',
@@ -559,7 +559,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1003',
       name: 'Amit Patel',
       phone: '+919333333333',
-      email: 'amit@irasathi.com',
+      email: 'amit@nooreadah.com',
       area: 'West Bangalore',
       location: {
         address: '789, Rural District, West Bangalore',
@@ -577,7 +577,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1004',
       name: 'Sneha Reddy',
       phone: '+919444444444',
-      email: 'sneha@irasathi.com',
+      email: 'sneha@nooreadah.com',
       area: 'East Hyderabad',
       location: {
         address: '321, Industrial Zone, East Hyderabad',
@@ -595,7 +595,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1005',
       name: 'Vikram Singh',
       phone: '+919555555555',
-      email: 'vikram@irasathi.com',
+      email: 'vikram@nooreadah.com',
       area: 'Central Pune',
       location: {
         address: '654, Central Area, Pune',
@@ -613,7 +613,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1006',
       name: 'Lakshmi Nair',
       phone: '+919666666666',
-      email: 'lakshmi@irasathi.com',
+      email: 'lakshmi@nooreadah.com',
       area: 'South Chennai',
       location: {
         address: '987, Coastal Area, Chennai',
@@ -631,7 +631,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1007',
       name: 'Anil Gupta',
       phone: '+919777777777',
-      email: 'anil@irasathi.com',
+      email: 'anil@nooreadah.com',
       area: 'North Kolkata',
       location: {
         address: '147, Northern Area, Kolkata',
@@ -649,7 +649,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1008',
       name: 'Meera Desai',
       phone: '+919888888888',
-      email: 'meera@irasathi.com',
+      email: 'meera@nooreadah.com',
       area: 'East Ahmedabad',
       location: {
         address: '258, Eastern Zone, Ahmedabad',
@@ -667,7 +667,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1009',
       name: 'Rohit Verma',
       phone: '+919999999999',
-      email: 'rohit@irasathi.com',
+      email: 'rohit@nooreadah.com',
       area: 'West Jaipur',
       location: {
         address: '369, Western Area, Jaipur',
@@ -685,7 +685,7 @@ const seedSellers = async () => {
       sellerId: 'IRA-1010',
       name: 'Pending Seller - Test',
       phone: '+919000000000',
-      email: 'pending@irasathi.com',
+      email: 'pending@nooreadah.com',
       area: 'Test Area',
       location: {
         address: 'Test Address',

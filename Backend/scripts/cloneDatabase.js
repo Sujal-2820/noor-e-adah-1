@@ -6,12 +6,12 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const SOURCE_URI = process.env.MONGO_URI;
 // Replace database name in URI
-const TARGET_URI = SOURCE_URI.replace('/satpurabio?', '/Canx_international?').replace('/satpurabio', '/Canx_international');
+const TARGET_URI = SOURCE_URI.replace('/Noor E Adahbio?', '/Canx_international?').replace('/Noor E Adahbio', '/Canx_international');
 
 async function cloneDatabase() {
     let sourceConn, targetConn;
     try {
-        console.log('Connecting to Source Database: satpurabio...');
+        console.log('Connecting to Source Database: Noor E Adahbio...');
         sourceConn = await mongoose.createConnection(SOURCE_URI).asPromise();
 
         console.log('Connecting to Target Database: Canx_international...');

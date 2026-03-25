@@ -294,7 +294,7 @@ const ensureVendors = async () => {
       const vendorData = {
         name: `Approved Vendor ${i + 1}`,
         phone: `+919${String(i).padStart(9, '0')}`,
-        email: `vendor${i + 1}@irasathi.com`,
+        email: `vendor${i + 1}@nooreadah.com`,
         location: {
           address: location.address,
           city: location.city,
@@ -332,7 +332,7 @@ const ensureVendors = async () => {
       const vendorData = {
         name: `Pending Vendor ${i + 1}`,
         phone: `+9199${String(i).padStart(8, '0')}`,
-        email: `pending${i + 1}@irasathi.com`,
+        email: `pending${i + 1}@nooreadah.com`,
         location: {
           address: `Pending Vendor Address ${i + 1}`,
           city: 'Test City',
@@ -387,7 +387,7 @@ const ensureSellers = async () => {
       if (!existing) {
         const seller = await Seller.create({
           ...data,
-          email: `${data.name.toLowerCase().replace(' ', '')}@irasathi.com`,
+          email: `${data.name.toLowerCase().replace(' ', '')}@nooreadah.com`,
           location: {
             address: `${data.area} Address`,
             city: data.area.split(' ')[1] || 'Test City',
@@ -419,7 +419,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-PENDING-001',
       name: 'Pending Seller',
       phone: '+919999999999',
-      email: 'pending@irasathi.com',
+      email: 'pending@nooreadah.com',
       area: 'Test Area',
       location: {
         address: 'Pending Seller Address',
@@ -493,7 +493,7 @@ const ensureUsers = async () => {
       const userData = {
         name: `User ${i + 1}`,
         phone: `+9198${String(i).padStart(8, '0')}`,
-        email: `user${i + 1}@irasathi.com`,
+        email: `user${i + 1}@nooreadah.com`,
         location: {
           address: `User ${i + 1} Address`,
           city: 'Test City',
@@ -541,7 +541,7 @@ const ensureUsers = async () => {
     const user = await User.create({
       name: 'Blocked User',
       phone: '+919999999990',
-      email: 'blocked@irasathi.com',
+      email: 'blocked@nooreadah.com',
       location: {
         address: 'Blocked User Address',
         city: 'Test City',

@@ -93,7 +93,7 @@ If you need to revert to the original design:
 
 ```powershell
 # Navigate to the directory
-cd "c:\Users\HP\OneDrive\Desktop\satpura bio\FarmCommerce\Frontend\src\modules\User\pages\views"
+cd "c:\Users\HP\OneDrive\Desktop\Noor E Adah\FarmCommerce\Frontend\src\modules\User\pages\views"
 
 # Restore the backup
 Copy-Item "HomeView.jsx.backup" "HomeView.jsx" -Force

@@ -6,7 +6,7 @@
  * 
  * Base URL should be configured in environment variables:
  * - Development: http://localhost:3000/api
- * - Production: https://api.canxinternational.com/api
+ * - Production: https://api.nooreadah.com/api
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'

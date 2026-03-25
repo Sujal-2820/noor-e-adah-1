@@ -255,7 +255,7 @@ export function RewardsView({ navigate }) {
                     <div className="absolute bottom-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-10 -mb-10" />
                     <Star className="w-10 h-10 text-amber-400 mb-4" />
                     <h3 className="text-xl font-black italic uppercase leading-tight">
-                        <Trans>Unlock Exclusive<br />Satpura Partner Benefits</Trans>
+                        <Trans>Unlock Exclusive<br />Noor E Adah Partner Benefits</Trans>
                     </h3>
                     <p className="text-indigo-200 text-xs mt-3 font-medium leading-relaxed">
                         <Trans>Increase your monthly stock orders to reach Diamond Status and unlock fully paid group vacations.</Trans>

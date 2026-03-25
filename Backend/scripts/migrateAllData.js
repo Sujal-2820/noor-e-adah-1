@@ -8,7 +8,7 @@
 const mongoose = require('mongoose');
 
 // Database URLs
-const OLD_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-satpura.3fa8s.mongodb.net/Canx_international?retryWrites=true&w=majority&appName=ecomm-satpura';
+const OLD_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-Noor E Adah.3fa8s.mongodb.net/Canx_international?retryWrites=true&w=majority&appName=ecomm-Noor E Adah';
 const NEW_DB_URL = 'mongodb+srv://sujal99ds_db_user:DvEHC8z9ApZteyDI@clustercanx.bcazxvt.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCanx';
 
 // Color codes
@@ -37,7 +37,7 @@ async function copyAllData() {
     console.clear();
     logSection('🚀 COMPLETE DATABASE MIGRATION - Copy ALL Data');
 
-    log('Source: Canx_international @ ecomm-satpura', 'cyan');
+    log('Source: Canx_international @ ecomm-Noor E Adah', 'cyan');
     log('Target: ClusterCanx', 'magenta');
     log('\n⚠️  This will copy ALL documents from ALL collections', 'yellow');
 

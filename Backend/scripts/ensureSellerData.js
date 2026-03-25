@@ -31,7 +31,7 @@ const Vendor = require('../models/Vendor');
 const Payment = require('../models/Payment');
 
 // Import constants
-const { ORDER_STATUS, PAYMENT_STATUS, IRA_PARTNER_COMMISSION_THRESHOLD, IRA_PARTNER_COMMISSION_RATE_LOW, IRA_PARTNER_COMMISSION_RATE_HIGH } = require('../utils/constants');
+const { ORDER_STATUS, PAYMENT_STATUS, CUSTOMER_REWARD_COMMISSION_THRESHOLD, CUSTOMER_REWARD_COMMISSION_RATE_LOW, CUSTOMER_REWARD_COMMISSION_RATE_HIGH } = require('../utils/constants');
 
 let createdData = {
   sellers: [],
@@ -64,7 +64,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1001',
       name: 'Rajesh Kumar',
       phone: '+919111111111',
-      email: 'rajesh@irasathi.com',
+      email: 'rajesh@nooreadah.com',
       area: 'North Delhi',
       location: {
         address: '123, Village Street, North Delhi',
@@ -82,7 +82,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1002',
       name: 'Priya Sharma',
       phone: '+919222222222',
-      email: 'priya@irasathi.com',
+      email: 'priya@nooreadah.com',
       area: 'South Mumbai',
       location: {
         address: '456, Urban Area, South Mumbai',
@@ -100,7 +100,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1003',
       name: 'Amit Patel',
       phone: '+919333333333',
-      email: 'amit@irasathi.com',
+      email: 'amit@nooreadah.com',
       area: 'West Bangalore',
       location: {
         address: '789, Rural District, West Bangalore',
@@ -118,7 +118,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1004',
       name: 'Sneha Reddy',
       phone: '+919444444444',
-      email: 'sneha@irasathi.com',
+      email: 'sneha@nooreadah.com',
       area: 'East Hyderabad',
       location: {
         address: '321, Industrial Zone, East Hyderabad',
@@ -136,7 +136,7 @@ const ensureSellers = async () => {
       sellerId: 'IRA-1005',
       name: 'Vikram Singh',
       phone: '+919555555555',
-      email: 'vikram@irasathi.com',
+      email: 'vikram@nooreadah.com',
       area: 'Central Pune',
       location: {
         address: '654, Agri Zone, Central Pune',
@@ -201,7 +201,7 @@ const ensureUsersForSellers = async () => {
       const userData = {
         name: `User ${seller.sellerId} ${i + 1}`,
         phone: `+9198${String(i).padStart(8, '0')}${seller.sellerId.slice(-1)}`,
-        email: `user${seller.sellerId}-${i + 1}@irasathi.com`,
+        email: `user${seller.sellerId}-${i + 1}@nooreadah.com`,
         location: {
           address: `User ${i + 1} Address`,
           city: seller.location?.city || 'Test City',
@@ -478,39 +478,39 @@ const ensureCommissionsForSellers = async () => {
       const cumulativeAfter = cumulativeBefore + order.totalAmount;
       
       // Determine commission rate (2% up to ₹50,000, 3% above)
-      let commissionRate = IRA_PARTNER_COMMISSION_RATE_LOW; // 2%
-      if (cumulativeAfter > IRA_PARTNER_COMMISSION_THRESHOLD) {
+      let commissionRate = CUSTOMER_REWARD_COMMISSION_RATE_LOW; // 2%
+      if (cumulativeAfter > CUSTOMER_REWARD_COMMISSION_THRESHOLD) {
         // Mixed rate: some at 2%, some at 3%
-        if (cumulativeBefore <= IRA_PARTNER_COMMISSION_THRESHOLD) {
+        if (cumulativeBefore <= CUSTOMER_REWARD_COMMISSION_THRESHOLD) {
           // This order crosses threshold
-          const belowThreshold = IRA_PARTNER_COMMISSION_THRESHOLD - cumulativeBefore;
+          const belowThreshold = CUSTOMER_REWARD_COMMISSION_THRESHOLD - cumulativeBefore;
           const aboveThreshold = order.totalAmount - belowThreshold;
-          const commission = (belowThreshold * IRA_PARTNER_COMMISSION_RATE_LOW / 100) +
-                            (aboveThreshold * IRA_PARTNER_COMMISSION_RATE_HIGH / 100);
+          const commission = (belowThreshold * CUSTOMER_REWARD_COMMISSION_RATE_LOW / 100) +
+                            (aboveThreshold * CUSTOMER_REWARD_COMMISSION_RATE_HIGH / 100);
           // Use weighted average rate for simplicity
           commissionRate = (commission / order.totalAmount) * 100;
         } else {
           // All at 3%
-          commissionRate = IRA_PARTNER_COMMISSION_RATE_HIGH; // 3%
+          commissionRate = CUSTOMER_REWARD_COMMISSION_RATE_HIGH; // 3%
         }
       }
       
       // Calculate commission amount correctly based on threshold
       let commissionAmount = 0;
-      if (cumulativeAfter > IRA_PARTNER_COMMISSION_THRESHOLD) {
-        if (cumulativeBefore <= IRA_PARTNER_COMMISSION_THRESHOLD) {
+      if (cumulativeAfter > CUSTOMER_REWARD_COMMISSION_THRESHOLD) {
+        if (cumulativeBefore <= CUSTOMER_REWARD_COMMISSION_THRESHOLD) {
           // Mixed rate: some at 2%, some at 3%
-          const belowThreshold = IRA_PARTNER_COMMISSION_THRESHOLD - cumulativeBefore;
+          const belowThreshold = CUSTOMER_REWARD_COMMISSION_THRESHOLD - cumulativeBefore;
           const aboveThreshold = order.totalAmount - belowThreshold;
-          commissionAmount = (belowThreshold * IRA_PARTNER_COMMISSION_RATE_LOW / 100) +
-                            (aboveThreshold * IRA_PARTNER_COMMISSION_RATE_HIGH / 100);
+          commissionAmount = (belowThreshold * CUSTOMER_REWARD_COMMISSION_RATE_LOW / 100) +
+                            (aboveThreshold * CUSTOMER_REWARD_COMMISSION_RATE_HIGH / 100);
         } else {
           // All at 3%
-          commissionAmount = (order.totalAmount * IRA_PARTNER_COMMISSION_RATE_HIGH) / 100;
+          commissionAmount = (order.totalAmount * CUSTOMER_REWARD_COMMISSION_RATE_HIGH) / 100;
         }
       } else {
         // All at 2%
-        commissionAmount = (order.totalAmount * IRA_PARTNER_COMMISSION_RATE_LOW) / 100;
+        commissionAmount = (order.totalAmount * CUSTOMER_REWARD_COMMISSION_RATE_LOW) / 100;
       }
       
       const commission = await Commission.create({

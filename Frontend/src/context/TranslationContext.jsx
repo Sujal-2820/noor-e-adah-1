@@ -3,7 +3,7 @@ import { getTranslation, getBatchTranslations } from '../utils/translation'
 
 const TranslationContext = createContext(null)
 
-const STORAGE_KEY = 'ira_sathi_language'
+const STORAGE_KEY = 'nooreadah_language'
 
 export function TranslationProvider({ children }) {
   const [language, setLanguageState] = useState(() => {

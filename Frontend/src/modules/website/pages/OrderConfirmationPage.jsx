@@ -23,6 +23,7 @@ export function OrderConfirmationPage() {
 
   const [animationProgress, setAnimationProgress] = useState(0)
   const [showContent, setShowContent] = useState(false)
+  const [showSocialModal, setShowSocialModal] = useState(false)
 
   useEffect(() => {
     // If no order data, redirect to home
@@ -50,6 +51,13 @@ export function OrderConfirmationPage() {
     
     requestAnimationFrame(animate)
   }, [order, navigate])
+
+  useEffect(() => {
+    if (showContent) {
+      const timer = setTimeout(() => setShowSocialModal(true), 2500)
+      return () => clearTimeout(timer)
+    }
+  }, [showContent])
 
   const circumference = 2 * Math.PI * 45 // radius = 45
   const strokeDashoffset = circumference * (1 - animationProgress)
@@ -181,6 +189,46 @@ export function OrderConfirmationPage() {
           </div>
         </div>
       </Container>
+
+      {/* Instagram Follow Modal */}
+      {showSocialModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full text-center shadow-2xl relative animate-scale-up border border-white/20">
+             <button 
+               onClick={() => setShowSocialModal(false)}
+               className="absolute top-6 right-6 text-gray-300 hover:text-accent transition-colors p-2"
+               aria-label="Close"
+             >
+               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" /></svg>
+             </button>
+             
+             <div className="w-24 h-24 bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-[0_20px_50px_rgba(220,39,67,0.3)] rotate-6 group hover:rotate-0 transition-transform duration-500">
+                <svg className="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                   <rect x="2" y="2" width="20" height="20" rx="6" ry="6" />
+                   <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                   <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" />
+                </svg>
+             </div>
+             
+             <h2 className="text-2xl font-bold text-brand uppercase tracking-widest mb-4">Join Our Journey</h2>
+             <p className="text-brand/60 text-[13px] mb-10 leading-relaxed font-medium">
+               Take a moment to follow us to get more beautiful designs and exclusive updates!
+             </p>
+             
+             <a 
+               href="https://www.instagram.com/noor.e.adah?igsh=MWdvMzE1c3F2MjEyaw==" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               className="block w-full bg-brand text-white font-bold py-5 rounded-2xl shadow-premium hover:bg-accent transition-all transform hover:-translate-y-1 active:translate-y-0 tracking-[0.2em] text-[11px] lg:text-[12px] uppercase text-center"
+               onClick={() => setShowSocialModal(false)}
+             >
+               Follow @noor.e.adah
+             </a>
+             
+             <p className="mt-6 text-[10px] text-brand/30 uppercase tracking-[0.1em] font-bold">Official Noor E Adah</p>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

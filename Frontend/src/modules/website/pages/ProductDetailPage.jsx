@@ -7,6 +7,7 @@ import * as websiteApi from '../services/websiteApi'
 import { getAllImageUrls, getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
 import '../styles/website.css'
+import { FacebookIcon, TwitterIcon, LinkedinIcon, PinterestIcon, InstagramIcon } from '../../../components/shared/catalog'
 
 export function ProductDetailPage() {
   const { productId } = useParams()
@@ -143,6 +144,17 @@ export function ProductDetailPage() {
 
   const discount = currentDiscount > 0 ? Math.round(currentDiscount) : 0
   const discountedPrice = discount > 0 ? Math.round(currentPrice * (1 - discount / 100)) : currentPrice
+
+  const shareUrl = window.location.href
+  const shareText = product ? `Check out this amazing product at Noor E Adah: ${product.name}` : ''
+
+  const sharePlatforms = useMemo(() => [
+    { name: 'facebook', icon: FacebookIcon, url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}` },
+    { name: 'twitter', icon: TwitterIcon, url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}` },
+    { name: 'linkedin', icon: LinkedinIcon, url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
+    { name: 'pinterest', icon: PinterestIcon, url: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&media=${encodeURIComponent(images[0] || '')}&description=${encodeURIComponent(shareText)}` },
+    { name: 'instagram', icon: InstagramIcon, url: `https://www.instagram.com/noor.e.adah?igsh=MWdvMzE1c3F2MjEyaw==` }
+  ], [shareUrl, shareText, product, images])
 
   const handleToggleWishlist = async () => {
     if (!authenticated) {
@@ -490,11 +502,18 @@ export function ProductDetailPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-[10px] lg:text-[11px] font-semibold text-brand/30 uppercase tracking-[0.15em] w-24">Share :</span>
-                  <div className="flex gap-4 items-center">
-                    {['facebook', 'twitter', 'pinterest'].map(social => (
-                      <button key={social} className="text-brand/40 hover:text-accent transition-colors">
-                        <i className={`fab fa-${social} text-xs`}></i>
-                      </button>
+                  <div className="flex gap-6 items-center">
+                    {sharePlatforms.map(platform => (
+                      <a 
+                        key={platform.name} 
+                        href={platform.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-brand/40 hover:text-accent transition-all hover:scale-110 active:scale-95"
+                        title={`Share on ${platform.name}`}
+                      >
+                        <platform.icon className="w-5 h-5" />
+                      </a>
                     ))}
                   </div>
                 </div>

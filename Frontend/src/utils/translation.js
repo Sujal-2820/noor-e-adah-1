@@ -10,7 +10,7 @@ import hiDictionary from '../locales/hi.json';
 const API_URL = import.meta.env.VITE_API_URL || '';
 const GOOGLE_TRANSLATE_API_KEY = import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY || '';
 const GOOGLE_TRANSLATE_API_URL = 'https://translation.googleapis.com/language/translate/v2';
-const TRANSLATION_CACHE_KEY = 'ira_sathi_translation_cache';
+const TRANSLATION_CACHE_KEY = 'nooreadah_translation_cache';
 const CACHE_EXPIRY = 30 * 24 * 60 * 60 * 1000; // 30 days
 const MAX_CACHE_SIZE = 1000; // Max number of entries to avoid 5MB limit
 

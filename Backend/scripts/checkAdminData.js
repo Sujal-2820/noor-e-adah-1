@@ -5,7 +5,7 @@
 const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
 
-const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-satpura.3fa8s.mongodb.net/?retryWrites=true&w=majority&appName=ecomm-satpura';
+const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-Noor E Adah.3fa8s.mongodb.net/?retryWrites=true&w=majority&appName=ecomm-Noor E Adah';
 
 async function checkAdminData() {
     try {

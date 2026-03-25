@@ -205,7 +205,7 @@ All API endpoints are defined and ready for backend integration. The current imp
 
 ### Base URL Configuration
 - Development: `http://localhost:3000/api`
-- Production: `https://api.satpurabio.com/api`
+- Production: `https://api.Noor E Adahbio.com/api`
 - Configured via environment variable: `VITE_API_BASE_URL`
 
 ### Authentication

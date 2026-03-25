@@ -780,7 +780,7 @@ export function AccountOrdersPage() {
           amount: amount,
           currency: 'INR',
           order_id: razorpayOrderId,
-          name: 'Satpura Bio',
+          name: 'Noor E Adah',
           description: `Remaining payment for Order ${order.orderNumber || order.id}`,
           prefill: {
             name: order.userName || '',

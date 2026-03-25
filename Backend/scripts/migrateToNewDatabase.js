@@ -4,8 +4,8 @@
  * Purpose: Migrate schema structure and admin data to new database
  * Safety: Does NOT modify source database
  * 
- * Source: irasathi database
- * Target: ecomm-satpura database
+ * Source: nooreadah database
+ * Target: ecomm-Noor E Adah database
  * 
  * Actions:
  * 1. Connect to both databases
@@ -18,7 +18,7 @@
 const mongoose = require('mongoose');
 
 // Database URLs
-const OLD_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-satpura.3fa8s.mongodb.net/Canx_international?retryWrites=true&w=majority&appName=ecomm-satpura';
+const OLD_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-Noor E Adah.3fa8s.mongodb.net/Canx_international?retryWrites=true&w=majority&appName=ecomm-Noor E Adah';
 const NEW_DB_URL = 'mongodb+srv://sujal99ds_db_user:DvEHC8z9ApZteyDI@clustercanx.bcazxvt.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCanx';
 
 // Color codes for console output
@@ -208,7 +208,7 @@ async function generateEnvironmentFile() {
 
     log('📝 Update your .env file with the new database URL:', 'cyan');
     log('\nOLD:', 'yellow');
-    log('MONGO_URI=mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-satpura.3fa8s.mongodb.net/Canx_international?retryWrites=true&w=majority&appName=ecomm-satpura', 'red');
+    log('MONGO_URI=mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-Noor E Adah.3fa8s.mongodb.net/Canx_international?retryWrites=true&w=majority&appName=ecomm-Noor E Adah', 'red');
     log('\nNEW:', 'yellow');
     log('MONGO_URI=mongodb+srv://sujal99ds_db_user:DvEHC8z9ApZteyDI@clustercanx.bcazxvt.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCanx', 'green');
     log('\n⚠️  Remember to update this manually in your .env file!', 'yellow');
@@ -216,9 +216,9 @@ async function generateEnvironmentFile() {
 
 async function main() {
     console.clear();
-    logSection('🚀 DATABASE MIGRATION SCRIPT - Canx International');
+    logSection('🚀 DATABASE MIGRATION SCRIPT - Noor E Adah');
 
-    log('Source Database: Canx_international @ ecomm-satpura (OLD)', 'cyan');
+    log('Source Database: Canx_international @ ecomm-Noor E Adah (OLD)', 'cyan');
     log('Target Database: ClusterCanx (NEW)', 'magenta');
     log('\n⚠️  WARNING: This will DROP ALL collections in the target database!', 'red');
     log('⚠️  Source database will NOT be modified.', 'yellow');

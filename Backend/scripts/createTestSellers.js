@@ -23,7 +23,7 @@ const createTestSellers = async () => {
         sellerId: 'IRA-1001',
         name: 'Rajesh Kumar',
         phone: '+919111111111',
-        email: 'rajesh@irasathi.com',
+        email: 'rajesh@nooreadah.com',
         area: 'North Delhi',
         location: {
           address: '123, Village Street',
@@ -44,7 +44,7 @@ const createTestSellers = async () => {
         sellerId: 'IRA-1002',
         name: 'Priya Sharma',
         phone: '+919222222222',
-        email: 'priya@irasathi.com',
+        email: 'priya@nooreadah.com',
         area: 'South Mumbai',
         location: {
           address: '456, Urban Area',
@@ -65,7 +65,7 @@ const createTestSellers = async () => {
         sellerId: 'IRA-1003',
         name: 'Amit Patel',
         phone: '+919333333333',
-        email: 'amit@irasathi.com',
+        email: 'amit@nooreadah.com',
         area: 'West Bangalore',
         location: {
           address: '789, Rural District',
@@ -86,7 +86,7 @@ const createTestSellers = async () => {
         sellerId: 'IRA-1004',
         name: 'Sneha Reddy',
         phone: '+919444444444',
-        email: 'sneha@irasathi.com',
+        email: 'sneha@nooreadah.com',
         area: 'East Hyderabad',
         location: {
           address: '321, Industrial Zone',

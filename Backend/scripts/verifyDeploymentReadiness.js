@@ -206,7 +206,7 @@ async function checkBuildTest() {
 // Main execution
 async function runAllChecks() {
     console.clear();
-    logSection('🚀 PRE-DEPLOYMENT VERIFICATION - Canx International Backend');
+    logSection('🚀 PRE-DEPLOYMENT VERIFICATION - Noor E Adah Backend');
 
     log('Running comprehensive deployment readiness checks...', 'cyan');
 

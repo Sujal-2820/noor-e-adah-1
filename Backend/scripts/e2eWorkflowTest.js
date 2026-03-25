@@ -430,13 +430,13 @@ const run = async () => {
         // E2E-COMM-02: Verify Commission Constants
         await test('E2E-COMM-02', 'Verify Commission Tiers', async () => {
             const constants = require('../utils/constants');
-            if (constants.IRA_PARTNER_COMMISSION_RATE_LOW !== 2) {
+            if (constants.CUSTOMER_REWARD_COMMISSION_RATE_LOW !== 2) {
                 throw new Error('Tier 1 should be 2%');
             }
-            if (constants.IRA_PARTNER_COMMISSION_RATE_HIGH !== 3) {
+            if (constants.CUSTOMER_REWARD_COMMISSION_RATE_HIGH !== 3) {
                 throw new Error('Tier 2 should be 3%');
             }
-            if (constants.IRA_PARTNER_COMMISSION_THRESHOLD !== 50000) {
+            if (constants.CUSTOMER_REWARD_COMMISSION_THRESHOLD !== 50000) {
                 throw new Error('Threshold should be ₹50,000');
             }
         });

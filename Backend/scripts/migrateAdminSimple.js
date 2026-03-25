@@ -4,8 +4,8 @@
 
 const { MongoClient } = require('mongodb');
 
-const OLD_DB_URL = 'mongodb+srv://yash007patidar_db_user:XNJIg0oR0Fz6mqyj@cluster0.bjmsiqo.mongodb.net/irasathi?retryWrites=true&w=majority&appName=Cluster0';
-const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-satpura.3fa8s.mongodb.net/satpurabio?retryWrites=true&w=majority&appName=ecomm-satpura';
+const OLD_DB_URL = 'mongodb+srv://yash007patidar_db_user:XNJIg0oR0Fz6mqyj@cluster0.bjmsiqo.mongodb.net/nooreadah?retryWrites=true&w=majority&appName=Cluster0';
+const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-Noor E Adah.3fa8s.mongodb.net/Noor E Adahbio?retryWrites=true&w=majority&appName=ecomm-Noor E Adah';
 
 async function migrateAdmins() {
     const oldClient = new MongoClient(OLD_DB_URL);
@@ -17,13 +17,13 @@ async function migrateAdmins() {
         // Connect to old database
         console.log('📡 Connecting to OLD database...');
         await oldClient.connect();
-        const oldDb = oldClient.db('irasathi');
+        const oldDb = oldClient.db('nooreadah');
         console.log('✅ Connected to OLD database');
 
         // Connect to new database  
         console.log('📡 Connecting to NEW database...');
         await newClient.connect();
-        const newDb = newClient.db('satpurabio');
+        const newDb = newClient.db('Noor E Adahbio');
         console.log('✅ Connected to NEW database\n');
 
         // Get admin data

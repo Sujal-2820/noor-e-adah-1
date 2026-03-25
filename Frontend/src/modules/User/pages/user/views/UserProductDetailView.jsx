@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { StarIcon, HeartIcon, PlusIcon, MinusIcon, ChevronLeftIcon, CartIcon, HelpCircleIcon } from '../../../../../components/shared/catalog'
+import { StarIcon, HeartIcon, PlusIcon, MinusIcon, ChevronLeftIcon, CartIcon, HelpCircleIcon, FacebookIcon, TwitterIcon, LinkedinIcon, PinterestIcon, InstagramIcon } from '../../../../../components/shared/catalog'
 import { cn } from '../../../../../lib/cn'
 import { useUserApi } from '../../../hooks/useUserApi'
 import { useUserState, useUserDispatch } from '../../../context/UserContext'
@@ -138,6 +138,17 @@ export function UserProductDetailView({ productId, onAddToCart, onBuyNow, onTogg
 
     // Current Days derived from Slider Progress (0-100)
     const [sliderProgress, setSliderProgress] = useState(0)
+
+    const shareUrl = window.location.href
+    const shareText = product ? `Check out this amazing product at Noor E Adah: ${product.name}` : ''
+
+    const sharePlatforms = useMemo(() => [
+        { name: 'facebook', icon: FacebookIcon, url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}` },
+        { name: 'twitter', icon: TwitterIcon, url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}` },
+        { name: 'linkedin', icon: LinkedinIcon, url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
+        { name: 'pinterest', icon: PinterestIcon, url: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&media=${encodeURIComponent(product?.primaryImage || '')}&description=${encodeURIComponent(shareText)}` },
+        { name: 'instagram', icon: InstagramIcon, url: `https://www.instagram.com/noor.e.adah?igsh=MWdvMzE1c3F2MjEyaw==` }
+    ], [shareUrl, shareText, product])
 
     const calculation = useMemo(() => {
         const progress = parseFloat(sliderProgress)
@@ -445,6 +456,27 @@ export function UserProductDetailView({ productId, onAddToCart, onBuyNow, onTogg
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        {/* Social Share Section */}
+                        <div className="flex items-center gap-4 py-4 border-y border-brand/5 my-2">
+                            <span className="text-sm font-semibold text-slate-700 tracking-wide">
+                                <Trans>Share:</Trans>
+                            </span>
+                            <div className="flex gap-4 items-center">
+                                {sharePlatforms.map(platform => (
+                                    <a 
+                                        key={platform.name} 
+                                        href={platform.url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-slate-400 hover:text-blue-700 transition-all hover:scale-110 active:scale-95"
+                                        title={`Share on ${platform.name}`}
+                                    >
+                                        <platform.icon className="h-6 w-6" />
+                                    </a>
+                                ))}
                             </div>
                         </div>
 

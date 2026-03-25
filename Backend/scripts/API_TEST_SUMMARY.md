@@ -1,4 +1,4 @@
-# IRA SATHI Backend API - Test Report Template
+# Noor E Adah Backend API - Test Report Template
 
 This document will contain the comprehensive test report after running the test suite.
 

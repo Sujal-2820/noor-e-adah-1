@@ -616,7 +616,7 @@ const testProfileManagementWorkflow = async () => {
   // Update profile
   const updateData = {
     name: currentProfile.name, // Keep same name
-    email: currentProfile.email || `test${Date.now()}@irasathi.com`,
+    email: currentProfile.email || `test${Date.now()}@nooreadah.com`,
     area: currentProfile.area || 'Test Area',
   };
   

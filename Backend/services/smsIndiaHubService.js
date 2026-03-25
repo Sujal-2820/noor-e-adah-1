@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 /**
- * SMSIndia Hub SMS Service for Canx International
+ * SMSIndia Hub SMS Service for Noor E Adah
  * Handles OTP sending via SMSIndia Hub API
  */
 class SMSIndiaHubService {
@@ -112,7 +112,7 @@ class SMSIndiaHubService {
       }
 
       // CRITICAL: This template must match what is approved in your SMSIndia Hub / DLT portal.
-      // If you change the name to 'Canx International' here, ensure the template is updated and approved there too.
+      // If you change the name to 'Noor E Adah' here, ensure the template is updated and approved there too.
       const message = `Welcome to Noor E Adah powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
 
       // Build the API URL with query parameters

@@ -4,7 +4,7 @@
 
 const { MongoClient } = require('mongodb');
 
-const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-satpura.3fa8s.mongodb.net/satpurabio?retryWrites=true&w=majority&appName=ecomm-satpura';
+const NEW_DB_URL = 'mongodb+srv://agarwaldeeksha03:YvsvnVCtrP8rYX2R@ecomm-Noor E Adah.3fa8s.mongodb.net/Noor E Adahbio?retryWrites=true&w=majority&appName=ecomm-Noor E Adah';
 
 async function checkAdmin() {
     const client = new MongoClient(NEW_DB_URL);
@@ -13,7 +13,7 @@ async function checkAdmin() {
         console.log('\n🔍 Checking NEW Database for Admin Data...\n');
 
         await client.connect();
-        const db = client.db('satpurabio');
+        const db = client.db('Noor E Adahbio');
 
         const admins = await db.collection('admins').find({}).toArray();
 
