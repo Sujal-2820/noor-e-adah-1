@@ -29,6 +29,8 @@ const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
+  'https://nooreadahcouture.in',
+  'https://www.nooreadahcouture.in',
   'https://www.noor-e-adah.com',
   'https://noor-e-adah.com',
   'https://noor-e-adah-1.vercel.app'
