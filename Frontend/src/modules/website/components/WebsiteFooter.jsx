@@ -73,13 +73,14 @@ export function WebsiteFooter() {
 
           {/* Column 4: Brand Story (Right aligned in image 4) */}
           <div className="flex flex-col gap-8 lg:text-right lg:items-end">
+            <h3 className="text-[11px] lg:text-[15px] font-bold tracking-[0.25em] uppercase text-brand">About Noor E Adah</h3>
             <p className="text-[11px] lg:text-[15px] text-brand/60 leading-[2] font-light italic">
-              Noor E Adah is a brand that honours India's rich cultural heritage, breathing new life into traditional textiles and techniques with a contemporary twist, all while maintaining a strong focus on sustainability and ethical production.
+              Noor E Adah is a celebration of grace, elegance, and individuality. Each piece is thoughtfully designed to bring out your inner radiance—where every detail speaks of timeless style and effortless charm.
             </p>
             <div className="flex flex-col items-center lg:items-end mt-4">
               <img src={logo} alt="Noor E Adah" className="h-10 w-auto object-contain mb-2" />
               <span className="text-[8px] tracking-[0.4em] font-light text-brand/40 uppercase mt-1 transition-all group-hover:tracking-[0.5em] group-hover:text-accent">
-                OFFICIAL
+                OFFICIAL PORTAL
               </span>
             </div>
           </div>

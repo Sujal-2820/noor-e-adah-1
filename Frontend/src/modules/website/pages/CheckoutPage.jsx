@@ -85,6 +85,7 @@ export function CheckoutPage() {
     addNote: false,
     note: ''
   })
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   // Sync with checkoutAddress from context (Cart-to-Checkout transfer)
   useEffect(() => {
@@ -206,6 +207,11 @@ export function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (!formData.email || !formData.firstName || !formData.address || !formData.phone) {
       setError('Please fill in all required fields')
+      return
+    }
+
+    if (!agreedToTerms) {
+      setError('You must agree to the Terms and Conditions to proceed')
       return
     }
 
@@ -577,11 +583,28 @@ export function CheckoutPage() {
 
               <div className="border-t border-black/5" />
 
-              <p className="legal-text">
-                By proceeding with your purchase you agree to our <Link to="/terms">Terms and Conditions</Link> and <Link to="/privacy">Privacy Policy</Link>
-              </p>
+              <div className="bg-brand/5 p-6 rounded-2xl border border-brand/10 space-y-4">
+                <label className="flex items-start gap-4 cursor-pointer group">
+                  <div className="relative mt-1">
+                    <input 
+                      type="checkbox" 
+                      className="peer sr-only" 
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    />
+                    <div className="w-5 h-5 border-2 border-brand/20 rounded bg-white peer-checked:bg-brand peer-checked:border-brand transition-all flex items-center justify-center">
+                      <svg className={`w-3.5 h-3.5 text-white transition-opacity ${agreedToTerms ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-brand/70 leading-relaxed select-none">
+                    I have read and agree to the <Link to="/terms" target="_blank" className="text-brand underline italic hover:text-accent">Terms and Conditions</Link>, <Link to="/privacy" target="_blank" className="text-brand underline italic hover:text-accent">Privacy Policy</Link> and <Link to="/returns" target="_blank" className="text-brand underline italic hover:text-accent">Refund Policy</Link>.
+                  </span>
+                </label>
+              </div>
 
-              <div className="checkout-footer-actions">
+              <div className="checkout-footer-actions pt-8">
                 <Link to="/cart" className="return-to-cart-link">
                   ← Return to Cart
                 </Link>
