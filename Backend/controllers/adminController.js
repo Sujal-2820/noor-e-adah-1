@@ -633,6 +633,9 @@ exports.getProducts = async (req, res, next) => {
       page = 1,
       limit = 20,
       category,
+      collection,
+      look,
+      theme,
       isActive,
       search,
       sortBy = 'createdAt',
@@ -667,6 +670,18 @@ exports.getProducts = async (req, res, next) => {
 
     if (isActive !== undefined) {
       query.isActive = isActive === 'true';
+    }
+
+    if (collection) {
+      query.collection = collection;
+    }
+
+    if (look) {
+      query.look = look;
+    }
+
+    if (theme) {
+      query.theme = theme;
     }
 
     if (search) {

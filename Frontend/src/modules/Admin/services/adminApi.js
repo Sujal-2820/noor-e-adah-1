@@ -379,6 +379,9 @@ export async function getProducts(params = {}) {
     if (params.page) queryParams.append('page', params.page)
     if (params.limit) queryParams.append('limit', params.limit)
     if (params.category) queryParams.append('category', params.category)
+    if (params.collection) queryParams.append('collection', params.collection)
+    if (params.look) queryParams.append('look', params.look)
+    if (params.theme) queryParams.append('theme', params.theme)
     if (params.status || params.isActive !== undefined) {
       // Frontend uses 'status' (active/inactive), backend uses 'isActive' (true/false)
       const isActive = params.isActive !== undefined

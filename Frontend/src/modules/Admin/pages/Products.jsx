@@ -12,6 +12,7 @@ import { LoadingOverlay } from '../components/LoadingOverlay'
 import { uploadProductVideo } from '../services/adminApi'
 import { cn } from '../../../lib/cn'
 import { NewArrivalsManager } from '../components/NewArrivalsManager'
+import { SearchableSelect } from '../components/SearchableSelect'
 
 const columns = [
   { Header: 'Product', accessor: 'name' },
@@ -27,8 +28,20 @@ const columns = [
 export function ProductsPage({ subRoute = null, navigate }) {
   const { products } = useAdminState()
   const dispatch = useAdminDispatch()
-  const { getProducts, createProduct, updateProduct, deleteProduct, toggleProductVisibility, loading } = useAdminApi()
+  const { getProducts, createProduct, updateProduct, deleteProduct, toggleProductVisibility, getCategories, loading } = useAdminApi()
   const { success, error: showError, warning: showWarning } = useToast()
+
+  // Filter States
+  const [productSearch, setProductSearch] = useState(null)
+  const [collectionFilter, setCollectionFilter] = useState(null)
+  const [categoryFilter, setCategoryFilter] = useState(null)
+  const [lookFilter, setLookFilter] = useState(null)
+  const [themeFilter, setThemeFilter] = useState(null)
+  const [categories, setCategories] = useState([])
+  const [collections, setCollections] = useState([])
+  const [looks, setLooks] = useState([])
+  const [themes, setThemes] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(false)
 
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [productsList, setProductsList] = useState([])
@@ -38,6 +51,7 @@ export function ProductsPage({ subRoute = null, navigate }) {
   const [openActionsDropdown, setOpenActionsDropdown] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingMessage, setProcessingMessage] = useState('')
+  const [dropdownProducts, setDropdownProducts] = useState([])
 
   const regionColors = [
     { border: 'border-green-200', bg: 'bg-gradient-to-br from-green-50 to-green-100/50', text: 'text-green-700', progress: 'bg-gradient-to-r from-green-500 to-green-600' },
@@ -90,31 +104,76 @@ export function ProductsPage({ subRoute = null, navigate }) {
     }
   }
 
-  // Fetch products
+  // Fetch products for dropdown (larger limit)
+  const fetchProductsForDropdown = useCallback(async () => {
+    const result = await getProducts({ limit: 1000 })
+    if (result.data?.products) {
+      setDropdownProducts(result.data.products)
+    }
+  }, [getProducts])
+
+  // Fetch products for main table
   const fetchProducts = useCallback(async () => {
-    const result = await getProducts()
+    const params = {
+      limit: 50, // slightly larger page size for admin
+    }
+    
+    // Server-side filtering
+    if (categoryFilter) params.category = categoryFilter
+    if (collectionFilter) params.collection = collectionFilter
+    if (lookFilter) params.look = lookFilter
+    if (themeFilter) params.theme = themeFilter
+    if (productSearch) params.search = productSearch
+
+    const result = await getProducts(params)
     if (result.data?.products) {
       const formatted = result.data.products.map(formatProductForDisplay)
       setAllProductsList(formatted)
     } else {
       setAllProductsList([])
     }
-  }, [getProducts])
+  }, [getProducts, productSearch, collectionFilter, categoryFilter, lookFilter, themeFilter])
 
-  // Filter products based on subRoute
+  // Filter products based on subRoute and selected filters
   useEffect(() => {
+    let filtered = [...allProductsList]
+
+    // Route-based filtering
     if (subRoute === 'active') {
-      setProductsList(allProductsList.filter((p) => p.visibility === 'Active' || p.isActive !== false))
+      filtered = filtered.filter((p) => p.visibility === 'Active' || p.isActive !== false)
     } else if (subRoute === 'inactive') {
-      setProductsList(allProductsList.filter((p) => p.visibility === 'Inactive' || p.isActive === false))
-    } else {
-      setProductsList(allProductsList)
+      filtered = filtered.filter((p) => p.visibility === 'Inactive' || p.isActive === false)
     }
+
+    setProductsList(filtered)
   }, [subRoute, allProductsList])
+
+  const fetchCategories = useCallback(async () => {
+    setCategoriesLoading(true)
+    const result = await getCategories()
+    if (result.success) {
+      // Filter for all taxonomy types
+      const colls = result.data.filter(cat => cat.type === 'collection')
+      const cats = result.data.filter(cat => cat.type === 'category' || !cat.type)
+      const lks = result.data.filter(cat => cat.type === 'look')
+      const thms = result.data.filter(cat => cat.type === 'theme')
+      
+      setCollections(colls)
+      setCategories(cats)
+      setLooks(lks)
+      setThemes(thms)
+    }
+    setCategoriesLoading(false)
+  }, [getCategories])
 
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
+
+  useEffect(() => {
+    fetchCategories()
+    fetchProductsForDropdown()
+  }, [fetchCategories, fetchProductsForDropdown])
 
   useEffect(() => {
     if (products.updated) {
@@ -485,6 +544,93 @@ export function ProductsPage({ subRoute = null, navigate }) {
             {getPageDescription()}
           </p>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="w-full md:w-80">
+          <SearchableSelect
+            options={dropdownProducts.map(p => ({ 
+              value: p._id || p.id, 
+              label: p.name, 
+              subtitle: `SKU: ${p.sku || 'N/A'}` 
+            }))}
+            value={productSearch}
+            onChange={setProductSearch}
+            placeholder="Search any product..."
+            icon={Package}
+          />
+        </div>
+        <div className="w-full md:w-64">
+          <SearchableSelect
+            options={collections.map(c => ({ 
+              value: c._id, 
+              label: c.name, 
+              subtitle: 'Select Collection' 
+            }))}
+            value={collectionFilter}
+            onChange={setCollectionFilter}
+            placeholder="Search by collection..."
+            icon={Layers3}
+            loading={categoriesLoading}
+          />
+        </div>
+        <div className="w-full md:w-64">
+          <SearchableSelect
+            options={categories.map(c => ({ 
+              value: c._id, 
+              label: c.name, 
+              subtitle: 'Select Category' 
+            }))}
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            placeholder="Search by category..."
+            icon={Package}
+            loading={categoriesLoading}
+          />
+        </div>
+        <div className="w-full md:w-64">
+          <SearchableSelect
+            options={looks.map(c => ({ 
+              value: c._id, 
+              label: c.name, 
+              subtitle: 'Select Look' 
+            }))}
+            value={lookFilter}
+            onChange={setLookFilter}
+            placeholder="Search by look..."
+            icon={MapPin}
+            loading={categoriesLoading}
+          />
+        </div>
+        <div className="w-full md:w-64">
+          <SearchableSelect
+            options={themes.map(c => ({ 
+              value: c._id, 
+              label: c.name, 
+              subtitle: 'Select Theme' 
+            }))}
+            value={themeFilter}
+            onChange={setThemeFilter}
+            placeholder="Search by theme..."
+            icon={Layers3}
+            loading={categoriesLoading}
+          />
+        </div>
+
+        {(productSearch || collectionFilter || categoryFilter || lookFilter || themeFilter) && (
+          <button
+            onClick={() => {
+              setProductSearch(null)
+              setCollectionFilter(null)
+              setCategoryFilter(null)
+              setLookFilter(null)
+              setThemeFilter(null)
+            }}
+            className="text-sm font-bold text-red-600 hover:text-red-700 transition-colors px-2"
+          >
+            Clear Filters
+          </button>
+        )}
       </div>
 
       <FilterBar
