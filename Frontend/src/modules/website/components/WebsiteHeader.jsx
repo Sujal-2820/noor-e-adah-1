@@ -118,7 +118,6 @@ export function WebsiteHeader() {
   const [taxonomies, setTaxonomies] = useState({
     categories: [],
     looks: [],
-    themes: [],
     collections: []
   })
 
@@ -154,7 +153,6 @@ export function WebsiteHeader() {
           setTaxonomies({
             categories: all.filter(c => c.type === 'category' || !c.type),
             looks: all.filter(c => c.type === 'look'),
-            themes: all.filter(c => c.type === 'theme'),
             collections: all.filter(c => c.type === 'collection')
           })
         }
@@ -185,10 +183,14 @@ export function WebsiteHeader() {
     }
   }
 
+  const categoryNamesToShop = ["Kurta Sets", "Farshi Sets", "Festive Wear", "Co ords"]
+  const filteredCategories = taxonomies.categories.filter(c => 
+    categoryNamesToShop.some(name => c.name.toLowerCase().includes(name.toLowerCase()))
+  )
+
   const megaMenuSections = [
-    { title: "SHOP BY CATEGORY", items: taxonomies.categories, key: 'category' },
+    { title: "SHOP BY CATEGORY", items: filteredCategories, key: 'category' },
     { title: "SHOP BY LOOK", items: taxonomies.looks, key: 'look' },
-    { title: "SHOP BY THEME", items: taxonomies.themes, key: 'theme' },
     { title: "SHOP BY COLLECTION", items: taxonomies.collections, key: 'collection' }
   ]
 
@@ -239,7 +241,7 @@ export function WebsiteHeader() {
               {/* Mega Menu Dropdown - Full Width */}
               <div className="absolute top-full left-0 right-0 w-full bg-white shadow-[0_40px_80px_rgba(0,0,0,0.08)] opacity-0 invisible group-hover/shop:opacity-100 group-hover/shop:visible transition-all duration-500 ease-out translate-y-4 group-hover/shop:translate-y-0 border-t border-muted/5 z-50">
                 <Container className="py-20">
-                  <div className="grid grid-cols-4 gap-12 lg:gap-20">
+                  <div className="grid grid-cols-3 gap-12 lg:gap-20">
                     {megaMenuSections.map((section) => (
                       <div key={section.title} className="space-y-10">
                         <h4 className="text-[10px] lg:text-[13px] font-extrabold tracking-[0.3em] text-brand/30 uppercase border-b border-muted/10 pb-4">

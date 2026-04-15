@@ -36,11 +36,9 @@ export function ProductsPage({ subRoute = null, navigate }) {
   const [collectionFilter, setCollectionFilter] = useState(null)
   const [categoryFilter, setCategoryFilter] = useState(null)
   const [lookFilter, setLookFilter] = useState(null)
-  const [themeFilter, setThemeFilter] = useState(null)
   const [categories, setCategories] = useState([])
   const [collections, setCollections] = useState([])
   const [looks, setLooks] = useState([])
-  const [themes, setThemes] = useState([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
 
   const [selectedProduct, setSelectedProduct] = useState(null)
@@ -122,7 +120,6 @@ export function ProductsPage({ subRoute = null, navigate }) {
     if (categoryFilter) params.category = categoryFilter
     if (collectionFilter) params.collection = collectionFilter
     if (lookFilter) params.look = lookFilter
-    if (themeFilter) params.theme = themeFilter
     if (productSearch) params.search = productSearch
 
     const result = await getProducts(params)
@@ -132,7 +129,7 @@ export function ProductsPage({ subRoute = null, navigate }) {
     } else {
       setAllProductsList([])
     }
-  }, [getProducts, productSearch, collectionFilter, categoryFilter, lookFilter, themeFilter])
+  }, [getProducts, productSearch, collectionFilter, categoryFilter, lookFilter])
 
   // Filter products based on subRoute and selected filters
   useEffect(() => {
@@ -156,12 +153,10 @@ export function ProductsPage({ subRoute = null, navigate }) {
       const colls = result.data.filter(cat => cat.type === 'collection')
       const cats = result.data.filter(cat => cat.type === 'category' || !cat.type)
       const lks = result.data.filter(cat => cat.type === 'look')
-      const thms = result.data.filter(cat => cat.type === 'theme')
       
       setCollections(colls)
       setCategories(cats)
       setLooks(lks)
-      setThemes(thms)
     }
     setCategoriesLoading(false)
   }, [getCategories])
@@ -602,29 +597,14 @@ export function ProductsPage({ subRoute = null, navigate }) {
             loading={categoriesLoading}
           />
         </div>
-        <div className="w-full md:w-64">
-          <SearchableSelect
-            options={themes.map(c => ({ 
-              value: c._id, 
-              label: c.name, 
-              subtitle: 'Select Theme' 
-            }))}
-            value={themeFilter}
-            onChange={setThemeFilter}
-            placeholder="Search by theme..."
-            icon={Layers3}
-            loading={categoriesLoading}
-          />
-        </div>
 
-        {(productSearch || collectionFilter || categoryFilter || lookFilter || themeFilter) && (
+        {(productSearch || collectionFilter || categoryFilter || lookFilter) && (
           <button
             onClick={() => {
               setProductSearch(null)
               setCollectionFilter(null)
               setCategoryFilter(null)
               setLookFilter(null)
-              setThemeFilter(null)
             }}
             className="text-sm font-bold text-red-600 hover:text-red-700 transition-colors px-2"
           >

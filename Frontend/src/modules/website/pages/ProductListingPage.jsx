@@ -21,7 +21,6 @@ export function ProductListingPage() {
   const searchQuery = searchParams.get('search') || ''
   const categoryId = searchParams.get('category') || ''
   const lookId = searchParams.get('look') || ''
-  const themeId = searchParams.get('theme') || ''
   const collectionId = searchParams.get('collection') || ''
 
   const { fetchProducts, addToCart, addToFavourites, removeFromFavourites } = useWebsiteApi()
@@ -41,7 +40,7 @@ export function ProductListingPage() {
   const [selectedSize, setSelectedSize] = useState(null)
   const [isSizeChartOpen, setIsSizeChartOpen] = useState(false)
   const [chartProduct, setChartProduct] = useState(null)
-  const [taxonomies, setTaxonomies] = useState({ categories: [], looks: [], themes: [], collections: [] })
+  const [taxonomies, setTaxonomies] = useState({ categories: [], looks: [], collections: [] })
 
 
 
@@ -50,7 +49,6 @@ export function ProductListingPage() {
   const [selectedTaxonomy, setSelectedTaxonomy] = useState({
     category: categoryId || 'all',
     look: lookId || 'all',
-    theme: themeId || 'all',
     collection: collectionId || 'all'
   })
 
@@ -64,7 +62,6 @@ export function ProductListingPage() {
           setTaxonomies({
             categories: all.filter(c => c.type === 'category' || !c.type),
             looks: all.filter(c => c.type === 'look'),
-            themes: all.filter(c => c.type === 'theme'),
             collections: all.filter(c => c.type === 'collection')
           })
         }
@@ -89,7 +86,6 @@ export function ProductListingPage() {
 
         if (selectedTaxonomy.category !== 'all') params.category = selectedTaxonomy.category
         if (selectedTaxonomy.look !== 'all') params.look = selectedTaxonomy.look
-        if (selectedTaxonomy.theme !== 'all') params.theme = selectedTaxonomy.theme
         if (selectedTaxonomy.collection !== 'all') params.collection = selectedTaxonomy.collection
 
         const result = await fetchProducts(params)
@@ -117,10 +113,9 @@ export function ProductListingPage() {
       ...prev,
       category: categoryId || 'all',
       look: lookId || 'all',
-      theme: themeId || 'all',
       collection: collectionId || 'all'
     }))
-  }, [categoryId, lookId, themeId, collectionId])
+  }, [categoryId, lookId, collectionId])
 
   const handleToggleFavourite = async (e, productId) => {
     e.stopPropagation()
@@ -428,7 +423,7 @@ export function ProductListingPage() {
                 <p className="text-xl font-serif text-brand/40 italic">No pieces found in this curation.</p>
                 <button
                   onClick={() => {
-                    setSelectedTaxonomy({ category: 'all', look: 'all', theme: 'all', collection: 'all' });
+                    setSelectedTaxonomy({ category: 'all', look: 'all', collection: 'all' });
                     setSearchParams({});
                     setPriceRange({ min: 0, max: 100000 });
                   }}
@@ -619,37 +614,7 @@ export function ProductListingPage() {
               </div>
             </section>
 
-            {/* Theme Filter */}
-            <section className="space-y-6">
-              <div className="flex items-center justify-between h-8 border-b border-muted/10">
-                <h3 className="text-[10px] font-bold tracking-[0.25em] uppercase text-brand/30">Filter by Theme</h3>
-                <svg className="w-4 h-4 text-brand/20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m18 15-6-6-6 6" strokeWidth="2" /></svg>
-              </div>
-              <div className="flex flex-col gap-4">
-                {taxonomies.themes.map(theme => (
-                  <label key={theme._id || theme.id} className="flex items-center group cursor-pointer">
-                    <input
-                      type="checkbox" className="hidden"
-                      checked={selectedTaxonomy.theme === (theme._id || theme.id)}
-                      onChange={() => setSelectedTaxonomy(prev => ({
-                        ...prev,
-                        theme: prev.theme === (theme._id || theme.id) ? 'all' : (theme._id || theme.id)
-                      }))}
-                    />
-                    <div className={cn(
-                      "w-4 h-4 border transition-all mr-4 flex items-center justify-center",
-                      selectedTaxonomy.theme === (theme._id || theme.id) ? "border-brand bg-brand" : "border-muted/30 group-hover:border-brand/50"
-                    )}>
-                      {selectedTaxonomy.theme === (theme._id || theme.id) && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" strokeWidth="3" /></svg>}
-                    </div>
-                    <span className={cn(
-                      "text-[13px] font-medium tracking-wide uppercase transition-all",
-                      selectedTaxonomy.theme === (theme._id || theme.id) ? "text-brand" : "text-brand/50 group-hover:text-brand"
-                    )}>{theme.name}</span>
-                  </label>
-                ))}
-              </div>
-            </section>
+
 
             {/* Size Filter */}
             <section className="space-y-6">

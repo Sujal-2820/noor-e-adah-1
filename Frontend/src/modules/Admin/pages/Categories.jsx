@@ -16,7 +16,6 @@ import { cn } from '../../../lib/cn'
 const TABS = [
     { key: 'category', label: 'Categories', icon: Layers, color: 'purple', hint: 'Sarees, Anarkali, Lehengas…' },
     { key: 'look', label: 'Looks', icon: Sparkles, color: 'pink', hint: 'Watch And Buy…' },
-    { key: 'theme', label: 'Themes', icon: Palette, color: 'amber', hint: 'Haldi, Party, Wedding…' },
     { key: 'collection', label: 'Collections', icon: BookOpen, color: 'blue', hint: 'SS24, Celebrity…' },
 ]
 

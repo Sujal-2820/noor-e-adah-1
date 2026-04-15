@@ -16,7 +16,6 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
     sku: '',
     category: '',
     look: '',
-    theme: '',
     collection: '',
     shortDescription: '',
     description: '',
@@ -52,7 +51,6 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
 
   const [categories, setCategories] = useState([])       // Shop By Category
   const [looks, setLooks] = useState([])                 // Shop By Look
-  const [themes, setThemes] = useState([])               // Shop By Theme
   const [collections, setCollections] = useState([])     // Shop By Collection
   const [loadingCategories, setLoadingCategories] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -71,7 +69,6 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
           const grouped = response.grouped || {}
           setCategories(grouped.category || response.data || [])
           setLooks(grouped.look || [])
-          setThemes(grouped.theme || [])
           setCollections(grouped.collection || [])
         }
       } catch (error) {
@@ -111,7 +108,6 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
       sku: product.sku || '',
       category: product.category?._id || product.category || '',
       look: product.look?._id || product.look || '',
-      theme: product.theme?._id || product.theme || '',
       collection: product.collection?._id || product.collection || '',
       shortDescription: product.shortDescription || '',
       description: product.description || product.longDescription || '',
@@ -279,7 +275,6 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
       sku: formData.sku.trim() || undefined,
       category: formData.category,
       ...(formData.look && { look: formData.look }),
-      ...(formData.theme && { theme: formData.theme }),
       ...(formData.collection && { collection: formData.collection }),
       shortDescription: formData.shortDescription.trim(),
       description: formData.description,
@@ -395,7 +390,6 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }) {
         <TaxSelect id="look" label="Look" name="look" items={looks} optional />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <TaxSelect id="theme" label="Theme" name="theme" items={themes} optional />
         <TaxSelect id="collection" label="Collection" name="collection" items={collections} optional />
       </div>
 

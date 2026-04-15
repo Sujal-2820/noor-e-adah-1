@@ -12,14 +12,12 @@ import { LoadingOverlay } from './LoadingOverlay'
 const TAXONOMY_TYPES = [
     { value: 'category', label: 'Category', icon: Layers, hint: 'e.g. Sarees, Anarkali, Lehengas' },
     { value: 'look', label: 'Look', icon: Sparkles, hint: 'e.g. Watch And Buy' },
-    { value: 'theme', label: 'Theme', icon: Palette, hint: 'e.g. Haldi, Wedding, Festive' },
     { value: 'collection', label: 'Collection', icon: BookOpen, hint: 'e.g. SS24, Celebrity, Winter Velvet' },
 ]
 
 const TYPE_LABELS = {
     category: { save: 'SAVE CATEGORY', title: 'Category' },
     look: { save: 'SAVE LOOK', title: 'Look' },
-    theme: { save: 'SAVE THEME', title: 'Theme' },
     collection: { save: 'SAVE COLLECTION', title: 'Collection' },
 }
 

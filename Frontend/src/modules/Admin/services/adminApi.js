@@ -381,7 +381,6 @@ export async function getProducts(params = {}) {
     if (params.category) queryParams.append('category', params.category)
     if (params.collection) queryParams.append('collection', params.collection)
     if (params.look) queryParams.append('look', params.look)
-    if (params.theme) queryParams.append('theme', params.theme)
     if (params.status || params.isActive !== undefined) {
       // Frontend uses 'status' (active/inactive), backend uses 'isActive' (true/false)
       const isActive = params.isActive !== undefined
@@ -472,7 +471,6 @@ function transformProductForBackend(frontendData) {
   // ── Taxonomy (ObjectId refs — send as-is, backend resolves) ─────────────
   if (frontendData.category !== undefined) backendData.category = frontendData.category
   if (frontendData.look !== undefined) backendData.look = frontendData.look || null
-  if (frontendData.theme !== undefined) backendData.theme = frontendData.theme || null
   if (frontendData.collection !== undefined) backendData.collection = frontendData.collection || null
 
   // ── Pricing (Noor E Adah schema fields) ──────────────────────────────────
@@ -684,7 +682,7 @@ export async function getAdminCategories() {
     return {
       success: true,
       data: response.data?.categories || response.data || [],
-      grouped: response.grouped || {},        // { category:[], look:[], theme:[], collection:[] }
+      grouped: response.grouped || {},        // { category:[], look:[], collection:[] }
       types: response.types || [],
     }
   }
