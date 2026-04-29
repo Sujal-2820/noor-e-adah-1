@@ -58,10 +58,10 @@ const categorySchema = new mongoose.Schema({
     timestamps: true,
 });
 
-// ── Compound unique index: name must be unique within the same type ──────────
-categorySchema.index({ name: 1, type: 1 }, { unique: true });
-// ── Compound unique index: slug must be unique within the same type ──────────
-categorySchema.index({ slug: 1, type: 1 }, { unique: true, sparse: true });
+// ── Compound index: name within the same type ──────────
+categorySchema.index({ name: 1, type: 1 });
+// ── Compound index: slug within the same type ──────────
+categorySchema.index({ slug: 1, type: 1 }, { sparse: true });
 
 // ── Auto-generate slug before saving ────────────────────────────────────────
 categorySchema.pre('save', function (next) {

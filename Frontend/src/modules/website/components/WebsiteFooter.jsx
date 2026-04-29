@@ -1,8 +1,26 @@
 import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import logo from '../../../assets/NoorEAdahLogo.png'
 import { Container } from './Layout'
-
+import * as websiteApi from '../services/websiteApi'
 export function WebsiteFooter() {
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await websiteApi.getCategories()
+        if (res.success && res.data?.categories) {
+          const cats = res.data.categories.filter(c => c.type === 'category' || !c.type).slice(0, 4)
+          setCategories(cats)
+        }
+      } catch (err) {
+        console.error('Failed to load categories for footer:', err)
+      }
+    }
+    loadCategories()
+  }, [])
+
   return (
     <footer className="bg-white border-t border-muted/20 pt-20 pb-10">
       <Container>
@@ -50,10 +68,22 @@ export function WebsiteFooter() {
           <div className="flex flex-col gap-8">
             <h3 className="text-[11px] lg:text-[15px] font-bold tracking-[0.25em] uppercase text-brand">Shop By Category</h3>
             <ul className="flex flex-col gap-4">
-              <li><Link to="/products?category=kurta-sets" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Kurta Sets</Link></li>
-              <li><Link to="/products?category=farshi-sets" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Farshi Sets</Link></li>
-              <li><Link to="/products?category=festive-wear" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Festive Wear</Link></li>
-              <li><Link to="/products?category=co-ords" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Co ords</Link></li>
+              {categories.length > 0 ? (
+                categories.map((cat) => (
+                  <li key={cat._id || cat.id}>
+                    <Link to={`/products?category=${cat._id || cat.id}`} className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">
+                      {cat.name}
+                    </Link>
+                  </li>
+                ))
+              ) : (
+                <>
+                  <li><Link to="/products" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Kurta Sets</Link></li>
+                  <li><Link to="/products" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Farshi Sets</Link></li>
+                  <li><Link to="/products" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Festive Wear</Link></li>
+                  <li><Link to="/products" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Co ords</Link></li>
+                </>
+              )}
             </ul>
           </div>
 

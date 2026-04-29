@@ -119,12 +119,6 @@ exports.createCategory = async (req, res, next) => {
 
         res.status(201).json({ success: true, data: item });
     } catch (error) {
-        if (error.code === 11000) {
-            return res.status(400).json({
-                success: false,
-                message: 'An item with this name already exists in this type',
-            });
-        }
         next(error);
     }
 };
@@ -167,12 +161,6 @@ exports.updateCategory = async (req, res, next) => {
 
         res.status(200).json({ success: true, data: item });
     } catch (error) {
-        if (error.code === 11000) {
-            return res.status(400).json({
-                success: false,
-                message: 'An item with this name already exists in this type',
-            });
-        }
         next(error);
     }
 };
@@ -193,7 +181,7 @@ exports.deleteCategory = async (req, res, next) => {
         // Only block deletion if products are assigned to it (any type: category, look, theme, collection)
         const typeField = item.type || 'category'; // category, look, theme, collection
         const query = { [typeField]: item._id };
-        
+
         const productCount = await Product.countDocuments(query);
         if (productCount > 0) {
             return res.status(400).json({
