@@ -15,6 +15,7 @@ import { ReviewsPage } from '../pages/Reviews'
 import TasksPage from '../pages/Tasks'
 import { PushNotificationsPage } from '../pages/PushNotifications'
 import { CategoriesPage } from '../pages/Categories'
+import { InfluencersPage } from '../pages/Influencers'
 import { UserOrdersPage } from '../pages/UserOrders'
 
 const routeConfig = [
@@ -31,6 +32,7 @@ const routeConfig = [
   { id: 'tasks', element: TasksPage },
   { id: 'push-notifications', element: PushNotificationsPage },
   { id: 'categories', element: CategoriesPage },
+  { id: 'influencers', element: InfluencersPage },
 ]
 
 const ADMIN_ROUTE_KEY = 'admin_active_route'

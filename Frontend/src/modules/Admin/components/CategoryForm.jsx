@@ -238,6 +238,8 @@ export default function CategoryForm({ categoryId, initialType = 'category', onC
                                     disabled={isSaving}
                                     aspectRatio={2 / 3}
                                     folder="canx/taxonomy"
+                                    title="Cover Image"
+                                    hideHint={true}
                                 />
                             </div>
                         </div>

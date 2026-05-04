@@ -60,6 +60,16 @@ const links = [
     suboptions: []
   },
   {
+    id: 'influencers',
+    label: 'Influencers',
+    icon: Users2,
+    description: 'Manage influencer community section',
+    color: 'purple',
+    suboptions: [
+      { id: 'influencers/add', label: 'Add Influencer' },
+    ]
+  },
+  {
     id: 'orders',
     label: 'Orders',
     icon: Building2,

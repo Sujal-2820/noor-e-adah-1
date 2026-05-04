@@ -283,6 +283,14 @@ export async function getOffers() {
 }
 
 /**
+ * Get Influencers
+ * GET /influencers
+ */
+export async function getInfluencers() {
+  return apiRequest('/influencers')
+}
+
+/**
  * Search Products
  * GET /users/products/search
  * 

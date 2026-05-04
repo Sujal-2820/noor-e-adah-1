@@ -710,6 +710,14 @@ export function useAdminApi() {
     updateCategory: useCallback((id, data) => callApi(adminApi.updateCategory, id, data), [callApi]),
     deleteCategory: useCallback((id) => callApi(adminApi.deleteCategory, id), [callApi]),
     reorderCategories: useCallback((categories) => callApi(adminApi.reorderCategories, categories), [callApi]),
+
+    // Influencers
+    getAdminInfluencers: useCallback(() => callApi(adminApi.getAdminInfluencers), [callApi]),
+    createInfluencer: useCallback((data) => callApi(adminApi.createInfluencer, data), [callApi]),
+    updateInfluencer: useCallback((id, data) => callApi(adminApi.updateInfluencer, id, data), [callApi]),
+    deleteInfluencer: useCallback((id) => callApi(adminApi.deleteInfluencer, id), [callApi]),
+    reorderInfluencers: useCallback((items) => callApi(adminApi.reorderInfluencers, items), [callApi]),
+
     // Generic HTTP methods for new APIs
     get: useCallback((endpoint) => callApi(adminApi.apiGet, endpoint), [callApi]),
     post: useCallback((endpoint, data) => callApi(adminApi.apiPost, endpoint, data), [callApi]),

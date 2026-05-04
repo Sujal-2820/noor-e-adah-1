@@ -20,7 +20,9 @@ export function ImageUpload({
   maxImages = 20,
   disabled = false,
   aspectRatio = null,
-  folder = 'noor-e-adah/products'
+  folder = 'noor-e-adah/products',
+  title = "Product Images",
+  hideHint = false
 }) {
 
   const [uploadingIndex, setUploadingIndex] = useState(null)
@@ -250,13 +252,17 @@ export function ImageUpload({
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-bold text-gray-900">
-        <ImageIcon className="mr-1 inline h-4 w-4" />
-        Product Images
-        <span className="text-xs font-normal text-gray-500 ml-2">
-          (Max 20 images. First image will be the primary image. Drag to reorder. PDF pages will expand automatically.)
-        </span>
-      </label>
+      {title !== null && (
+        <label className="block text-sm font-bold text-gray-900">
+          <ImageIcon className="mr-1 inline h-4 w-4" />
+          {title}
+          {!hideHint && (
+            <span className="text-xs font-normal text-gray-500 ml-2">
+              (Max 20 images. First image will be the primary image. Drag to reorder. PDF pages will expand automatically.)
+            </span>
+          )}
+        </label>
+      )}
 
       {error && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700">

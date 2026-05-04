@@ -12,6 +12,8 @@ const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 const categoryRoutes = require('./routes/category');
 const adminCategoryRoutes = require('./routes/adminCategory');
+const influencerRoutes = require('./routes/influencer');
+const adminInfluencerRoutes = require('./routes/adminInfluencer');
 const fcmRoutes = require('./routes/fcm');
 const catalogRoutes = require('./routes/catalog');
 
@@ -98,6 +100,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/admin/categories', adminCategoryRoutes);
+app.use('/api/influencers', influencerRoutes);
+app.use('/api/admin/influencers', adminInfluencerRoutes);
 app.use('/api/fcm', fcmRoutes);
 app.use('/api/catalog', catalogRoutes);
 

@@ -21,8 +21,8 @@ export function HomePage() {
 
   // Taxonomy data — 4 types
   const [categories, setCategories] = useState([])
-  const [looks, setLooks] = useState([])
   const [collections, setCollections] = useState([])
+  const [influencers, setInfluencers] = useState([])
   const [popularProducts, setPopularProducts] = useState([])
   const [videoProducts, setVideoProducts] = useState([]) // Watch and Buy
   const [activeQuickBuyId, setActiveQuickBuyId] = useState(null)
@@ -44,19 +44,23 @@ export function HomePage() {
     const loadData = async () => {
       setLoading(true)
       try {
-        const [taxResult, popularResult, offersResult, videoResult] = await Promise.all([
+        const [taxResult, popularResult, offersResult, videoResult, influencerResult] = await Promise.all([
           // fetch all taxonomy types in one call (no type filter = all types returned)
           websiteApi.getCategories(),
           websiteApi.getPopularProducts({ limit: 8 }),
           websiteApi.getOffers(),
-          websiteApi.getProducts({ hasVideo: 'true', limit: 10, sort: 'latest' })
+          websiteApi.getProducts({ hasVideo: 'true', limit: 10, sort: 'latest' }),
+          websiteApi.getInfluencers()
         ])
 
         if (taxResult.success && taxResult.data?.categories) {
           const all = taxResult.data.categories
           setCategories(all.filter(c => (c.type === 'category' || !c.type)))
-          setLooks(all.filter(c => c.type === 'look'))
           setCollections(all.filter(c => c.type === 'collection'))
+        }
+
+        if (influencerResult.success) {
+          setInfluencers(influencerResult.data || [])
         }
 
         // Watch and Buy logic: Pick 4 randomized out of newest 10
@@ -599,40 +603,49 @@ export function HomePage() {
       </Section>
 
       {/* Shop By Look */}
-      {looks.length > 0 && (
+      {/* Our Influencer Community */}
+      {influencers.length > 0 && (
         <Section className="bg-surface-secondary">
           <Container>
             <div className="text-center mb-16 animate-calm-entry">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-widest text-brand uppercase">Shop By Look</h2>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif tracking-widest text-brand uppercase">As Seen On</h2>
               <div className="mt-4 w-12 h-1 bg-accent mx-auto"></div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {looks.map((look, idx) => (
-                <Link
-                  key={look._id || look.id}
-                  to={`/products?look=${look._id || look.id}`}
-                  className="relative group overflow-hidden block h-[500px] animate-calm-entry"
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
+              {influencers.map((influencer, idx) => (
+                <div 
+                  key={influencer._id || influencer.id}
+                  className="flex flex-col items-center animate-calm-entry"
                   style={{ animationDelay: `${idx * 150}ms` }}
                 >
-                  {look.image?.url
-                    ? <img src={look.image.url} alt={look.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
-                    : <div className="w-full h-full bg-surface-secondary flex items-center justify-center text-4xl">👗</div>
-                  }
-                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-all duration-500" />
-                  <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center">
-                    <span className="text-white text-xs lg:text-[16px] font-bold tracking-[0.2em] uppercase mb-4 drop-shadow-md">
-                      {look.name}
-                    </span>
-                    <div className="h-[50px] overflow-hidden">
-                      <span className="inline-block px-8 py-3.5 bg-white text-brand text-[10px] lg:text-[13px] font-bold tracking-widest uppercase transform translate-y-20 group-hover:translate-y-0 transition-transform duration-500">
-                        Shop Now
+                  <a 
+                    href={influencer.instagramLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="relative w-full aspect-[3/4] group overflow-hidden block border border-brand/5 shadow-sm hover:shadow-xl transition-all duration-500"
+                  >
+                    {influencer.image?.url
+                      ? <img 
+                          src={influencer.image.url} 
+                          alt={influencer.name} 
+                          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                        />
+                      : <div className="w-full h-full bg-surface-muted flex items-center justify-center text-3xl opacity-20">👤</div>
+                    }
+                    
+                    {/* View on Instagram Rectangle */}
+                    <div className="absolute bottom-0 left-0 right-0 h-10 sm:h-12 bg-white flex items-center justify-center translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out">
+                      <span className="text-[9px] sm:text-[11px] font-bold tracking-[0.2em] text-brand uppercase flex items-center gap-2">
+                        View on Instagram
                       </span>
                     </div>
-                  </div>
-                </Link>
+                  </a>
+                  <h3 className="mt-4 text-[11px] sm:text-[14px] font-bold tracking-[0.1em] text-brand uppercase truncate w-full text-center">
+                    {influencer.name}
+                  </h3>
+                </div>
               ))}
             </div>
-
           </Container>
         </Section>
       )}

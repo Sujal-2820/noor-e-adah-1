@@ -692,6 +692,62 @@ export async function getAdminCategories() {
 
 
 // ============================================================================
+// INFLUENCER MANAGEMENT APIs
+// ============================================================================
+
+/**
+ * Get All Influencers for Admin
+ * GET /admin/influencers
+ */
+export async function getAdminInfluencers() {
+  return apiRequest('/admin/influencers')
+}
+
+/**
+ * Create Influencer
+ * POST /admin/influencers
+ */
+export async function createInfluencer(data) {
+  return apiRequest('/admin/influencers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+/**
+ * Update Influencer
+ * PUT /admin/influencers/:id
+ */
+export async function updateInfluencer(id, data) {
+  return apiRequest(`/admin/influencers/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+/**
+ * Delete Influencer
+ * DELETE /admin/influencers/:id
+ */
+export async function deleteInfluencer(id) {
+  return apiRequest(`/admin/influencers/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+/**
+ * Reorder Influencers
+ * PUT /admin/influencers/reorder
+ */
+export async function reorderInfluencers(items) {
+  return apiRequest('/admin/influencers/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ items }),
+  })
+}
+
+
+// ============================================================================
 // VENDOR MANAGEMENT APIs
 // ============================================================================
 
