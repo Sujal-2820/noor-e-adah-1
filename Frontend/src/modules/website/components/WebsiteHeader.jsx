@@ -183,13 +183,8 @@ export function WebsiteHeader() {
     }
   }
 
-  const categoryNamesToShop = ["Kurta Sets", "Farshi Sets", "Festive Wear", "Co ords"]
-  const filteredCategories = taxonomies.categories.filter(c => 
-    categoryNamesToShop.some(name => c.name.toLowerCase().includes(name.toLowerCase()))
-  )
-
   const megaMenuSections = [
-    { title: "SHOP BY CATEGORY", items: filteredCategories, key: 'category' },
+    { title: "SHOP BY CATEGORY", items: taxonomies.categories, key: 'category' },
     { title: "SHOP BY LOOK", items: taxonomies.looks, key: 'look' },
     { title: "SHOP BY COLLECTION", items: taxonomies.collections, key: 'collection' }
   ]

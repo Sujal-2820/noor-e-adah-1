@@ -54,11 +54,7 @@ export function HomePage() {
 
         if (taxResult.success && taxResult.data?.categories) {
           const all = taxResult.data.categories
-          const categoryNamesToShop = ["Kurta Sets", "Farshi Sets", "Festive Wear", "Co ords"]
-          setCategories(all.filter(c => 
-            (c.type === 'category' || !c.type) && 
-            categoryNamesToShop.some(name => c.name.toLowerCase().includes(name.toLowerCase()))
-          ))
+          setCategories(all.filter(c => (c.type === 'category' || !c.type)))
           setLooks(all.filter(c => c.type === 'look'))
           setCollections(all.filter(c => c.type === 'collection'))
         }
