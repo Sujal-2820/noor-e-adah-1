@@ -45,10 +45,45 @@ router.get('/products', async (req, res, next) => {
         }
 
         if (search) {
+            const cleanSearch = search.trim();
+            const words = cleanSearch.split(/\s+/).filter(w => w.length > 0);
+            
+            // Singular version for better category/tag matching
+            const singularSearch = cleanSearch.replace(/s$/i, '').replace(/es$/i, '');
+            
+            // 1. Find matching categories/looks/collections first
+            const matchingTaxonomy = await Category.find({
+                $or: [
+                    { name: { $regex: cleanSearch, $options: 'i' } },
+                    { name: { $regex: singularSearch, $options: 'i' } }
+                ]
+            }).select('_id');
+            const taxIds = matchingTaxonomy.map(t => t._id);
+
+            // 2. Build fuzzy regex patterns
+            const regexPatterns = words.map(word => {
+                if (word.length <= 2) return word;
+                // Make trailing 's' or 'es' optional
+                const base = word.replace(/es$/i, '').replace(/s$/i, '');
+                return `${base}(s|es)?`;
+            });
+
+            // Pattern for words in order (stronger match)
+            const flexiblePattern = new RegExp(regexPatterns.join('.*'), 'i');
+            
+            // Pattern for any word (closest match fallback)
+            const anyWordPattern = new RegExp(regexPatterns.join('|'), 'i');
+
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
-                { shortDescription: { $regex: search, $options: 'i' } }
+                { name: { $regex: flexiblePattern } },
+                { name: { $regex: anyWordPattern } },
+                { description: { $regex: flexiblePattern } },
+                { shortDescription: { $regex: flexiblePattern } },
+                { category: { $in: taxIds } },
+                { look: { $in: taxIds } },
+                { collection: { $in: taxIds } },
+                { theme: { $in: taxIds } },
+                { tags: { $in: words.map(w => new RegExp(w.replace(/s$/i, ''), 'i')) } }
             ];
         }
 
