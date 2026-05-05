@@ -44,66 +44,68 @@ export function HomePage() {
     const loadData = async () => {
       setLoading(true)
       try {
+        // Fetch all data in parallel but handle individual failures gracefully
         const [taxResult, popularResult, offersResult, videoResult, influencerResult] = await Promise.all([
-          // fetch all taxonomy types in one call (no type filter = all types returned)
-          websiteApi.getCategories(),
-          websiteApi.getPopularProducts({ limit: 8 }),
-          websiteApi.getOffers(),
-          websiteApi.getProducts({ hasVideo: 'true', limit: 10, sort: 'latest' }),
-          websiteApi.getInfluencers()
-        ])
+          websiteApi.getCategories().catch(err => { console.error('Taxonomy fetch failed:', err); return { success: false }; }),
+          websiteApi.getPopularProducts({ limit: 8 }).catch(err => { console.error('Popular products fetch failed:', err); return { success: false }; }),
+          websiteApi.getOffers().catch(err => { console.error('Offers fetch failed:', err); return { success: false }; }),
+          websiteApi.getProducts({ hasVideo: 'true', limit: 10, sort: 'latest' }).catch(err => { console.error('Video products fetch failed:', err); return { success: false }; }),
+          websiteApi.getInfluencers().catch(err => { console.error('Influencers fetch failed:', err); return { success: false }; })
+        ]);
 
-        if (taxResult.success && taxResult.data?.categories) {
-          const all = taxResult.data.categories
-          setCategories(all.filter(c => (c.type === 'category' || !c.type)))
-          setCollections(all.filter(c => c.type === 'collection'))
+        if (taxResult?.success && taxResult.data?.categories) {
+          const all = Array.isArray(taxResult.data.categories) ? taxResult.data.categories : [];
+          setCategories(all.filter(c => c && (c.type === 'category' || !c.type)));
+          setCollections(all.filter(c => c && c.type === 'collection'));
         }
 
-        if (influencerResult.success) {
-          setInfluencers(influencerResult.data || [])
+        if (influencerResult?.success && influencerResult.data) {
+          setInfluencers(Array.isArray(influencerResult.data) ? influencerResult.data : []);
         }
 
         // Watch and Buy logic: Pick 4 randomized out of newest 10
         if (videoResult?.success && videoResult?.data?.products) {
-          const newestWithVideos = videoResult.data.products
-          const shuffled = [...newestWithVideos].sort(() => 0.5 - Math.random())
-          setVideoProducts(shuffled.slice(0, 4))
+          const newestWithVideos = Array.isArray(videoResult.data.products) ? videoResult.data.products : [];
+          if (newestWithVideos.length > 0) {
+            const shuffled = [...newestWithVideos].sort(() => 0.5 - Math.random());
+            setVideoProducts(shuffled.slice(0, 4));
+          }
         }
 
-        if (popularResult.success && popularResult.data?.products) {
-          setPopularProducts(popularResult.data.products)
+        if (popularResult?.success && popularResult.data?.products) {
+          setPopularProducts(Array.isArray(popularResult.data.products) ? popularResult.data.products : []);
         }
 
-        if (offersResult.success && offersResult.data) {
-          const desk = (offersResult.data.carousels || [])
-            .filter(c => c.isActive !== false)
-            .sort((a, b) => (a.order || 0) - (b.order || 0))
+        if (offersResult?.success && offersResult.data) {
+          const desk = (Array.isArray(offersResult.data.carousels) ? offersResult.data.carousels : [])
+            .filter(c => c && c.isActive !== false)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
           
-          const mobile = (offersResult.data.smartphoneCarousels || [])
-            .filter(c => c.isActive !== false)
-            .sort((a, b) => (a.order || 0) - (b.order || 0))
+          const mobile = (Array.isArray(offersResult.data.smartphoneCarousels) ? offersResult.data.smartphoneCarousels : [])
+            .filter(c => c && c.isActive !== false)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
 
           // Use curated new arrivals from the backend if available
-          const curatedNewArrivals = offersResult.data.newArrivals || []
+          const curatedNewArrivals = Array.isArray(offersResult.data.newArrivals) ? offersResult.data.newArrivals : [];
           if (curatedNewArrivals.length > 0) {
-            setPopularProducts(curatedNewArrivals)
+            setPopularProducts(curatedNewArrivals);
           }
 
-          setDesktopCarousels(desk)
-          setSmartphoneCarousels(mobile)
+          setDesktopCarousels(desk);
+          setSmartphoneCarousels(mobile);
           
           // Initial set based on screen width
-          const currentIsMobile = window.innerWidth < 768
-          setCarousels(currentIsMobile ? (mobile.length > 0 ? mobile : desk) : desk)
+          const currentIsMobile = window.innerWidth < 768;
+          setCarousels(currentIsMobile ? (mobile.length > 0 ? mobile : desk) : desk);
         }
       } catch (error) {
-        console.error('Error loading data:', error)
+        console.error('Unexpected error loading home page data:', error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    loadData()
-  }, [])
+    };
+    loadData();
+  }, []);
 
   // Screen resize listener
   useEffect(() => {
@@ -255,7 +257,7 @@ export function HomePage() {
               {popularProducts.slice(0, isMobile ? 12 : 4).map((product, idx) => {
                 const productId = product._id || product.id
                 const productImage = getPrimaryImageUrl(product)
-                const isWishlisted = favourites.includes(productId)
+                const isWishlisted = favourites?.includes(productId)
                 const outOfStock = (product.displayStock || product.stock || 0) === 0
                 const isQuickBuyOpen = activeQuickBuyId === productId
                 const availableSizes = product.sizes || ['XS', 'S', 'M', 'L', 'XL', '2XL']
