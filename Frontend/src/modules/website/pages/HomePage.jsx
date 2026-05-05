@@ -34,24 +34,47 @@ export function HomePage() {
 
   const [smartphoneCarousels, setSmartphoneCarousels] = useState([])
   const [carousels, setCarousels] = useState([]) // Current active carousels based on screen
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const newArrivalsRef = useRef(null)
   const watchAndBuyRef = useRef(null)
 
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const isMobile = windowWidth < 768
+
+  // Update carousels when isMobile changes
+  useEffect(() => {
+    setCarousels(isMobile ? (smartphoneCarousels.length > 0 ? smartphoneCarousels : desktopCarousels) : desktopCarousels)
+    setBannerIndex(0)
+  }, [isMobile, desktopCarousels, smartphoneCarousels])
 
   // Fetch data on mount
   useEffect(() => {
+    const safeFetch = async (promise, sectionName) => {
+      try {
+        const result = await promise
+        return result || { success: false }
+      } catch (err) {
+        console.error(`${sectionName} fetch failed:`, err)
+        return { success: false }
+      }
+    }
+
     const loadData = async () => {
       setLoading(true)
       try {
-        // Fetch all data in parallel but handle individual failures gracefully
         const [taxResult, popularResult, offersResult, videoResult, influencerResult] = await Promise.all([
-          websiteApi.getCategories().catch(err => { console.error('Taxonomy fetch failed:', err); return { success: false }; }),
-          websiteApi.getPopularProducts({ limit: 8 }).catch(err => { console.error('Popular products fetch failed:', err); return { success: false }; }),
-          websiteApi.getOffers().catch(err => { console.error('Offers fetch failed:', err); return { success: false }; }),
-          websiteApi.getProducts({ hasVideo: 'true', limit: 10, sort: 'latest' }).catch(err => { console.error('Video products fetch failed:', err); return { success: false }; }),
-          websiteApi.getInfluencers().catch(err => { console.error('Influencers fetch failed:', err); return { success: false }; })
-        ]);
+          safeFetch(websiteApi.getCategories(), 'Categories'),
+          safeFetch(websiteApi.getPopularProducts({ limit: 8 }), 'Popular Products'),
+          safeFetch(websiteApi.getOffers(), 'Offers/Banners'),
+          safeFetch(websiteApi.getProducts({ hasVideo: 'true', limit: 10, sort: 'latest' }), 'Video Products'),
+          safeFetch(websiteApi.getInfluencers(), 'Influencers')
+        ])
 
         if (taxResult?.success && taxResult.data?.categories) {
           const all = Array.isArray(taxResult.data.categories) ? taxResult.data.categories : [];
@@ -94,9 +117,8 @@ export function HomePage() {
           setDesktopCarousels(desk);
           setSmartphoneCarousels(mobile);
           
-          // Initial set based on screen width
-          const currentIsMobile = window.innerWidth < 768;
-          setCarousels(currentIsMobile ? (mobile.length > 0 ? mobile : desk) : desk);
+          // Initial set based on current state
+          setCarousels(window.innerWidth < 768 ? (mobile.length > 0 ? mobile : desk) : desk);
         }
       } catch (error) {
         console.error('Unexpected error loading home page data:', error);
@@ -106,20 +128,6 @@ export function HomePage() {
     };
     loadData();
   }, []);
-
-  // Screen resize listener
-  useEffect(() => {
-    const handleResize = () => {
-      const mobileStatus = window.innerWidth < 768
-      if (mobileStatus !== isMobile) {
-        setIsMobile(mobileStatus)
-        setCarousels(mobileStatus ? (smartphoneCarousels.length > 0 ? smartphoneCarousels : desktopCarousels) : desktopCarousels)
-        setBannerIndex(0) // Reset index on switch
-      }
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [isMobile, desktopCarousels, smartphoneCarousels])
 
   // Auto-slide hero
   useEffect(() => {
@@ -143,7 +151,7 @@ export function HomePage() {
     e.stopPropagation()
     if (!authenticated) { navigate('/login'); return }
     try {
-      if (favourites.includes(productId)) {
+      if (favourites?.includes(productId)) {
         await removeFromFavourites(productId)
         dispatch({ type: 'REMOVE_FROM_FAVOURITES', payload: { productId } })
       } else {
@@ -157,14 +165,15 @@ export function HomePage() {
     <Layout>
       {/* Hero Section */}
       <section className="relative h-[85vh] overflow-hidden bg-surface-muted">
-        {carousels.length > 0 ? (
+        {Array.isArray(carousels) && carousels.length > 0 ? (
           carousels.map((banner, index) => {
+            if (!banner) return null;
             const isVideo = banner.mediaType === 'video'
             const mediaSrc = isVideo ? banner.video : banner.image
             
             return (
               <div
-                key={banner.id || banner._id}
+                key={banner.id || banner._id || `banner-${index}`}
                 className={cn(
                   "absolute inset-0 transition-opacity duration-1000 ease-in-out",
                   index === bannerIndex ? "opacity-100 z-10" : "opacity-0 z-0"
@@ -182,7 +191,7 @@ export function HomePage() {
                 ) : (
                   <img
                     src={mediaSrc}
-                    alt={banner.title}
+                    alt={banner.title || "Banner"}
                     className="w-full h-full object-cover transform scale-105 animate-pulse-slow"
                   />
                 )}
@@ -220,7 +229,7 @@ export function HomePage() {
         )}
 
         {/* Indicators */}
-        {carousels.length > 1 && (
+        {Array.isArray(carousels) && carousels.length > 1 && (
           <div className="absolute bottom-10 left-0 right-0 z-20 flex justify-center gap-3">
             {carousels.map((_, index) => (
               <button
@@ -254,7 +263,8 @@ export function HomePage() {
                 "flex lg:grid lg:grid-cols-4 gap-6 lg:gap-8 overflow-x-auto lg:overflow-visible pb-10 lg:pb-0 no-scrollbar snap-x snap-mandatory scroll-smooth",
               )}
             >
-              {popularProducts.slice(0, isMobile ? 12 : 4).map((product, idx) => {
+              {Array.isArray(popularProducts) && popularProducts.slice(0, isMobile ? 12 : 4).map((product, idx) => {
+                if (!product) return null;
                 const productId = product._id || product.id
                 const productImage = getPrimaryImageUrl(product)
                 const isWishlisted = favourites?.includes(productId)
@@ -265,7 +275,7 @@ export function HomePage() {
 
                 return (
                   <div
-                    key={productId}
+                    key={productId || `popular-${idx}`}
                     className="flex-shrink-0 w-[calc(50%-12px)] lg:w-full group cursor-pointer animate-calm-entry snap-start"
                     style={{ animationDelay: `${idx * 100}ms` }}
                     onClick={() => handleProductClick(productId)}
@@ -276,7 +286,7 @@ export function HomePage() {
                     )}>
                       <img
                         src={productImage}
-                        alt={product.name}
+                        alt={product.name || "Product"}
                         className={cn("w-full h-full object-cover product-image-primary", outOfStock && "opacity-60")}
                       />
 
@@ -397,7 +407,7 @@ export function HomePage() {
                                  }
                                  addToCart(productId, 1, { size: selectedSize })
                                  setActiveQuickBuyId(null)
-                               }}
+                                }}
                                className="w-full h-14 bg-black flex items-center justify-center group active:bg-brand transition-colors"
                              >
                                 <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -467,7 +477,7 @@ export function HomePage() {
       </Section>
 
       {/* Watch and Buy Section - Premium Video Reels */}
-      {videoProducts.length > 0 && (
+      {Array.isArray(videoProducts) && videoProducts.length > 0 && (
         <Section className="bg-white py-12 sm:py-24">
           <Container>
             <div className="text-center mb-10 sm:mb-16 animate-calm-entry">
@@ -484,13 +494,14 @@ export function HomePage() {
                 )}
               >
                 {videoProducts.map((product, idx) => {
+                  if (!product) return null;
                   const productId = product._id || product.id
                   const videoSrc = product.video?.url
                   const posterImg = product.video?.thumbnail || getPrimaryImageUrl(product)
 
                   return (
                     <div
-                      key={productId}
+                      key={productId || `video-${idx}`}
                       className="flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33%-12px)] lg:w-full group/reel cursor-pointer animate-calm-entry snap-start"
                       style={{ animationDelay: `${idx * 150}ms` }}
                       onClick={() => handleProductClick(productId)}
@@ -509,14 +520,14 @@ export function HomePage() {
                           onError={(e) => {
                             // Fallback to image if video fails
                             e.target.style.display = 'none'
-                            e.target.nextSibling.style.display = 'block'
+                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'block'
                           }}
                         />
                         {/* Fallback Image */}
                         <img 
                           src={posterImg} 
                           className="absolute inset-0 w-full h-full object-cover hidden" 
-                          alt={product.name}
+                          alt={product.name || "Video fallback"}
                         />
 
                         {/* Glass Overlay with Product Info on Hover (Desktop) */}
@@ -572,9 +583,9 @@ export function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {categories.map((category, idx) => (
+            {Array.isArray(categories) && categories.map((category, idx) => (
               <Link
-                key={category._id || category.id}
+                key={category._id || category.id || `category-${idx}`}
                 to={`/products?category=${category._id || category.id}`}
                 className="relative group overflow-hidden block aspect-[4/5] sm:h-[500px] animate-calm-entry border border-brand/5"
                 style={{ animationDelay: `${idx * 100}ms` }}
@@ -582,7 +593,7 @@ export function HomePage() {
                 {category.image?.url || category.image || category.icon
                   ? <img
                     src={category.image?.url || category.image || category.icon}
-                    alt={category.name}
+                    alt={category.name || "Category"}
                     className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                   />
                   : <div className="w-full h-full bg-surface-secondary flex items-center justify-center text-4xl">👜</div>
@@ -606,7 +617,7 @@ export function HomePage() {
 
       {/* Shop By Look */}
       {/* Our Influencer Community */}
-      {influencers.length > 0 && (
+      {Array.isArray(influencers) && influencers.length > 0 && (
         <Section className="bg-surface-secondary">
           <Container>
             <div className="text-center mb-16 animate-calm-entry">
@@ -616,12 +627,12 @@ export function HomePage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
               {influencers.map((influencer, idx) => (
                 <div 
-                  key={influencer._id || influencer.id}
+                  key={influencer._id || influencer.id || `influencer-${idx}`}
                   className="flex flex-col items-center animate-calm-entry"
                   style={{ animationDelay: `${idx * 150}ms` }}
                 >
                   <a 
-                    href={influencer.instagramLink} 
+                    href={influencer.instagramLink || "#"} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="relative w-full aspect-[3/4] group overflow-hidden block border border-brand/5 shadow-sm hover:shadow-xl transition-all duration-500"
@@ -629,7 +640,7 @@ export function HomePage() {
                     {influencer.image?.url
                       ? <img 
                           src={influencer.image.url} 
-                          alt={influencer.name} 
+                          alt={influencer.name || "Influencer"} 
                           className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                         />
                       : <div className="w-full h-full bg-surface-muted flex items-center justify-center text-3xl opacity-20">👤</div>
@@ -655,7 +666,7 @@ export function HomePage() {
 
 
       {/* Shop By Collection */}
-      {collections.length > 0 && (
+      {Array.isArray(collections) && collections.length > 0 && (
         <Section className="bg-brand text-brand-foreground overflow-hidden">
           <Container>
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
@@ -670,13 +681,13 @@ export function HomePage() {
             <div className="flex gap-6 overflow-x-auto pb-10 no-scrollbar snap-x">
               {collections.map((col, idx) => (
                 <Link
-                  key={col._id || col.id}
+                  key={col._id || col.id || `col-${idx}`}
                   to={`/products?collection=${col._id || col.id}`}
                   className="flex-shrink-0 w-[300px] h-[400px] relative group overflow-hidden snap-start animate-calm-entry"
                   style={{ animationDelay: `${idx * 120}ms` }}
                 >
                   {col.image?.url
-                    ? <img src={col.image.url} alt={col.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" />
+                    ? <img src={col.image.url} alt={col.name || "Collection"} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" />
                     : <div className="w-full h-full bg-white/5 flex items-center justify-center"><span className="text-5xl">👒</span></div>
                   }
                   <div className="absolute inset-0 bg-brand/20 group-hover:bg-transparent transition-all duration-500" />
