@@ -71,11 +71,11 @@ router.post('/register', protect, async (req, res) => {
         }
 
         let Model;
-        if (role === 'user') Model = User;
-        else if (role === 'User') Model = User;
-        else if (role === 'seller') Model = Seller;
-        else if (role === 'admin' || role === 'super_admin') Model = Admin;
-        else {
+        if (role === 'user' || role === 'User' || role === 'seller') {
+            Model = User; // Project unified users and sellers into User model
+        } else if (role === 'admin' || role === 'super_admin') {
+            Model = Admin;
+        } else {
             return res.status(403).json({
                 success: false,
                 message: 'Invalid role for FCM registration'
@@ -152,11 +152,11 @@ router.post('/remove', protect, async (req, res) => {
         }
 
         let Model;
-        if (role === 'user') Model = User;
-        else if (role === 'User') Model = User;
-        else if (role === 'seller') Model = Seller;
-        else if (role === 'admin' || role === 'super_admin') Model = Admin;
-        else return res.status(403).json({ success: false, message: 'Invalid role' });
+        if (role === 'user' || role === 'User' || role === 'seller') {
+            Model = User;
+        } else if (role === 'admin' || role === 'super_admin') {
+            Model = Admin;
+        } else return res.status(403).json({ success: false, message: 'Invalid role' });
 
         const fieldToUpdate = platform === 'web' ? 'fcmTokenWeb' : 'fcmTokenApp';
 

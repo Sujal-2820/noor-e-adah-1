@@ -240,5 +240,20 @@ router.get('/delivery-config', async (req, res, next) => {
     }
 });
 
+/**
+ * @route   GET /api/catalog/influencers
+ * @desc    Get active influencers (public)
+ * @access  Public
+ */
+router.get('/influencers', async (req, res, next) => {
+    try {
+        const Influencer = require('../models/Influencer');
+        const influencers = await Influencer.find({ isActive: true }).sort({ order: 1, createdAt: -1 });
+        res.status(200).json({ success: true, data: influencers });
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;
 

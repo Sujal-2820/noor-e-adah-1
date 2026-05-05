@@ -284,10 +284,10 @@ export async function getOffers() {
 
 /**
  * Get Influencers
- * GET /influencers
+ * GET /catalog/influencers
  */
 export async function getInfluencers() {
-  return apiRequest('/influencers')
+  return apiRequest('/catalog/influencers')
 }
 
 /**
