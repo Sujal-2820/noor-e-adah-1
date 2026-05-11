@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom'
 import { Layout, Container, Section } from '../components/Layout'
 import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
@@ -15,6 +15,11 @@ export function ProductDetailPage() {
   const dispatch = useWebsiteDispatch()
   const { favourites, authenticated } = useWebsiteState()
   const { addToCart, addToFavourites, removeFromFavourites } = useWebsiteApi()
+  const location = useLocation()
+
+  // Navigation queue from state (if we came from another product or listing)
+  const navigationQueue = location.state?.queue || []
+  const currentQueueIndex = navigationQueue.findIndex(p => (p._id || p.id) === productId)
 
   const [product, setProduct] = useState(null)
   const [similarProducts, setSimilarProducts] = useState([])
@@ -216,6 +221,27 @@ export function ProductDetailPage() {
     setLightboxIndex((prev) => (prev - 1 + images.length) % images.length)
   }
 
+  const handleQueueNavigation = (direction) => {
+    // 1. Try navigating via the existing state queue
+    if (navigationQueue.length > 0 && currentQueueIndex !== -1) {
+      let nextIndex = direction === 'next' ? currentQueueIndex + 1 : currentQueueIndex - 1
+      if (nextIndex >= 0 && nextIndex < navigationQueue.length) {
+        navigate(`/product/${navigationQueue[nextIndex]._id || navigationQueue[nextIndex].id}`, {
+          state: { queue: navigationQueue }
+        })
+        return
+      }
+    }
+
+    // 2. Fallback: If no state queue or at boundaries, use the current page's similarProducts
+    if (similarProducts.length > 0) {
+      const targetProduct = direction === 'next' ? similarProducts[0] : similarProducts[similarProducts.length - 1]
+      navigate(`/product/${targetProduct._id || targetProduct.id}`, {
+        state: { queue: similarProducts }
+      })
+    }
+  }
+
   if (loading) {
     return (
       <Layout>
@@ -243,10 +269,10 @@ export function ProductDetailPage() {
 
   return (
     <Layout>
-      <Section className="pt-32 pb-20">
+      <Section className="pt-10 md:pt-32 pb-20">
         <Container>
           {/* Breadcrumbs & Navigation */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-12">
             <nav className="flex items-center gap-3 text-[9px] sm:text-[11px] tracking-[0.08em] uppercase text-muted-foreground/50 font-semibold">
               <Link to="/" className="hover:text-brand transition-colors">Home</Link>
               <span>/</span>
@@ -261,11 +287,27 @@ export function ProductDetailPage() {
               <span className="text-brand truncate max-w-[200px]">{product.name}</span>
             </nav>
             <div className="flex items-center gap-6">
-              <button className="text-brand/40 hover:text-brand transition-colors flex items-center gap-2">
+              <button 
+                onClick={() => handleQueueNavigation('prev')}
+                disabled={similarProducts.length === 0 && navigationQueue.length === 0}
+                className={cn(
+                  "text-brand/40 hover:text-brand transition-colors flex items-center gap-2",
+                  (similarProducts.length === 0 && navigationQueue.length === 0) && "opacity-20 cursor-not-allowed"
+                )}
+                title="Previous Product"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="1.5" /></svg>
               </button>
               <div className="w-[1px] h-4 bg-muted/20" />
-              <button className="text-brand/40 hover:text-brand transition-colors flex items-center gap-2">
+              <button 
+                onClick={() => handleQueueNavigation('next')}
+                disabled={similarProducts.length === 0 && navigationQueue.length === 0}
+                className={cn(
+                  "text-brand/40 hover:text-brand transition-colors flex items-center gap-2",
+                  (similarProducts.length === 0 && navigationQueue.length === 0) && "opacity-20 cursor-not-allowed"
+                )}
+                title="Next Product"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="1.5" /></svg>
               </button>
             </div>

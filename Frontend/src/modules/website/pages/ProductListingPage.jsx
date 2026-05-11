@@ -13,6 +13,80 @@ import { useTranslation } from '../../../context/TranslationContext'
 import { Trans } from '../../../components/Trans'
 import { TransText } from '../../../components/TransText'
 
+const DualRangeSlider = ({ min, max, minLimit = 0, maxLimit = 100000, step = 500, onChange }) => {
+  const containerRef = useRef(null);
+
+  const handleUpdate = (clientX, type) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const value = Math.round((minLimit + percent * (maxLimit - minLimit)) / step) * step;
+
+    if (type === 'min') {
+      onChange({ min: Math.min(value, max - step), max });
+    } else {
+      onChange({ min, max: Math.max(value, min + step) });
+    }
+  };
+
+  const onStart = (type) => (e) => {
+    const moveEvent = e.type === 'mousedown' ? 'mousemove' : 'touchmove';
+    const endEvent = e.type === 'mousedown' ? 'mouseup' : 'touchend';
+
+    const onMove = (event) => {
+      const clientX = event.clientX || (event.touches && event.touches[0].clientX);
+      if (clientX !== undefined) handleUpdate(clientX, type);
+    };
+
+    const onEnd = () => {
+      document.removeEventListener(moveEvent, onMove);
+      document.removeEventListener(endEvent, onEnd);
+    };
+
+    document.addEventListener(moveEvent, onMove);
+    document.addEventListener(endEvent, onEnd);
+  };
+
+  const minPercent = ((min - minLimit) / (maxLimit - minLimit)) * 100;
+  const maxPercent = ((max - minLimit) / (maxLimit - minLimit)) * 100;
+
+  return (
+    <div 
+      ref={containerRef}
+      className="relative w-full h-1.5 bg-muted/60 rounded-full mt-2 mb-10"
+      onClick={(e) => {
+        const rect = containerRef.current.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        const val = Math.round((minLimit + percent * (maxLimit - minLimit)) / step) * step;
+        if (Math.abs(val - min) < Math.abs(val - max)) {
+          onChange({ min: Math.min(val, max - step), max });
+        } else {
+          onChange({ min, max: Math.max(val, min + step) });
+        }
+      }}
+    >
+      <div 
+        className="absolute h-full bg-brand rounded-full"
+        style={{ left: `${minPercent}%`, right: `${100 - maxPercent}%` }}
+      />
+      <div 
+        className="absolute w-5 h-5 bg-white border-2 border-brand rounded-full -top-[7px] -ml-2.5 shadow-md hover:scale-110 transition-transform cursor-grab active:cursor-grabbing z-10"
+        style={{ left: `${minPercent}%` }}
+        onMouseDown={onStart('min')}
+        onTouchStart={onStart('min')}
+        onClick={(e) => e.stopPropagation()}
+      />
+      <div 
+        className="absolute w-5 h-5 bg-white border-2 border-brand rounded-full -top-[7px] -ml-2.5 shadow-md hover:scale-110 transition-transform cursor-grab active:cursor-grabbing z-10"
+        style={{ left: `${maxPercent}%` }}
+        onMouseDown={onStart('max')}
+        onTouchStart={onStart('max')}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+};
+
 export function ProductListingPage() {
   const navigate = useNavigate()
   const dispatch = useWebsiteDispatch()
@@ -136,7 +210,7 @@ export function ProductListingPage() {
       <div className="pt-2 pb-20 bg-white min-h-screen">
         <Container>
           {/* Breadcrumbs */}
-          <nav className="flex items-center gap-2 text-[9px] lg:text-[11px] tracking-[0.25em] uppercase text-muted-foreground/50 font-semibold mb-12">
+          <nav className="flex items-center gap-2 text-[9px] lg:text-[11px] tracking-[0.25em] uppercase text-muted-foreground/50 font-semibold mb-6 md:mb-12">
             <Link to="/" className="hover:text-brand transition-colors">Home</Link>
             <span>/</span>
             <span className="text-brand">Shop</span>
@@ -484,7 +558,7 @@ export function ProductListingPage() {
       )}>
         <div className="p-10">
           <header className="flex items-center justify-between mb-12">
-            <h2 className="text-xl sm:text-2xl storefront-heading lowercase">Filters</h2>
+            <h2 className="text-2xl sm:text-3xl font-serif uppercase tracking-[0.25em] text-brand">Filters</h2>
             <button
               onClick={() => setIsSidebarOpen(false)}
               className="group flex items-center gap-3 text-brand/40 hover:text-brand transition-all"
@@ -496,18 +570,20 @@ export function ProductListingPage() {
 
           <div className="space-y-12">
             {/* Price Filter */}
-            <section className="space-y-8">
+            <section className="space-y-4">
               <h3 className="text-[10px] font-bold tracking-[0.25em] uppercase text-brand/30 border-b border-muted/10 pb-4">Price Range</h3>
-              <div className="px-2 pt-6">
-                <input
-                  type="range" min="0" max="100000" step="500"
-                  value={priceRange.max}
-                  onChange={(e) => setPriceRange(prev => ({ ...prev, max: parseInt(e.target.value) }))}
-                  className="w-full accent-brand h-1.5 bg-muted/20 rounded-full cursor-pointer border-none"
+              <div className="px-2 pt-0">
+                <DualRangeSlider 
+                  min={priceRange.min} 
+                  max={priceRange.max} 
+                  minLimit={0} 
+                  maxLimit={100000} 
+                  step={500} 
+                  onChange={setPriceRange} 
                 />
                 <div className="flex justify-between mt-6 items-center">
                   <div className="text-sm font-bold tracking-widest text-brand/80">
-                    ₹0 — ₹{priceRange.max.toLocaleString('en-IN')}
+                    ₹{priceRange.min.toLocaleString('en-IN')} — ₹{priceRange.max.toLocaleString('en-IN')}
                   </div>
                   <button className="bg-brand text-white px-6 py-2 text-[10px] font-black tracking-widest uppercase hover:bg-accent transition-all shadow-lg">Filter</button>
                 </div>
