@@ -59,7 +59,7 @@ async function requestNotificationPermission() {
 async function getFCMToken() {
     try {
         if (!messaging) {
-            console.warn('FCM Messaging is not supported in this browser environment');
+            console.warn('FCM Messaging is not supported/initialized on this browser');
             return null;
         }
         const registration = await registerServiceWorker();
@@ -145,7 +145,7 @@ async function registerFCMTokenWithBackend(force = false) {
  */
 function setupForegroundNotificationHandler(onNotificationReceived) {
     if (!messaging) {
-        console.warn('FCM Messaging is not supported in this browser environment');
+        console.warn('FCM Messaging is not supported/initialized on this browser');
         return;
     }
     onMessage(messaging, (payload) => {
@@ -172,10 +172,6 @@ function setupForegroundNotificationHandler(onNotificationReceived) {
  */
 async function initializePushNotifications() {
     try {
-        if (!messaging) {
-            console.warn('FCM Messaging is not supported in this browser environment');
-            return;
-        }
         // Just register the SW on load
         await registerServiceWorker();
 

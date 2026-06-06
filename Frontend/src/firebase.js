@@ -18,7 +18,7 @@ let messaging = null;
 try {
     messaging = getMessaging(app);
 } catch (error) {
-    console.warn('Firebase Messaging is not supported in this browser environment:', error);
+    console.warn('Firebase Messaging is not supported on this browser:', error.message);
 }
 
 const auth = getAuth(app);
