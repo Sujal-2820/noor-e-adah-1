@@ -58,6 +58,10 @@ async function requestNotificationPermission() {
  */
 async function getFCMToken() {
     try {
+        if (!messaging) {
+            console.warn('FCM Messaging is not supported in this browser environment');
+            return null;
+        }
         const registration = await registerServiceWorker();
         // Wait for SW to be ready
         await navigator.serviceWorker.ready;
@@ -140,6 +144,10 @@ async function registerFCMTokenWithBackend(force = false) {
  * @param {Function} onNotificationReceived - Callback for when a notification is received in foreground
  */
 function setupForegroundNotificationHandler(onNotificationReceived) {
+    if (!messaging) {
+        console.warn('FCM Messaging is not supported in this browser environment');
+        return;
+    }
     onMessage(messaging, (payload) => {
         console.log('📬 Background message received in foreground:', payload);
 
@@ -164,6 +172,10 @@ function setupForegroundNotificationHandler(onNotificationReceived) {
  */
 async function initializePushNotifications() {
     try {
+        if (!messaging) {
+            console.warn('FCM Messaging is not supported in this browser environment');
+            return;
+        }
         // Just register the SW on load
         await registerServiceWorker();
 

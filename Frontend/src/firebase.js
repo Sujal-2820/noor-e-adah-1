@@ -13,7 +13,14 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+
+let messaging = null;
+try {
+    messaging = getMessaging(app);
+} catch (error) {
+    console.warn('Firebase Messaging is not supported in this browser environment:', error);
+}
+
 const auth = getAuth(app);
 
 export { messaging, getToken, onMessage, auth };
