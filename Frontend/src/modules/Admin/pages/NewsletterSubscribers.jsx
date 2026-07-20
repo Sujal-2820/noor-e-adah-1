@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Pagination } from '../components/AdminUI'
 import { useAdminApi } from '../hooks/useAdminApi'
 
 export function NewsletterSubscribers() {
@@ -31,7 +30,7 @@ export function NewsletterSubscribers() {
                 </div>
             </div>
 
-            <Card>
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                 <div className="overflow-x-auto min-h-[400px]">
                     {loading ? (
                         <div className="flex items-center justify-center min-h-[400px]">
@@ -75,15 +74,25 @@ export function NewsletterSubscribers() {
                     )}
                 </div>
                 {pagination.pages > 1 && (
-                    <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10">
-                        <Pagination
-                            currentPage={pagination.page}
-                            totalPages={pagination.pages}
-                            onPageChange={(page) => fetchSubscribers(page)}
-                        />
+                    <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex justify-between items-center">
+                        <button
+                            onClick={() => fetchSubscribers(pagination.page - 1)}
+                            disabled={pagination.page === 1}
+                            className="px-4 py-2 border rounded-md text-sm cursor-pointer disabled:opacity-50"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm">Page {pagination.page} of {pagination.pages}</span>
+                        <button
+                            onClick={() => fetchSubscribers(pagination.page + 1)}
+                            disabled={pagination.page === pagination.pages}
+                            className="px-4 py-2 border rounded-md text-sm cursor-pointer disabled:opacity-50"
+                        >
+                            Next
+                        </button>
                     </div>
                 )}
-            </Card>
+            </div>
         </div>
     )
 }
