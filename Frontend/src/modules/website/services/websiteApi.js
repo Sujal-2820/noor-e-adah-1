@@ -893,3 +893,5 @@ export function handleRealtimeNotification(notification) {
   return notification
 }
 
+e x p o r t   a s y n c   f u n c t i o n   s u b s c r i b e T o N e w s l e t t e r ( e m a i l )   {   r e t u r n   a p i R e q u e s t ( ' / n e w s l e t t e r / s u b s c r i b e ' ,   {   m e t h o d :   ' P O S T ' ,   b o d y :   J S O N . s t r i n g i f y ( {   e m a i l   } )   } )   }  
+ 

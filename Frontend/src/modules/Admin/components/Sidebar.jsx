@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BarChart3, Bell, Building2, Factory, Home, Layers3, Layers, Users2, Wallet, Settings, IndianRupee, History, ChevronRight, ImageIcon, Star, ListTodo } from 'lucide-react'
+import { BarChart3, Bell, Building2, Factory, Home, Layers3, Layers, Users2, Wallet, Settings, IndianRupee, History, ChevronRight, ImageIcon, Star, ListTodo, Mail } from 'lucide-react'
 import { cn } from '../../../lib/cn'
 import { useAdminState } from '../context/AdminContext'
 
@@ -92,6 +92,14 @@ const links = [
       { id: 'users/orders', label: 'User Orders' },
       { id: 'users/rankings', label: 'User Rankings' },
     ]
+  },
+  {
+    id: 'newsletter',
+    label: 'Newsletter',
+    icon: Mail,
+    description: 'Manage email subscribers',
+    color: 'teal',
+    suboptions: []
   },
   {
     id: 'payment-history',

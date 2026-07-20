@@ -718,6 +718,9 @@ export function useAdminApi() {
     deleteInfluencer: useCallback((id) => callApi(adminApi.deleteInfluencer, id), [callApi]),
     reorderInfluencers: useCallback((items) => callApi(adminApi.reorderInfluencers, items), [callApi]),
 
+    // Newsletter
+    getNewsletterSubscribers: useCallback((params) => callApi(adminApi.getNewsletterSubscribers, params), [callApi]),
+
     // Generic HTTP methods for new APIs
     get: useCallback((endpoint) => callApi(adminApi.apiGet, endpoint), [callApi]),
     post: useCallback((endpoint, data) => callApi(adminApi.apiPost, endpoint, data), [callApi]),

@@ -17,6 +17,7 @@ import { PushNotificationsPage } from '../pages/PushNotifications'
 import { CategoriesPage } from '../pages/Categories'
 import { InfluencersPage } from '../pages/Influencers'
 import { UserOrdersPage } from '../pages/UserOrders'
+import { NewsletterSubscribers } from '../pages/NewsletterSubscribers'
 
 const routeConfig = [
   { id: 'dashboard', element: DashboardPage },
@@ -33,6 +34,7 @@ const routeConfig = [
   { id: 'push-notifications', element: PushNotificationsPage },
   { id: 'categories', element: CategoriesPage },
   { id: 'influencers', element: InfluencersPage },
+  { id: 'newsletter', element: NewsletterSubscribers },
 ]
 
 const ADMIN_ROUTE_KEY = 'admin_active_route'

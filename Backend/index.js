@@ -16,6 +16,7 @@ const influencerRoutes = require('./routes/influencer');
 const adminInfluencerRoutes = require('./routes/adminInfluencer');
 const fcmRoutes = require('./routes/fcm');
 const catalogRoutes = require('./routes/catalog');
+const newsletterRoutes = require('./routes/newsletter');
 
 // Import config
 const { connectDB } = require('./config/database');
@@ -104,6 +105,7 @@ app.use('/api/influencers', influencerRoutes);
 app.use('/api/admin/influencers', adminInfluencerRoutes);
 app.use('/api/fcm', fcmRoutes);
 app.use('/api/catalog', catalogRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 // 404 handler (must come before error handler)
 app.use((req, res) => {

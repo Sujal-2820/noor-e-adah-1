@@ -755,7 +755,6 @@ export function useWebsiteApi() {
     [handleApiCall],
   )
 
-  // Logout
   const logout = useCallback(async () => {
     return handleApiCall(
       websiteApi.websiteLogout,
@@ -763,6 +762,17 @@ export function useWebsiteApi() {
       'Failed to logout',
     )
   }, [handleApiCall])
+
+  const subscribeToNewsletter = useCallback(
+    async (email) => {
+      return handleApiCall(
+        () => websiteApi.subscribeToNewsletter(email),
+        null,
+        'Failed to subscribe to newsletter',
+      )
+    },
+    [handleApiCall],
+  )
 
   return {
     loading,
@@ -812,6 +822,7 @@ export function useWebsiteApi() {
     verifyOTPForNewPhone,
     createSupportTicket,
     initiateSupportCall,
+    subscribeToNewsletter,
     logout,
   }
 }

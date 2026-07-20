@@ -3,8 +3,39 @@ import { useState, useEffect } from 'react'
 import logo from '../../../assets/NoorEAdahLogo.png'
 import { Container } from './Layout'
 import * as websiteApi from '../services/websiteApi'
+import { useWebsiteApi } from '../hooks/useWebsiteApi'
+
+function AnimatedSuccessPopup({ show, onClose }) {
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-white px-8 py-10 rounded-2xl shadow-2xl max-w-sm w-full relative flex flex-col items-center animate-in zoom-in-95 duration-500">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-6">
+          <svg className="w-8 h-8 text-green-500 animate-[bounce_1s_infinite]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2 uppercase tracking-wide text-center">Thank You!</h3>
+        <p className="text-sm text-gray-500 text-center mb-6 leading-relaxed">
+          You've successfully subscribed to our newsletter. Elegance awaits in your inbox!
+        </p>
+        <button onClick={onClose} className="w-full bg-brand text-white font-bold py-3 uppercase tracking-widest text-xs hover:bg-black transition-colors">
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function WebsiteFooter() {
   const [categories, setCategories] = useState([]);
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const { subscribeToNewsletter } = useWebsiteApi();
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -49,20 +80,38 @@ export function WebsiteFooter() {
               </a>
             </div>
 
-            <form className="flex flex-col gap-4 mt-2">
+            <form className="flex flex-col gap-4 mt-2" onSubmit={async (e) => {
+              e.preventDefault();
+              if (!email || loading) return;
+              setLoading(true);
+              const result = await subscribeToNewsletter(email);
+              setLoading(false);
+              if (result?.data?.success) {
+                setEmail('');
+                setShowPopup(true);
+                setTimeout(() => setShowPopup(false), 5000);
+              }
+            }}>
               <input
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
+                required
                 className="w-full bg-transparent py-4 border-b border-muted text-[11px] lg:text-[14px] outline-none uppercase tracking-[0.2em] placeholder:text-muted-foreground/40 focus:border-brand transition-colors"
+                disabled={loading}
               />
               <button
                 type="submit"
-                className="w-40 py-4 bg-[#F5F5F5] hover:bg-brand hover:text-white text-[10px] lg:text-[13px] font-bold tracking-[0.2em] uppercase transition-all duration-300"
+                disabled={loading}
+                className="w-40 py-4 bg-[#F5F5F5] hover:bg-brand hover:text-white text-[10px] lg:text-[13px] font-bold tracking-[0.2em] uppercase transition-all duration-300 disabled:opacity-50"
               >
-                Subscribe
+                {loading ? 'WAIT...' : 'Subscribe'}
               </button>
             </form>
           </div>
+
+          <AnimatedSuccessPopup show={showPopup} onClose={() => setShowPopup(false)} />
 
           {/* Column 2: Shop By Category */}
           <div className="flex flex-col gap-8">
