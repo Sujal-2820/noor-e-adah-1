@@ -7,6 +7,7 @@ import * as websiteApi from '../services/websiteApi'
 import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
 import { SizeChartModal } from '../components/SizeChartModal'
+import { PageLoader } from '../components/PageLoader'
 import '../styles/website.css'
 
 
@@ -103,7 +104,7 @@ export function HomePage() {
           const desk = (Array.isArray(offersResult.data.carousels) ? offersResult.data.carousels : [])
             .filter(c => c && c.isActive !== false)
             .sort((a, b) => (a.order || 0) - (b.order || 0));
-          
+
           const mobile = (Array.isArray(offersResult.data.smartphoneCarousels) ? offersResult.data.smartphoneCarousels : [])
             .filter(c => c && c.isActive !== false)
             .sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -116,7 +117,7 @@ export function HomePage() {
 
           setDesktopCarousels(desk);
           setSmartphoneCarousels(mobile);
-          
+
           // Initial set based on current state
           setCarousels(window.innerWidth < 768 ? (mobile.length > 0 ? mobile : desk) : desk);
         }
@@ -161,6 +162,10 @@ export function HomePage() {
     } catch (error) { console.error('Failed to toggle favourite:', error) }
   }
 
+  if (loading) {
+    return <PageLoader />
+  }
+
   return (
     <Layout>
       {/* Hero Section */}
@@ -170,7 +175,7 @@ export function HomePage() {
             if (!banner) return null;
             const isVideo = banner.mediaType === 'video'
             const mediaSrc = isVideo ? banner.video : banner.image
-            
+
             return (
               <div
                 key={banner.id || banner._id || `banner-${index}`}
@@ -257,7 +262,7 @@ export function HomePage() {
 
           <div className="relative group/arrivals">
             {/* Desktop Grid / Mobile Carousel Container */}
-            <div 
+            <div
               ref={newArrivalsRef}
               className={cn(
                 "flex lg:grid lg:grid-cols-4 gap-6 lg:gap-8 overflow-x-auto lg:overflow-visible pb-10 lg:pb-0 no-scrollbar snap-x snap-mandatory scroll-smooth",
@@ -303,7 +308,7 @@ export function HomePage() {
                         <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
                           <div className="bg-white/90 px-4 py-1.5 shadow-xl border border-red-50 transform -rotate-2">
                             <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-600">
-                                Sold Out
+                              Sold Out
                             </span>
                           </div>
                         </div>
@@ -318,9 +323,9 @@ export function HomePage() {
                             onClick={(e) => { e.stopPropagation(); handleToggleFavourite(e, productId) }}
                             className="p-3.5 hover:bg-brand/5 border-b border-brand/5 transition-colors group/fav"
                           >
-                            <svg 
-                              className={cn("w-5 h-5 transition-transform group-hover/fav:scale-110", isWishlisted ? "text-red-500 fill-red-500" : "text-brand/40")} 
-                              stroke="currentColor" 
+                            <svg
+                              className={cn("w-5 h-5 transition-transform group-hover/fav:scale-110", isWishlisted ? "text-red-500 fill-red-500" : "text-brand/40")}
+                              stroke="currentColor"
                               viewBox="0 0 24 24"
                               fill={isWishlisted ? "currentColor" : "none"}
                             >
@@ -332,7 +337,7 @@ export function HomePage() {
                             className="p-3.5 hover:bg-brand/5 transition-colors group/cart"
                           >
                             <svg className="w-5 h-5 text-brand/40 group-hover/cart:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           </button>
                         </div>
@@ -342,11 +347,11 @@ export function HomePage() {
                       {isQuickBuyOpen && (
                         <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-30 animate-in fade-in duration-300 flex flex-col p-6 pr-10" onClick={(e) => e.stopPropagation()}>
                           {/* Close Button */}
-                          <button 
+                          <button
                             onClick={() => setActiveQuickBuyId(null)}
                             className="absolute top-4 right-4 text-brand/40 hover:text-brand transition-colors"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round"/></svg>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" /></svg>
                           </button>
 
                           <div className="flex-1 flex flex-col">
@@ -363,8 +368,8 @@ export function HomePage() {
                                     onClick={() => setSelectedSize(sizeLabel)}
                                     className={cn(
                                       "h-10 border text-[11px] font-bold tracking-widest transition-all",
-                                      selectedSize === sizeLabel 
-                                        ? "border-brand bg-brand text-white shadow-md active:scale-95" 
+                                      selectedSize === sizeLabel
+                                        ? "border-brand bg-brand text-white shadow-md active:scale-95"
                                         : "border-brand/10 text-brand/40 hover:border-brand/30 hover:text-brand"
                                     )}
                                   >
@@ -377,17 +382,17 @@ export function HomePage() {
 
                             {/* Clear Selection */}
                             {selectedSize && (
-                                <button 
-                                    onClick={() => setSelectedSize(null)}
-                                    className="flex items-center justify-center gap-2 text-[10px] font-bold text-brand/30 hover:text-brand transition-all uppercase mb-6"
-                                >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" /></svg>
-                                    Clear
-                                </button>
+                              <button
+                                onClick={() => setSelectedSize(null)}
+                                className="flex items-center justify-center gap-2 text-[10px] font-bold text-brand/30 hover:text-brand transition-all uppercase mb-6"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" /></svg>
+                                Clear
+                              </button>
                             )}
 
                             <div className="mt-auto text-right">
-                              <button 
+                              <button
                                 onClick={(e) => { e.stopPropagation(); setChartProduct(product); setIsSizeChartOpen(true); }}
                                 className="text-[10px] font-bold text-brand italic border-b border-brand pb-0.5 tracking-wider hover:text-accent transition-colors"
                               >
@@ -399,21 +404,21 @@ export function HomePage() {
 
                           {/* Black Trolley Bar (Bottom of Overlay) */}
                           <div className="absolute bottom-0 left-0 right-0">
-                             <button
-                               onClick={() => {
-                                 if (!selectedSize) {
-                                   alert('Please select a size first')
-                                   return
-                                 }
-                                 addToCart(productId, 1, { size: selectedSize })
-                                 setActiveQuickBuyId(null)
-                                }}
-                               className="w-full h-14 bg-black flex items-center justify-center group active:bg-brand transition-colors"
-                             >
-                                <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                             </button>
+                            <button
+                              onClick={() => {
+                                if (!selectedSize) {
+                                  alert('Please select a size first')
+                                  return
+                                }
+                                addToCart(productId, 1, { size: selectedSize })
+                                setActiveQuickBuyId(null)
+                              }}
+                              className="w-full h-14 bg-black flex items-center justify-center group active:bg-brand transition-colors"
+                            >
+                              <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
                           </div>
                         </div>
                       )}
@@ -450,17 +455,17 @@ export function HomePage() {
 
             {/* Carousel Arrows (Mobile Only) */}
             <div className="flex lg:hidden items-center justify-center gap-4 mt-8">
-              <button 
+              <button
                 onClick={() => newArrivalsRef.current?.scrollBy({ left: -(window.innerWidth / 2), behavior: 'smooth' })}
                 className="w-10 h-10 border border-brand/10 rounded-full flex items-center justify-center hover:bg-brand hover:text-white transition-all shadow-sm"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
-              <button 
+              <button
                 onClick={() => newArrivalsRef.current?.scrollBy({ left: window.innerWidth / 2, behavior: 'smooth' })}
                 className="w-10 h-10 border border-brand/10 rounded-full flex items-center justify-center hover:bg-brand hover:text-white transition-all shadow-sm"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
           </div>
@@ -486,7 +491,7 @@ export function HomePage() {
 
             <div className="relative group/watch">
               {/* Horizontal Scroll / Grid Container */}
-              <div 
+              <div
                 ref={watchAndBuyRef}
                 className={cn(
                   "flex lg:grid lg:grid-cols-4 gap-4 lg:gap-8 overflow-x-auto lg:overflow-visible no-scrollbar snap-x snap-mandatory scroll-smooth pb-4 lg:pb-0",
@@ -524,27 +529,27 @@ export function HomePage() {
                           }}
                         />
                         {/* Fallback Image */}
-                        <img 
-                          src={posterImg} 
-                          className="absolute inset-0 w-full h-full object-cover hidden" 
+                        <img
+                          src={posterImg}
+                          className="absolute inset-0 w-full h-full object-cover hidden"
                           alt={product.name || "Video fallback"}
                         />
 
                         {/* Glass Overlay with Product Info on Hover (Desktop) */}
                         <div className="hidden lg:flex absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/reel:opacity-100 transition-opacity duration-500 flex-col justify-end p-6">
-                           <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-xl translate-y-4 group-hover/reel:translate-y-0 transition-transform duration-500">
-                              <h4 className="text-white text-[11px] font-bold uppercase tracking-widest mb-1 truncate">{product.name}</h4>
-                              <p className="text-white/80 text-[10px] font-medium tracking-wider mb-2">₹{(product.publicPrice || 0).toLocaleString('en-IN')}</p>
-                              <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 bg-white text-brand text-[8px] font-bold uppercase tracking-widest rounded-full">Shop Now</span>
-                              </div>
-                           </div>
+                          <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-xl translate-y-4 group-hover/reel:translate-y-0 transition-transform duration-500">
+                            <h4 className="text-white text-[11px] font-bold uppercase tracking-widest mb-1 truncate">{product.name}</h4>
+                            <p className="text-white/80 text-[10px] font-medium tracking-wider mb-2">₹{(product.publicPrice || 0).toLocaleString('en-IN')}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="px-3 py-1 bg-white text-brand text-[8px] font-bold uppercase tracking-widest rounded-full">Shop Now</span>
+                            </div>
+                          </div>
                         </div>
 
                         {/* Mobile Info Overlay (Always partially visible) */}
                         <div className="lg:hidden absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                           <h4 className="text-white text-[9px] font-extrabold uppercase tracking-wider truncate mb-1">{product.name}</h4>
-                           <span className="text-accent text-[9px] font-black uppercase tracking-[0.2em]">View Details</span>
+                          <h4 className="text-white text-[9px] font-extrabold uppercase tracking-wider truncate mb-1">{product.name}</h4>
+                          <span className="text-accent text-[9px] font-black uppercase tracking-[0.2em]">View Details</span>
                         </div>
                       </div>
                     </div>
@@ -554,17 +559,17 @@ export function HomePage() {
 
               {/* Navigation Arrows - Absolute Positioned on Sides for Mobile/Tablet */}
               <div className="lg:hidden">
-                <button 
+                <button
                   onClick={() => watchAndBuyRef.current?.scrollBy({ left: -(window.innerWidth * 0.5), behavior: 'smooth' })}
                   className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/90 text-brand shadow-md active:scale-95 transition-all"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
-                <button 
+                <button
                   onClick={() => watchAndBuyRef.current?.scrollBy({ left: window.innerWidth * 0.5, behavior: 'smooth' })}
                   className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/90 text-brand shadow-md active:scale-95 transition-all"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
               </div>
             </div>
@@ -626,26 +631,26 @@ export function HomePage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
               {influencers.map((influencer, idx) => (
-                <div 
+                <div
                   key={influencer._id || influencer.id || `influencer-${idx}`}
                   className="flex flex-col items-center animate-calm-entry"
                   style={{ animationDelay: `${idx * 150}ms` }}
                 >
-                  <a 
-                    href={influencer.instagramLink || "#"} 
-                    target="_blank" 
+                  <a
+                    href={influencer.instagramLink || "#"}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="relative w-full aspect-[3/4] group overflow-hidden block border border-brand/5 shadow-sm hover:shadow-xl transition-all duration-500"
                   >
                     {influencer.image?.url
-                      ? <img 
-                          src={influencer.image.url} 
-                          alt={influencer.name || "Influencer"} 
-                          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                        />
+                      ? <img
+                        src={influencer.image.url}
+                        alt={influencer.name || "Influencer"}
+                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                      />
                       : <div className="w-full h-full bg-surface-muted flex items-center justify-center text-3xl opacity-20">👤</div>
                     }
-                    
+
                     {/* View on Instagram Rectangle */}
                     <div className="absolute bottom-0 left-0 right-0 h-10 sm:h-12 bg-white flex items-center justify-center translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out">
                       <span className="text-[9px] sm:text-[11px] font-bold tracking-[0.2em] text-brand uppercase flex items-center gap-2">
@@ -747,10 +752,10 @@ export function HomePage() {
         </Container>
       </Section>
       {/* Quick Buy Size Chart Modal */}
-      <SizeChartModal 
-        isOpen={isSizeChartOpen} 
-        onClose={() => { setIsSizeChartOpen(false); setChartProduct(null); }} 
-        product={chartProduct} 
+      <SizeChartModal
+        isOpen={isSizeChartOpen}
+        onClose={() => { setIsSizeChartOpen(false); setChartProduct(null); }}
+        product={chartProduct}
       />
     </Layout>
 

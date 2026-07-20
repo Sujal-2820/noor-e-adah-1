@@ -6,6 +6,7 @@ import { useWebsiteState, useWebsiteDispatch } from '../context/WebsiteContext'
 import * as websiteApi from '../services/websiteApi'
 import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
+import { PageLoader } from '../components/PageLoader'
 import '../styles/website.css'
 
 export function CategoryProductsPage() {
@@ -201,10 +202,8 @@ export function CategoryProductsPage() {
         </div>
 
         {/* Products Grid */}
-        {loading ? (
-          <div className="category-products-page__loading">
-            <p className="text-gray-500">Loading products...</p>
-          </div>
+        {loading && products.length === 0 ? (
+          <PageLoader />
         ) : products.length === 0 ? (
           <div className="category-products-page__empty">
             <p className="category-products-page__empty-text">No products found in this category</p>
@@ -246,7 +245,7 @@ export function CategoryProductsPage() {
                       <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
                         <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
                           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
-                              Sold Out
+                            Sold Out
                           </span>
                         </div>
                       </div>

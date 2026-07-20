@@ -8,6 +8,7 @@ import { getAllImageUrls, getPrimaryImageUrl, getImageUrlAt } from '../utils/pro
 import { cn } from '../../../lib/cn'
 import '../styles/website.css'
 import { FacebookIcon, TwitterIcon, LinkedinIcon, PinterestIcon, InstagramIcon } from '../../../components/shared/catalog'
+import { PageLoader } from '../components/PageLoader'
 
 export function ProductDetailPage() {
   const { productId } = useParams()
@@ -140,7 +141,7 @@ export function ProductDetailPage() {
     const total = product.sizes.reduce((sum, s) => sum + (s.displayStock || 0), 0)
     return Math.floor(total / product.sizes.length)
   }, [selectedSize, product])
-  
+
   const isFullyOutOfStock = useMemo(() => {
     if (!product) return false
     if (!product.sizes || product.sizes.length === 0) return (product.displayStock || product.stock || 0) === 0
@@ -243,13 +244,7 @@ export function ProductDetailPage() {
   }
 
   if (loading) {
-    return (
-      <Layout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-        </div>
-      </Layout>
-    )
+    return <PageLoader />
   }
 
   if (!product) {
@@ -287,7 +282,7 @@ export function ProductDetailPage() {
               <span className="text-brand truncate max-w-[200px]">{product.name}</span>
             </nav>
             <div className="flex items-center gap-6">
-              <button 
+              <button
                 onClick={() => handleQueueNavigation('prev')}
                 disabled={similarProducts.length === 0 && navigationQueue.length === 0}
                 className={cn(
@@ -299,7 +294,7 @@ export function ProductDetailPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="1.5" /></svg>
               </button>
               <div className="w-[1px] h-4 bg-muted/20" />
-              <button 
+              <button
                 onClick={() => handleQueueNavigation('next')}
                 disabled={similarProducts.length === 0 && navigationQueue.length === 0}
                 className={cn(
@@ -330,9 +325,9 @@ export function ProductDetailPage() {
                 {isFullyOutOfStock && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] pointer-events-none z-10">
                     <div className="bg-white/90 px-8 py-3 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-red-100 transform -rotate-2">
-                       <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-600">
-                          Sold Out
-                       </span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-600">
+                        Sold Out
+                      </span>
                     </div>
                   </div>
                 )}
@@ -351,7 +346,7 @@ export function ProductDetailPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2" /></svg>
                 </button>
 
-                <div 
+                <div
                   onClick={() => openLightbox(selectedImage)}
                   className="absolute top-6 left-6 p-3 bg-white/80 backdrop-blur-sm shadow-premium cursor-pointer hover:bg-white transition-all z-10"
                 >
@@ -416,11 +411,11 @@ export function ProductDetailPage() {
                         : null
                       : isFullyOutOfStock || selectedSize
                         ? <span className="mt-2 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                            <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-red-600">
-                              Temporarily Out of Stock
-                            </span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-red-600">
+                            Temporarily Out of Stock
                           </span>
+                        </span>
                         : null
                   )}
                 </div>
@@ -499,13 +494,13 @@ export function ProductDetailPage() {
                     +
                   </button>
                 </div>
-                 <button
+                <button
                   onClick={handleAddToCart}
                   disabled={isAdding || currentStock === 0}
                   className={cn(
                     "flex-1 text-[11px] sm:text-xs font-bold tracking-[0.1em] uppercase transition-all duration-500 shadow-premium",
-                    currentStock === 0 
-                      ? "bg-muted text-brand/30 cursor-not-allowed border border-brand/10" 
+                    currentStock === 0
+                      ? "bg-muted text-brand/30 cursor-not-allowed border border-brand/10"
                       : "bg-brand text-white hover:bg-accent",
                     isAdding && "opacity-50"
                   )}
@@ -546,11 +541,11 @@ export function ProductDetailPage() {
                   <span className="text-[10px] lg:text-[11px] font-semibold text-brand/30 uppercase tracking-[0.15em] w-24">Share :</span>
                   <div className="flex gap-6 items-center">
                     {sharePlatforms.map(platform => (
-                      <a 
-                        key={platform.name} 
-                        href={platform.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
+                      <a
+                        key={platform.name}
+                        href={platform.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-brand/40 hover:text-accent transition-all hover:scale-110 active:scale-95"
                         title={`Share on ${platform.name}`}
                       >
@@ -627,19 +622,19 @@ export function ProductDetailPage() {
                           {product.reviews.map((rev, idx) => (
                             <div key={idx} className="bg-surface-muted/10 border border-brand/30 p-8 rounded-2xl animate-calm-entry">
                               <div className="flex items-center gap-4 mb-6">
-                                  <div className="flex gap-1 p-2 bg-white border border-brand/30 rounded-lg">
-                                    {[...Array(5)].map((_, i) => (
-                                      <svg 
-                                        key={i} 
-                                        className={cn("w-3 h-3", i < rev.rating ? "text-accent fill-accent" : "text-brand/10 fill-transparent")} 
-                                        viewBox="0 0 24 24" 
-                                        stroke="currentColor" 
-                                        strokeWidth="2"
-                                      >
-                                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                                      </svg>
-                                    ))}
-                                  </div>
+                                <div className="flex gap-1 p-2 bg-white border border-brand/30 rounded-lg">
+                                  {[...Array(5)].map((_, i) => (
+                                    <svg
+                                      key={i}
+                                      className={cn("w-3 h-3", i < rev.rating ? "text-accent fill-accent" : "text-brand/10 fill-transparent")}
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                    >
+                                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                                    </svg>
+                                  ))}
+                                </div>
                                 <span className="text-[11px] font-bold tracking-[0.15em] text-brand uppercase">{rev.userName || 'Anonymous'}</span>
                                 <div className="h-3 w-[1px] bg-brand/20" />
                                 <span className="text-[10px] text-brand/30 tracking-[0.1em] uppercase font-medium italic">{new Date(rev.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
@@ -676,10 +671,10 @@ export function ProductDetailPage() {
                                   (hoveredRating || rating) >= star ? "text-accent" : "text-brand/20"
                                 )}
                               >
-                                <svg 
-                                  className="w-6 h-6" 
-                                  fill={(hoveredRating || rating) >= star ? "currentColor" : "none"} 
-                                  stroke="currentColor" 
+                                <svg
+                                  className="w-6 h-6"
+                                  fill={(hoveredRating || rating) >= star ? "currentColor" : "none"}
+                                  stroke="currentColor"
                                   viewBox="0 0 24 24"
                                   strokeWidth="1.5"
                                 >
@@ -888,12 +883,12 @@ export function ProductDetailPage() {
 
       {/* Premium Lightbox Overlay */}
       {isLightboxOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in"
           onClick={closeLightbox}
         >
           {/* Close Button */}
-          <button 
+          <button
             onClick={closeLightbox}
             className="absolute top-8 right-8 text-white/50 hover:text-white transition-all p-2 z-[210] hover:rotate-90 duration-500"
           >
@@ -901,14 +896,14 @@ export function ProductDetailPage() {
           </button>
 
           {/* Navigation Arrows */}
-          <button 
+          <button
             onClick={prevLightboxImage}
             className="absolute left-8 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-full transition-all group active:scale-95"
           >
             <svg className="w-8 h-8 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="1.5" /></svg>
           </button>
-          
-          <button 
+
+          <button
             onClick={nextLightboxImage}
             className="absolute right-8 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-full transition-all group active:scale-95"
           >
@@ -916,13 +911,13 @@ export function ProductDetailPage() {
           </button>
 
           {/* Main Enlarged Image */}
-          <div 
+          <div
             className="relative max-w-[90vw] max-h-[85vh] flex flex-col items-center gap-8"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative group/light">
-              <img 
-                src={images[lightboxIndex]} 
+              <img
+                src={images[lightboxIndex]}
                 alt={product.name}
                 className="max-w-full max-h-[75vh] object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-zoom-in"
               />

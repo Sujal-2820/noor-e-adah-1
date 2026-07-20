@@ -6,6 +6,7 @@ import { useWebsiteApi } from '../hooks/useWebsiteApi'
 import * as websiteApi from '../services/websiteApi'
 import { getPrimaryImageUrl, getImageUrlAt } from '../utils/productImages'
 import { cn } from '../../../lib/cn'
+import { PageLoader } from '../components/PageLoader'
 import '../styles/website.css'
 
 export function FavouritesPage() {
@@ -56,7 +57,7 @@ export function FavouritesPage() {
       <Layout>
         <Container>
           <div className="flex items-center justify-center min-h-[400px]">
-             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
           </div>
         </Container>
       </Layout>
@@ -99,15 +100,8 @@ export function FavouritesPage() {
           </p>
         </div>
 
-        {loading ? (
-          <div className="favourites-page__empty">
-            <div className="favourites-page__empty-icon">
-              <svg className="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </div>
-            <h3 className="favourites-page__empty-title">Loading favourites...</h3>
-          </div>
+        {loading && favouriteProducts.length === 0 ? (
+          <PageLoader />
         ) : favouriteProducts.length === 0 ? (
           <div className="favourites-page__empty">
             <div className="favourites-page__empty-icon">
@@ -156,7 +150,7 @@ export function FavouritesPage() {
                       <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-20 pointer-events-none">
                         <div className="bg-white/90 px-6 py-2 shadow-2xl border border-red-100 transform -rotate-2">
                           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-red-600">
-                              Sold Out
+                            Sold Out
                           </span>
                         </div>
                       </div>
