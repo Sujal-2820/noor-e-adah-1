@@ -86,7 +86,7 @@ export function WebsiteFooter() {
               setLoading(true);
               const result = await subscribeToNewsletter(email);
               setLoading(false);
-              if (result?.data?.success) {
+              if (!result.error) {
                 setEmail('');
                 setShowPopup(true);
                 setTimeout(() => setShowPopup(false), 5000);
