@@ -12,6 +12,8 @@ import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
 import { AuthPage } from '../pages/AuthPage'
 import { ContactPage, TermsPage, PrivacyPage, ShippingPage, RefundPage } from '../pages/PolicyPages'
+import { FAQPage } from '../pages/FAQPage'
+import { AboutPage } from '../pages/AboutPage'
 
 export function WebsiteRoutes() {
   return (
@@ -33,6 +35,9 @@ export function WebsiteRoutes() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/shipping" element={<ShippingPage />} />
       <Route path="/returns" element={<RefundPage />} />
+      <Route path="/faq" element={<FAQPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/our-story" element={<AboutPage />} />
 
       {/* Protected Routes */}
       <Route path="/checkout" element={<CheckoutPage />} />

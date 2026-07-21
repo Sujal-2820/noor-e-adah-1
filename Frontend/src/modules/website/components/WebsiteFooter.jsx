@@ -146,6 +146,7 @@ export function WebsiteFooter() {
               <li><Link to="/returns" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Cancellation and Refund</Link></li>
               <li><Link to="/faq" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">FAQs</Link></li>
               <li><Link to="/contact" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">Contact Us</Link></li>
+              <li><Link to="/about" className="text-xs lg:text-[14px] text-brand/50 hover:text-accent transition-colors font-light">About Us</Link></li>
             </ul>
           </div>
 
